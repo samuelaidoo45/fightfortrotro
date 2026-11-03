@@ -28,7 +28,7 @@ export class HumanLibrary {
     const group=new T.Group(),body=new T.Group(),model=clone(this.templates[index%this.templates.length]);group.add(body);body.add(model);
     const mixer=new T.AnimationMixer(model),idle=mixer.clipAction(this.clips.idle),walk=mixer.clipAction(this.clips.walk);idle.play();walk.play();walk.setEffectiveWeight(0);mixer.update((index*.37)%2);
     const bone=name=>model.getObjectByName('Bip01_'+name);
-    const bones={right:bone('R_UpperArm'),rightElbow:bone('R_Forearm'),rightHand:bone('R_Hand'),left:bone('L_UpperArm'),leftElbow:bone('L_Forearm'),leftHand:bone('L_Hand'),head:bone('Head'),spine:bone('Spine2')};
+    const bones={right:bone('R_UpperArm'),rightElbow:bone('R_Forearm'),rightHand:bone('R_Hand'),left:bone('L_UpperArm'),leftElbow:bone('L_Forearm'),leftHand:bone('L_Hand'),head:bone('Head'),spine:bone('Spine2'),leftThigh:bone('L_Thigh'),leftCalf:bone('L_Calf'),leftFoot:bone('L_Foot'),rightThigh:bone('R_Thigh'),rightCalf:bone('R_Calf'),rightFoot:bone('R_Foot')};
     return{group,body,model,mixer,idle,walk,bones,phase:index*.43,walkWeight:0};
   }
   aim(bone,child,target){
@@ -46,11 +46,14 @@ export class HumanLibrary {
     actor.body.position.set(0,0,0);actor.body.rotation.set(0,0,0);
     if(state==='down'){actor.body.rotation.z=1.5;actor.body.position.set(.1,.3,0);return;}
     const guard=()=>{this.arm(actor,'left',v(.16,1.42,.32),v(.42,1.14,.05));this.arm(actor,'right',v(-.15,1.38,.39),v(-.42,1.1,.05));};
-    if(state==='block'){actor.body.rotation.x=.06;guard();}
+    if(state==='seated'){
+      for(const [side,x] of [['left',.14],['right',-.14]]){const thigh=actor.bones[side+'Thigh'],calf=actor.bones[side+'Calf'],foot=actor.bones[side+'Foot'];if(thigh&&calf&&foot){this.aim(thigh,calf,actor.group.localToWorld(v(x,.9,.44)));this.aim(calf,foot,actor.group.localToWorld(v(x,.43,.46)));}}
+      this.arm(actor,'left',v(.18,.98,.36),v(.34,1.07,.12));this.arm(actor,'right',v(-.18,.98,.36),v(-.34,1.07,.12));
+    }else if(state==='block'){actor.body.rotation.x=.06;guard();}
     else if(state==='shove'){const phase=1-Math.max(0,data.actionTime)/.44,extension=Math.sin(Math.min(1,phase)*Math.PI);actor.body.rotation.x=.13*extension;this.arm(actor,'left',v(.19,1.33,.3+extension*.37),v(.4,1.05,.18));this.arm(actor,'right',v(-.19,1.33,.3+extension*.37),v(-.4,1.05,.18));}
     else if(state==='boarding'){actor.body.rotation.x=.12;this.arm(actor,'left',v(.2,1.25,.46),v(.4,1.08,.13));this.arm(actor,'right',v(-.2,1.4,.4),v(-.4,1.15,.1));}
     else if(state==='attack'||state==='swing'){
-      const phase=data.actionTime!==undefined?1-Math.max(0,data.actionTime)/.32:1-Math.max(0,data.timer)/.22;const extension=Math.sin(Math.min(1,phase)*Math.PI)*.44;
+      const phase=data.actionTime!==undefined?1-Math.max(0,data.actionTime)/(data.attackDuration||.32):1-Math.max(0,data.timer)/.22;const extension=Math.sin(Math.min(1,phase)*Math.PI)*.44;
       actor.body.rotation.y=-.13+extension*.65;this.arm(actor,'right',v(-.12,1.34,.29+extension),v(-.4,1.16,.15));this.arm(actor,'left',v(.16,1.37,.28),v(.4,1.1,.05));
     }else if(state==='windup'){
       actor.body.rotation.y=-.19;this.arm(actor,'right',v(-.35,1.54,-.05),v(-.46,1.23,-.23));this.arm(actor,'left',v(.17,1.33,.3),v(.43,1.08,.08));

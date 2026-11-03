@@ -10,36 +10,57 @@ Choose a starting stop and Easy, Normal, or Hard. The menu previews a three-stop
 
 At each stop:
 
-1. Locate the marked doorway rival. Their health and the immediate objective appear in the HUD. A world label and a distance marker help the player find them.
-2. Fight through the crowd. Grab the nearby travel bag for wider, stronger swings, or save stamina for a dodge and shove.
-3. Knock down the doorway rival. This immediately opens boarding; there is no waiting timer.
+1. Check capacity. A full trotro leaves; the next one pulls in after a short wait. Collect weapons or drinks while the defenders stand back. A full bus is always followed by an available one. Once boarding opens, locate the marked doorway rival. Their health and the immediate objective appear in the HUD. A world label and a distance marker help the player find them.
+2. Fight through the crowd. Choose a nearby weapon for reach, attack speed, wide swings or knockback. Save stamina for a dodge and shove.
+3. Knock down the doorway rival. This immediately permits boarding on an available bus; there is no extra combat-clear timer.
 4. Fight or shove the remaining blockers out of the doorway. The HUD reports how many opponents still block entry.
 5. Reach the glowing door and hold Board while a gap is open. An active blocker in the doorway or a hit interrupts the attempt. Defenders recover and return to their assigned posts, so the opening is temporary.
-6. Bank the ride and score, recover 25 health, keep an acquired travel bag, and advance to a larger crowd. Win the third stop to reach the home-run victory.
+6. Bank the ride and score, recover 25 health, keep the equipped weapon, and advance to a larger crowd. Win the third stop to reach the home-run victory.
 
-Lose the run when health reaches zero or the trotro departs. The result explains that specific failure and offers an immediate retry. Personal best scores are saved locally per difficulty and starting stop.
+A bus departure does not immediately lose the run: wait for the replacement and fight the regrouped doorway crowd. Health, weapon, pickups and score persist. Lose when health reaches zero or the whole stop’s service deadline expires. The result explains that specific failure and offers an immediate retry. Personal best scores are saved locally per difficulty and starting stop.
 
 ## Combat choices
 
 | Action | Behaviour and purpose |
 | --- | --- |
-| Strike | Tap or hold J. Each connected hit advances a three-hit chain; the third knocks the opponent back. Missing does not build a combo. Basic hits spend 9 stamina and return 2 on contact. |
-| Travel bag | A pickup that increases damage and reach and can hit two nearby rivals. It stays with the player between won stops. |
+| Strike | Tap or hold J. Each connected hit advances a three-hit chain; the third knocks the opponent back. Missing does not build a combo. Unarmed hits spend 9 stamina; weapon costs vary. Contact returns 2 stamina. |
+| Weapons | Five pickups offer different reach, speed, damage and crowd coverage. Each stays equipped between arrivals and won stops until replaced. |
 | Block | Hold K to reduce damage. Raising the guard just before contact gives a perfect block, stuns the attacker, and awards 75 points. Sustained blocking costs more stamina. |
 | Dodge | L or Space. A short movement burst with brief invulnerability, costing 19 stamina. Avoiding a live strike awards a dodge bonus. |
 | Power shove | F. Costs 28 stamina and recharges over four seconds. Pushes up to four nearby rivals away and gives an entry window. It creates space rather than replacing the normal damage combo. |
-| Pick up | R near a bag or drink. A drink restores 30 health and is consumed once. |
+| Pick up | R near a weapon or drink. Equipping a new weapon replaces the old one. A drink restores 30 health and is consumed once. |
 | Board | Hold E near the door after the doorway rival is down and the remaining blockers are clear. The contextual prompt explains when to shove or move closer. |
 
 Short impact pauses, damage numbers, sound effects, stagger poses and a brief shove ring communicate contact. Camera impacts can be disabled, reduced-motion preference is respected, and sound can be muted from the menu or pause screen. Backgrounding the game pauses the simulation.
+
+## Weapon tuning
+
+All weapons use J and a three-hit chain. The third hit has stronger damage and knockback. These are melee pickups; they have no ammo or durability meter.
+
+| Weapon | Reach | Damage / third hit | Stamina | Recovery | Targets |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Bare hands | 2.05 m | 22 / 36 | 9 | .30 sec | 1 |
+| Travel bag | 2.50 m | 29 / 43 | 9 | .34 sec | 2 |
+| Umbrella | 3.05 m | 20 / 34 | 8 | .29 sec | 1 |
+| Baton | 2.20 m | 24 / 38 | 7 | .24 sec | 1 |
+| Market stool | 2.45 m | 37 / 54 | 17 | .62 sec | 3 |
+| Suitcase | 2.65 m | 32 / 48 | 13 | .46 sec | 2 |
+
+Pickups have distinct models, coloured ground rings, names and contextual descriptions. The player’s HUD shows the equipped weapon and its advantage. Rivals also carry the five objects; their wind-up, reach and damage reflect their weapon.
+
+## Bus service
+
+Each arrival may be full. The first-bus probability is 35/45/55 percent on Easy/Normal/Hard. Consecutive full buses are prevented. Full buses remain for 2.5 seconds, leave over 1.5 seconds, then a 3-second wait and 1.5-second arrival lead to the next parked trotro. The bus has a closed sliding door and FULL placard when unavailable, seated occupants, and a 1 SEAT placard when available. Replacement buses have a different paint colour and a new number in the HUD.
+
+An available bus stays for 34/30/26 seconds. Its departure resets doorway combat and boarding progress, while health, weapon, pickups and earned score persist. Defenders step to waiting posts during the gap, then return to guard the next available bus. Combat and boarding are disabled while the bus is full or moving. The HUD separates the next-arrival/boarding countdown from the overall stop service deadline.
 
 ## Opponents and pressure
 
 All opponents occupy assigned posts around the trotro entrance. They attack only when the player approaches the doorway and comes within reach. They never use the player's position as a movement destination. A defender pushed away from a post returns to it after recovering. The marked doorway rival stays down after defeat; other knocked-down defenders eventually recover at their posts.
 
-Bag swingers use a slower wind-up; umbrella jabbers have longer reach. A bounded number of defenders can wind up simultaneously. Defenders route around the solid bus when returning to a displaced post. A standing, active opponent close to the door physically blocks boarding; a staggered or displaced defender leaves an opening.
+Stool carriers have a slower, heavier swing; umbrella carriers have longer reach; baton carriers wind up faster. A bounded number of defenders can wind up simultaneously. Defenders route around the solid bus when returning to a displaced post. A standing, active opponent close to the door physically blocks boarding; a staggered or displaced defender leaves an opening.
 
-| Mode | Starting crowd | Departure | Base damage | Wind-up | Player boarding |
+| Mode | Starting crowd | Service ends | Base damage | Wind-up | Player boarding |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Easy | 4 | 85 sec | 8 | 1.00 sec | 1.15 sec |
 | Normal | 6 | 75 sec | 11 | 0.80 sec | 1.30 sec |
@@ -79,6 +100,6 @@ Target readable, responsive combat alongside natural proportions and material de
 
 ## Validation scope
 
-The test suite checks required doorway combat, hit chains, cooldowns, interrupted boarding, defenders holding their posts, blocked entry, power shoves, perfect blocks, dodge protection, attack concurrency, collision, pickups, terminal outcomes and three-stop carry-over. An additional regression check ensures a shove gives enough time to board even when bus collision keeps the blocker physically close. Character checks cover weighted meshes, animation targets and independent crowd skeletons.
+All 35 tests pass. Bus and weapon checks cover capacity, guaranteed available arrivals after full buses, missed departures without losing the stop, persistent supplies, the empty/returning bus collision, service timeout, all five pickups, weapon replacement and carry-over, reach, damage, stamina, attack cadence and crowd coverage. The existing suite checks required doorway combat, hit chains, cooldowns, interrupted boarding, defenders holding their posts, blocked entry, power shoves, perfect blocks, dodge protection, attack concurrency, collision, pickups, terminal outcomes and three-stop carry-over. An additional regression check ensures a shove gives enough time to board even when bus collision keeps the blocker physically close. Character checks cover weighted meshes, animation targets and independent crowd skeletons.
 
-Browser QA includes won Normal stops, a loss at the third stop, health and gear carry-over, doorway guarding, opening a boarding gap, pause/resume and desktop/narrow HUD layouts. Balance, sustained device performance and enjoyment need broader playtesting with the intended audience.
+Current browser QA includes a full first bus and an available second arrival, weapon pickup and replacement, a market-stool fight and successful Easy boarding, pause/resume and desktop/narrow HUD layouts. Earlier QA covered won Normal stops and health/gear carry-over. Balance, sustained device performance and enjoyment need broader playtesting with the intended audience.

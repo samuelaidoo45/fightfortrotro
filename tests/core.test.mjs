@@ -51,7 +51,7 @@ test('only a bounded number of doorway guards can wind up at once',()=>{
   const r=new Round('normal',()=>.5);Object.assign(r.player,DOOR);r.enemies.forEach((e,i)=>{Object.assign(e,{x:DOOR.x+Math.cos(i)*1.4,z:DOOR.z+Math.sin(i)*1.4,state:'guard',timer:0});constrain(e);e.spawnX=e.x;e.spawnZ=e.z;});r.tick(.02);const attacks=r.enemies.filter(e=>e.state==='windup').length;assert.ok(attacks>0&&attacks<=r.config.attackers);
 });
 test('pickups require proximity and cannot be consumed twice',()=>{
-  const r=new Round();r.player.hp=40;Object.assign(r.player,r.pickups[2]);r.pickup();assert.equal(r.player.hp,70);r.pickup();assert.equal(r.player.hp,70);r.player.x=r.pickups[0].x;r.player.z=r.pickups[0].z;r.pickup();assert.equal(r.player.weapon,true);
+  const r=new Round();r.player.hp=40;Object.assign(r.player,r.pickups[2]);r.pickup();assert.equal(r.player.hp,70);r.pickup();assert.equal(r.player.hp,70);r.player.x=r.pickups[0].x;r.player.z=r.pickups[0].z;r.pickup();assert.equal(r.player.weapon,'bag');
 });
 test('timeout and health loss produce distinct terminal outcomes',()=>{
   const r=new Round();r.enemies=[];r.player.hp=0;r.tick(.02);assert.equal(r.status,'knocked-out');const s=new Round();s.enemies=[];s.elapsed=s.config.time;s.tick(.02);assert.equal(s.status,'missed');const time=s.elapsed;s.tick(1);assert.equal(s.elapsed,time);
@@ -64,7 +64,7 @@ test('a displaced defender routes around the bus back to its doorway post',()=>{
 });
 test('the home run needs three wins and carries score, health and growing pressure',()=>{
   const run=new HomeRun('easy','circle',()=>.5);assert.equal(new Set(run.route.map(a=>a.id)).size,3);const counts=[];
-  for(let i=0;i<3;i++){const r=i===0?run.createRound():run.advance();counts.push(r.enemies.length);assert.equal(r.stage,i+1);if(i>0){assert.equal(r.player.hp,85);assert.equal(r.player.weapon,true);assert.equal(r.pickups[0].used,true);}r.player.hp=60;r.player.weapon=true;r.kos=1;r.score=200;r.finish('won');run.record(r);const score=run.score;run.record(r);assert.equal(run.score,score,'a result cannot be banked twice');assert.equal(run.complete,i===2);}
+  for(let i=0;i<3;i++){const r=i===0?run.createRound():run.advance();counts.push(r.enemies.length);assert.equal(r.stage,i+1);if(i>0){assert.equal(r.player.hp,85);assert.equal(r.player.weapon,'bag');assert.equal(r.pickups[0].used,true);}r.player.hp=60;r.player.weapon='bag';r.kos=1;r.score=200;r.finish('won');run.record(r);const score=run.score;run.record(r);assert.equal(run.score,score,'a result cannot be banked twice');assert.equal(run.complete,i===2);}
   assert.equal(run.history.length,3);assert.equal(run.kos,3);assert.ok(counts[2]>counts[0]);assert.ok(run.score>600);assert.equal(run.advance(),null);
 });
 test('a lost stop ends the run instead of advancing toward home',()=>{
