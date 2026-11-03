@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#122b34">
+  <meta name="description" content="One last seat. A whole city trying to get home. A playable 3D Accra-inspired fighting game prototype.">
+  <title>Fight for Trotro — Last seat, no mercy.</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <canvas id="world" aria-label="3D trotro arena"></canvas>
+  <div id="vignette"></div>
+  <div id="load-screen"><span class="loading-wheel"></span><strong>Finding your trotro…</strong><p>Accra is waiting.</p></div>
+  <header id="header">
+    <a class="brand" href="./" aria-label="Fight for Trotro home"><span class="brand-icon">▰<i></i><i></i></span><span>Fight for<br><b>Trotro.</b></span></a>
+    <nav aria-label="Main navigation"><button class="nav-button active" id="play-tab">Play</button><button class="nav-button" data-dialog="guide">How to play</button><button class="nav-button" data-dialog="about">The idea</button></nav>
+    <div class="header-right"><span class="prototype-tag"><i></i> 3D prototype</span><button class="icon-button" id="sound-toggle" aria-label="Turn sound on" title="Turn sound on">♪<span class="sound-off">/</span></button></div>
+  </header>
+  <main id="lobby">
+    <section class="hero">
+      <div class="location-line"><span class="ghana-flag"><i></i><i></i><i></i></span> Made for the Accra rush.</div>
+      <h1>LAST SEAT.<br>NO MERCY<span>.</span></h1>
+      <p class="intro">Everybody wants to get home.<br>You just have to want it more.</p>
+      <p class="hero-description">Dodge the bags. Push through the crowd.<br>Fight your way onto the last trotro.</p>
+      <fieldset class="difficulty"><legend>Choose your rush</legend><div class="segmented"><button data-mode="easy">Easy</button><button data-mode="normal" class="selected" aria-pressed="true">Normal</button><button data-mode="hard">Hard</button></div></fieldset>
+      <p id="mode-description" class="mode-description">6 rivals. 75 seconds. A proper evening rush.</p>
+      <button class="start-button" id="start"><span>Fight for your seat</span><span class="button-arrow">↗</span></button>
+      <div class="play-note"><span>WASD + J / K / L</span><span>Keyboard & touch</span></div>
+    </section>
+    <div class="scene-caption"><span class="live-dot"></span><span id="scene-caption">Circle, Accra</span><small>Original 3D arena · inspired by the city</small></div>
+    <section class="arena-picker" aria-labelledby="arena-heading">
+      <div class="arena-heading"><div><span class="small-label">Your battleground</span><h2 id="arena-heading">The city is your arena.</h2></div><span class="arena-count">6 stops to survive</span></div>
+      <div id="arena-list" class="arena-list"></div>
+      <div class="arena-footer"><span id="arena-detail">Under the flyover. In the middle of everything.</span><a id="maps-link" target="_blank" rel="noopener noreferrer">Explore this stop on Google Maps ↗</a></div>
+    </section>
+  </main>
+  <section id="hud" hidden aria-label="Game status">
+    <div class="hud-top"><div class="player-panel"><div class="player-heading"><b>You</b><span id="weapon-label">Bare hands</span></div><div class="meter health"><div id="health-fill"></div></div><div class="meter stamina"><div id="stamina-fill"></div></div><div class="meter-labels"><span id="health-text">100 health</span><span>Stamina</span></div></div><div class="objective"><span id="round-location">Circle</span><strong>Get that last seat.</strong><span id="objective-detail">Make space. Find the blue door.</span></div><div class="clock-panel"><span>Trotro leaves in</span><strong id="timer">75<span>s</span></strong><button class="icon-button" id="pause" aria-label="Pause game">Ⅱ</button></div></div>
+    <div id="announcement" role="status"></div><div id="hit-flash"></div>
+    <div class="hud-bottom"><div class="round-stats"><strong id="knockdowns">0</strong><span>Knockdowns</span><div class="combo" id="combo"></div></div><div class="context-action" id="context-action"></div><div class="control-strip"><span><kbd>W A S D</kbd> Move</span><button data-action="attack"><kbd>J</kbd> Strike</button><button data-action="block"><kbd>K</kbd> Block</button><button data-action="dodge"><kbd>L</kbd> Dodge</button><span><kbd>E</kbd> Board</span><span><kbd>R</kbd> Pick up</span></div></div>
+    <div class="touch-controls"><div class="dpad"><button data-key="w" aria-label="Move forward">▲</button><button data-key="a" aria-label="Move left">◀</button><button data-key="s" aria-label="Move backward">▼</button><button data-key="d" aria-label="Move right">▶</button></div><div class="touch-actions"><button data-action="attack">Strike</button><button data-action="block">Block</button><button data-action="dodge">Dodge</button><button data-key="e">Board</button><button data-key="r">Pick up</button></div></div>
+  </section>
+  <dialog id="guide" class="information-dialog"><button class="close-dialog" aria-label="Close instructions">×</button><span class="small-label">A little street sense</span><h2>One seat. Make it yours.</h2><p>You don’t have to beat everyone. You have to get on the trotro before it leaves.</p><div class="instructions"><div><kbd>W A S D / ↑ ↓ ← →</kbd><span>Move through the arena</span></div><div><kbd>J</kbd><span>Strike the nearest rival. Chain 3 hits for a shove.</span></div><div><kbd>K · hold</kbd><span>Block incoming hits. Watch your stamina.</span></div><div><kbd>L / Space</kbd><span>Dodge in your movement direction.</span></div><div><kbd>R</kbd><span>Pick up a bag or drink. Drinks restore health.</span></div><div><kbd>E · hold</kbd><span>Board at the glowing door once the mate calls.</span></div><div><kbd>Esc / P</kbd><span>Pause and take a breath.</span></div></div><p class="tip">An orange ring means a rival is about to swing. Dodge, then strike while they recover. Keep a little stamina for the door.</p><button class="primary small close-dialog">Chale, I’m ready</button></dialog>
+  <dialog id="about" class="information-dialog"><button class="close-dialog" aria-label="Close game concept">×</button><span class="small-label">Fight for Trotro</span><h2>Accra’s rush.<br>Turned up to eleven.</h2><p>A fictional, playful scramble for the last seat. Short rounds, readable combat, everyday objects, and the unmistakable energy of trying to get home.</p><div class="concept-grid"><div><b>Feel the fight</b><p>Combo shoves, bag swings, umbrella jabs, stamina, blocks, and perfectly timed dodges.</p></div><div><b>Know your city</b><p>Six independently built, location-inspired arenas. These are prototypes, not surveyed replicas.</p></div><div><b>Make the escape</b><p>Hold your ground at the blue door, then hold Board. A hit interrupts your boarding.</p></div><div><b>The bigger vision</b><p>A photorealistic PC and console game, locally recorded voices, original scanned environments, and a growing Accra stop roster.</p></div></div><p class="tip">Google Maps links open the real locations for exploration. No Google imagery or 3D map content is included in these arenas. Street View coverage varies.</p><a class="text-link" href="https://www.youtube.com/shorts/dOuFxjeqBK0" target="_blank" rel="noopener noreferrer">The creator’s reference clip ↗</a></dialog>
+  <dialog id="pause-dialog" class="result-dialog"><span class="small-label">Take a breath</span><h2>The rush can wait.</h2><p>Your round is paused.</p><button class="primary" id="resume">Back to the fight</button><button class="secondary" id="quit">Back to stops</button><label class="setting"><input type="checkbox" id="shake-setting" checked> Camera impact effects</label></dialog>
+  <dialog id="result" class="result-dialog"><span class="small-label" id="result-eyebrow">Last seat secured</span><h2 id="result-title">You made it.</h2><p id="result-description">Next stop: home.</p><div class="result-stats"><div><strong id="result-time">0s</strong><span>Time</span></div><div><strong id="result-kos">0</strong><span>Knockdowns</span></div><div><strong id="result-hp">100</strong><span>Health left</span></div></div><p class="best-time" id="best-time"></p><button class="primary" id="retry">Run it back</button><button class="secondary" id="back-lobby">Choose another stop</button></dialog>
+  <div class="game-credit">Fight for Trotro <span>Original arena prototype v0.1</span></div>
+  <script type="module" src="./game.js"></script>
+</body>
+</html>
