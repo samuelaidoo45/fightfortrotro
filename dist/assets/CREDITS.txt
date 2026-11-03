@@ -1,0 +1,28 @@
+Fight for Trotro asset credits
+
+Human characters and locomotion animations
+Microsoft Rocketbox Avatar Library, Copyright (c) 2020 Microsoft.
+https://github.com/microsoft/Microsoft-Rocketbox
+MIT License. Full notice included in characters/LICENSE.txt.
+Models: Male_Adult_12, Male_Adult_04, Male_Adult_17.
+Motion: m_walk_fast_01, m_idle_breathe_01.
+Modifications: resized/converted textures, PBR materials, in-place motion,
+and procedural combat poses. These characters are licensed stock humans,
+not scans of Accra residents.
+
+Asphalt 02 by Rob Tuytel / Poly Haven.
+https://polyhaven.com/a/asphalt_02
+CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
+Diffuse, OpenGL normal and roughness textures at 1K resolution.
+Assets are bundled locally; the game does not call the Poly Haven API.
+
+Three.js r170, FBXLoader, SkeletonUtils, RoundedBoxGeometry and NURBS helpers
+MIT License. Notice included in ../vendor/three-LICENSE.txt.
+fflate by Arjun Barrett, MIT license, copyright notice in vendor source.
+
+Barlow and Barlow Condensed by Jeremy Tribby
+SIL Open Font License. Full notices included in ../vendor/.
+
+Environment structures, minibus, props, game rules and interface are
+constructed for this prototype. No Google Maps or Street View imagery
+or extracted geometry is included.

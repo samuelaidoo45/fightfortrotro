@@ -2,7 +2,7 @@
 
 The player is a commuter trying to claim the last seat on a departing trotro. The arena is the bus stop, the opponents are other fictional commuters, and the finish line is the sliding door. Combat creates space for an escape. Knocking everyone down is optional.
 
-The intended full game has realistic 3D environments and human movement, with exaggerated, playful action. The browser prototype proves the combat and boarding loop with simplified original models. It includes six location-inspired arenas; it does not reproduce every stop in Accra.
+The intended full game has realistic 3D environments and human movement, with exaggerated, playful action. The browser prototype proves the combat and boarding loop. Version 0.2 uses textured Microsoft Rocketbox human models, skeletal idle/walk motion and procedural combat poses, alongside physical road textures and independently built environment geometry. The environment remains approximate. It includes six location-inspired arenas; it does not reproduce every stop in Accra.
 
 ## The round
 

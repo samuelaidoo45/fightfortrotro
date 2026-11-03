@@ -1,8 +1,8 @@
 # Fight for Trotro
 
-A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro. Six original Accra-inspired environments, Easy/Normal/Hard, third-person combat, crowd AI, stamina, pickups, and timed boarding.
+A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro. Six Accra-inspired environments, Easy/Normal/Hard, third-person combat, crowd AI, stamina, pickups, and timed boarding.
 
-This prototype uses simplified, independently constructed models. The proposed photorealistic production game and the plan for expanding to Accra's stops are in [the game design](docs/GAME_DESIGN.md).
+Version 0.2 replaces the primitive characters with textured, rigged human models from Microsoft Rocketbox. It includes skeletal idle/walk animation, combat arm posing, a closer camera, physical asphalt materials, detailed foliage, and a full-screen game menu. The independently built environment remains approximate; this is not a fully photorealistic recreation of Accra. The production plan is in [the game design](docs/GAME_DESIGN.md).
 
 ## Run
 
@@ -36,18 +36,21 @@ Touch controls appear on narrow screens and devices with a coarse pointer. Audio
 ## Source
 
 - `dist/core.js`: rendering-independent combat, AI, collision, pickups, and round outcomes.
-- `dist/stage.js`: original procedural scene and character models, Three.js rendering, camera, animation and impact effects.
+- `dist/stage.js`: environment and minibus geometry, physical materials, Three.js rendering, camera and impact effects.
+- `dist/humans.js`: licensed human models, skeletal animation, independent crowd rigs, and two-bone arm posing for combat.
 - `dist/game.js`: input, menus, HUD, sound, pause and local records.
-- `dist/style.css`: responsive lobby, game HUD, dialogs and touch controls.
+- `dist/game-ui.css`: full-screen menu, responsive game HUD, dialogs and touch controls.
 - `tests/core.test.mjs`: behavioral tests for the game rules.
 - `dist/vendor/`: Three.js r170 (MIT), Barlow and Barlow Condensed (SIL Open Font License); license texts included.
+- `dist/assets/`: local models, animation, textures and credits. Human models/motion are Microsoft Rocketbox (MIT); Asphalt 02 by Rob Tuytel / Poly Haven is CC0. See `assets/CREDITS.txt` and the included notices.
+- `scripts/realism-sources.json`: pinned source revision and asset URLs. Developers can use `fetch-realism-assets.mjs` (Node 22+) then `convert-character-textures.py` (Pillow) to refresh local assets. Raw TGA downloads go to a temporary folder, outside the repository.
 
 There is no backend, player tracking, paid API, or Google Maps key. The Maps links use Google's documented universal URL format. No Google Street View imagery or extracted map geometry is packaged. Arena designs are approximate creative interpretations, not location reconstructions. The referenced YouTube clip could not be retrieved during this build, so the gameplay is based on the creator's written description.
 
 ## Verified in this build
 
-JavaScript syntax checks and all nine game-rule tests pass. Browser QA covered the narrow touch layout and a 1440 × 900 desktop layout, arena switching, difficulty selection, instructions, keyboard movement/strike/dodge, pause/resume, and a complete Easy escape through the boarding result screen. The completed escape took 10.3 seconds with 97 health remaining. No browser warnings or errors were reported during that run. Broad device compatibility, sustained performance, and combat balance still need playtesting.
+JavaScript syntax checks, nine game-rule tests and three character/animation compatibility tests pass. Character tests verify weighted meshes, required combat joints, matching animation targets, and independent crowd skeletons. Browser QA checks desktop and narrow layouts, gameplay, character poses and the boarding result. Broad device compatibility, sustained performance, and combat balance still need playtesting.
 
 ## Design tokens
 
-Trotro blue `#2d8698`, route-board gold `#ffcf49`, deep blue ink `#122b34`, warm paper `#fff8e9`, weathered grey `#56666a`. Barlow Condensed carries the game title and timers; Barlow carries instructions and controls. A full-window 3D arena is the visual focus. Lobby content sits to the left; stops form a single route strip below. Combat is communicated through readable wind-ups, a player ring, damage feedback, and a persistent door marker.
+Route-board gold `#f3b942`, night blue `#12191d`, light stone `#ece8de`, steel blue `#315563`, and muted grey `#a5aaa9`. Barlow Condensed carries the game title and timers; Barlow carries instructions and controls. The full-window arena and a human commuter form the menu background. A compact left menu opens the rush; stops form a route strip at the foot of the screen. Combat uses readable wind-ups, a small player ring, damage feedback, and a persistent door marker.

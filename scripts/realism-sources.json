@@ -1,0 +1,20 @@
+{
+  "revision": "0943055db6ec570bcef9f2c8b41c9e5467c808f9",
+  "files": [
+    "Assets/Avatars/Adults/Male_Adult_04/Export/Male_Adult_04.fbx",
+    "Assets/Avatars/Adults/Male_Adult_04/Textures/m006_body_color.tga",
+    "Assets/Avatars/Adults/Male_Adult_04/Textures/m006_head_color.tga",
+    "Assets/Avatars/Adults/Male_Adult_04/Textures/m006_opacity_color.tga",
+    "Assets/Avatars/Adults/Male_Adult_12/Export/Male_Adult_12.fbx",
+    "Assets/Avatars/Adults/Male_Adult_12/Textures/m007_body_color.tga",
+    "Assets/Avatars/Adults/Male_Adult_12/Textures/m007_head_color.tga",
+    "Assets/Avatars/Adults/Male_Adult_17/Export/Male_Adult_17.fbx",
+    "Assets/Avatars/Adults/Male_Adult_17/Textures/m022_body_color.tga",
+    "Assets/Avatars/Adults/Male_Adult_17/Textures/m022_head_color.tga"
+  ],
+  "surfaces": {
+    "Diffuse": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_02/asphalt_02_diff_1k.jpg",
+    "nor_gl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_02/asphalt_02_nor_gl_1k.jpg",
+    "Rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_02/asphalt_02_rough_1k.jpg"
+  }
+}
