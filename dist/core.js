@@ -1,7 +1,7 @@
 export const MODES = {
-  easy: {count:4,time:85,damage:8,speed:1.6,hp:48,gateHp:68,windup:1,attackers:2,claimTime:5,boardTime:1.15,description:'4 rivals to start. A little breathing room.'},
-  normal: {count:6,time:75,damage:11,speed:1.95,hp:62,gateHp:88,windup:.8,attackers:2,claimTime:4,boardTime:1.3,description:'6 rivals to start. Every seat is contested.'},
-  hard: {count:8,time:65,damage:15,speed:2.3,hp:78,gateHp:112,windup:.64,attackers:3,claimTime:3.3,boardTime:1.4,description:'8 rivals to start. Three brutal rushes.'}
+  easy: {count:4,time:85,damage:8,speed:1.6,hp:48,gateHp:68,windup:1,attackers:2,boardTime:1.15,description:'4 rivals to start. A little breathing room.'},
+  normal: {count:6,time:75,damage:11,speed:1.95,hp:62,gateHp:88,windup:.8,attackers:2,boardTime:1.3,description:'6 rivals to start. Break through the doorway crowd.'},
+  hard: {count:8,time:65,damage:15,speed:2.3,hp:78,gateHp:112,windup:.64,attackers:3,boardTime:1.4,description:'8 rivals to start. Three brutal rushes.'}
 };
 export const ARENAS = [
   {id:'circle',name:'Circle',subtitle:'The evening scramble',description:'Under the flyover. In the middle of everything.',query:'Kwame Nkrumah Circle trotro station Accra',color:0xc6c1ac,sky:0xc3d5d8,accent:0x397e8d,route:'CIRCLE  —  MADINA',feature:'flyover'},
@@ -29,30 +29,32 @@ export class Round {
     this.mode=mode;this.random=random;this.stage=options.stage||1;
     const level=this.stage-1,base=MODES[mode];
     this.config={...base,count:base.count+level,hp:Math.round(base.hp*(1+level*.1)),gateHp:Math.round(base.gateHp*(1+level*.12)),speed:base.speed*(1+level*.06)};
-    this.elapsed=0;this.status='playing';this.kos=0;this.score=0;this.board=0;this.combo=0;this.lastCombo=-10;this.events=[];this.doorCalled=false;this.threat=0;this.threatWarned=false;this.hitsTaken=0;
+    this.elapsed=0;this.status='playing';this.kos=0;this.score=0;this.board=0;this.combo=0;this.lastCombo=-10;this.events=[];this.doorCalled=false;this.hitsTaken=0;
     this.player={x:0,z:5.8,hp:options.health??100,stamina:100,face:Math.PI,action:'idle',actionTime:0,cooldown:0,shoveCooldown:0,invulnerable:0,hurt:0,weapon:!!options.weapon,rest:0,dx:0,dz:-1,walk:0,blockTime:0};
+    const posts=[{x:5.25,z:-1.15},{x:5.3,z:-3.8},{x:6.3,z:-2.5},{x:6.5,z:-.3},{x:6.5,z:-4.7},{x:7.5,z:-2.5},{x:8,z:-.7},{x:8,z:-4.1},{x:8.9,z:-2.5},{x:8.7,z:.8}];
     this.enemies=Array.from({length:this.config.count},(_,i)=>{
-      const role=i===0?'keeper':i%3===1?'rusher':i%3===2?'swinger':'jabber';
-      const angle=(i+.2)/this.config.count*Math.PI*2;
-      const enemy={id:i,role,x:i===0?5.3:Math.cos(angle)*5.8,z:i===0?-1.15:2.5+Math.sin(angle)*4,hp:i===0?this.config.gateHp:this.config.hp,maxHp:i===0?this.config.gateHp:this.config.hp,face:0,state:'chase',timer:.5+random(),hurt:0,walk:random()*5,weapon:role==='jabber'?1:role==='rusher'?2:0,board:0,spawnX:0,spawnZ:0};
-      constrain(enemy);enemy.spawnX=enemy.x;enemy.spawnZ=enemy.z;return enemy;
+      const role=i===0?'keeper':i%3===1?'bruiser':i%3===2?'swinger':'jabber',post=posts[i%posts.length];
+      const enemy={id:i,role,x:post.x,z:post.z,hp:i===0?this.config.gateHp:this.config.hp,maxHp:i===0?this.config.gateHp:this.config.hp,face:Math.PI*.2,state:'guard',timer:.5+random(),hurt:0,walk:random()*5,weapon:role==='jabber'?1:role==='bruiser'?2:0,spawnX:post.x,spawnZ:post.z};
+      constrain(enemy);return enemy;
     });
     this.pickups=[{type:'bag',x:-2.7,z:3.4,used:!!options.weapon},{type:'drink',x:-5,z:-3,used:false},{type:'drink',x:7.5,z:4.8,used:false}];
   }
   get keeper(){return this.enemies.find(e=>e.role==='keeper');}
   get gateCleared(){return !this.keeper||this.keeper.state==='down';}
   get target(){return this.gateCleared?DOOR:this.keeper;}
+  get blockers(){return this.enemies.filter(e=>e.state!=='down'&&e.state!=='recover'&&distance(e,DOOR)<1.85);}
+  get doorBlocked(){return this.blockers.length>0;}
   emit(type,data={}){this.events.push({type,...data});}
   down(enemy){
-    enemy.hp=0;enemy.state='down';enemy.timer=enemy.role==='keeper'?Infinity:8;enemy.board=0;this.kos++;
+    enemy.hp=0;enemy.state='down';enemy.timer=enemy.role==='keeper'?Infinity:8;this.kos++;
     this.score+=enemy.role==='keeper'?500:150;this.player.stamina=Math.min(100,this.player.stamina+12);
     this.emit('down',{x:enemy.x,z:enemy.z,keeper:enemy.role==='keeper'});
     if(enemy.role==='keeper'){
-      this.doorCalled=true;this.emit('door-open');this.emit('message',{text:'Door clear! Board now. The crowd wants that seat.'});
+      this.doorCalled=true;this.emit('door-open');this.emit('message',{text:'Doorway rival down! Push the blockers aside, then hold E to enter.'});
     }
   }
   strikeEnemy(enemy,damage,push,stun){
-    const p=this.player;enemy.hp-=damage;enemy.hurt=.26;enemy.board=0;
+    const p=this.player;enemy.hp-=damage;enemy.hurt=.26;
     let dx=enemy.x-p.x,dz=enemy.z-p.z,len=Math.hypot(dx,dz);if(len<.01){dx=Math.sin(p.face);dz=Math.cos(p.face);len=1;}
     enemy.x+=dx/len*push;enemy.z+=dz/len*push;constrain(enemy);enemy.state='recover';enemy.timer=stun;
     this.score+=10;this.emit('hit',{x:enemy.x,z:enemy.z,finish:push>1,damage});
@@ -73,7 +75,7 @@ export class Round {
     p.stamina-=28;p.rest=.7;p.shoveCooldown=4;p.action='shove';p.actionTime=.44;p.cooldown=.48;
     const targets=this.enemies.filter(e=>e.state!=='down'&&distance(p,e)<2.65).sort((a,b)=>distance(p,a)-distance(p,b));
     if(targets[0])p.face=Math.atan2(targets[0].x-p.x,targets[0].z-p.z);
-    for(const enemy of targets.slice(0,4))this.strikeEnemy(enemy,12,2.35,1.6);
+    for(const enemy of targets.slice(0,4))this.strikeEnemy(enemy,12,2.35,2.2);
     this.emit('shove',{x:p.x,z:p.z});return true;
   }
   dodge(mx=0,mz=0){
@@ -121,38 +123,29 @@ export class Round {
     let attacking=this.enemies.filter(e=>e.state==='windup'||e.state==='swing').length;
     for(const e of this.enemies){
       e.hurt=Math.max(0,e.hurt-dt);e.timer-=dt;e.moving=false;
+      const post={x:e.spawnX,z:e.spawnZ};
       if(e.state==='down'){if(e.timer<=0){e.hp=e.maxHp*.65;e.x=e.spawnX;e.z=e.spawnZ;e.state='recover';e.timer=.65;constrain(e);}continue;}
-      if(e.state==='recover'){if(e.timer<=0){e.state='chase';e.timer=.15;}continue;}
+      if(e.state==='recover'){if(e.timer<=0){e.state='guard';e.timer=.15;}continue;}
       const reach=e.role==='jabber'?2.35:e.role==='keeper'?1.9:1.75;
       if(e.state==='windup'){
-        if(e.timer<=0){const result=distance(p,e)<reach+.3?this.hurtPlayer(this.config.damage*(e.role==='keeper'?1.15:1),e):'miss';if(result!=='parried'){e.state='swing';e.timer=.23;}}
+        if(e.timer<=0){const canHit=distance(p,e)<reach+.3&&distance(p,DOOR)<5.2;const result=canHit?this.hurtPlayer(this.config.damage*(e.role==='keeper'?1.15:1),e):'miss';if(result!=='parried'){e.state='swing';e.timer=.23;}}
         continue;
       }
       if(e.state==='swing'){if(e.timer<=0){e.state='recover';e.timer=.85+this.random()*.5;}continue;}
-      const race=e.role==='rusher'&&this.gateCleared;
-      if(race&&distance(e,DOOR)<.95){
-        e.state='boarding';e.face=-Math.PI/2;e.board+=dt/this.config.claimTime;
-        if(e.board>=1){this.finish('seat-taken');break;}continue;
-      }
-      if(e.state==='boarding'){e.state='chase';e.board=0;}
-      const d=distance(p,e);
-      if(!race&&d<reach+.1&&e.timer<=0&&attacking<this.config.attackers){e.face=Math.atan2(p.x-e.x,p.z-e.z);e.state='windup';e.timer=this.config.windup*(e.role==='swinger'?1.15:e.role==='jabber'?.9:1);attacking++;continue;}
-      if(race){this.moveEnemy(e,DOOR,dt,this.config.speed*1.15);}
-      else if(e.role==='keeper'){
-        if(d<3.5&&distance(e,DOOR)<3.2){if(d>1.45)this.moveEnemy(e,p,dt,this.config.speed*.8);}
-        else if(distance(e,DOOR)>1.1)this.moveEnemy(e,{x:5.3,z:-1.15},dt,this.config.speed);
-      }else if(d>1.35)this.moveEnemy(e,p,dt,this.config.speed*(e.role==='rusher'?1.1:1));
+      // Every rival holds an assigned doorway post. No pursuit and no NPC boarding.
+      if(distance(e,post)>.12)this.moveEnemy(e,post,dt,this.config.speed);
+      const d=distance(p,e),nearEntrance=distance(p,DOOR)<5.2;
+      if(nearEntrance&&distance(e,post)<1.35&&d<reach+.1&&e.timer<=0&&attacking<this.config.attackers){
+        e.face=Math.atan2(p.x-e.x,p.z-e.z);e.state='windup';e.timer=this.config.windup*(e.role==='swinger'?1.15:e.role==='jabber'?.9:1);attacking++;
+      }else if(nearEntrance&&!e.moving)e.face=Math.atan2(p.x-e.x,p.z-e.z);
     }
     for(let i=0;i<this.enemies.length;i++){
       const a=this.enemies[i];if(a.state==='down')continue;
       for(let j=i+1;j<this.enemies.length;j++){const b=this.enemies[j];if(b.state==='down')continue;const d=distance(a,b);if(d<.78&&d>.01){const dx=(a.x-b.x)/d,dz=(a.z-b.z)/d,q=(.78-d)*.5;a.x+=dx*q;a.z+=dz*q;b.x-=dx*q;b.z-=dz*q;constrain(a);constrain(b);}}
       const d=distance(p,a);if(d<.64&&d>.01&&p.action!=='dodge'){p.x+=(p.x-a.x)/d*.025;p.z+=(p.z-a.z)/d*.025;constrain(p);}
     }
-    this.threat=Math.max(0,...this.enemies.map(e=>e.state==='boarding'?e.board:0));
-    if(this.threat>.35&&!this.threatWarned){this.threatWarned=true;this.emit('message',{text:'Someone is taking your seat! Hit them or board first.'});}
-    if(this.threat===0)this.threatWarned=false;
     this.nearDoor=distance(p,DOOR)<1.65;
-    if(input.board&&this.nearDoor&&this.gateCleared&&!['dodge','attack','shove'].includes(p.action))this.board+=dt/this.config.boardTime;
+    if(input.board&&this.nearDoor&&this.gateCleared&&!this.doorBlocked&&!['dodge','attack','shove'].includes(p.action)){this.board+=dt/this.config.boardTime;if(p.action!=='block')p.action='boarding';}
     else this.board=Math.max(0,this.board-dt*2);
     if(p.hp<=0)this.finish('knocked-out');else if(this.elapsed>=this.config.time)this.finish('missed');else if(this.board>=1)this.finish('won');
   }

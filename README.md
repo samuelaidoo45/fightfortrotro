@@ -1,8 +1,8 @@
 # Fight for Trotro
 
-A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro. A three-stop home run across six Accra-inspired environments, Easy/Normal/Hard, doorway rivals, seat-stealing commuters, crowd combat, stamina, pickups, and contested boarding.
+A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro. A three-stop home run across six Accra-inspired environments, Easy/Normal/Hard, doorway rivals, defenders who hold their entrance posts, crowd combat, stamina, pickups, and contested boarding.
 
-Version 0.3 adds a concrete challenge: knock down the marked doorway rival, board before another commuter steals the seat, and win three stops in one run. Later stops add rivals and increase pressure; health, an acquired travel bag, and score carry forward. Characters use textured, rigged Microsoft Rocketbox models with skeletal movement and combat poses. The independently built environment remains approximate; this is not a fully photorealistic recreation of Accra. The production plan is in [the game design](docs/GAME_DESIGN.md).
+Version 0.4 makes the entrance the fight: knock down the marked doorway rival, push aside the remaining blockers, and enter before they regroup. Opponents stay at the doorway and return to their posts after being displaced; they do not chase the player around or board themselves. Win three stops in one run to get home. Later stops add rivals and increase pressure; health, an acquired travel bag, and score carry forward. Characters use textured, rigged Microsoft Rocketbox models with skeletal movement and combat poses. The independently built environment remains approximate; this is not a fully photorealistic recreation of Accra. The production plan is in [the game design](docs/GAME_DESIGN.md).
 
 ## Run
 
@@ -25,7 +25,7 @@ npm test
 | --- | --- |
 | Move | WASD or arrow keys |
 | Strike / connected three-hit combo | Tap or hold J |
-| Power shove / interrupt a boarding rival | F |
+| Power shove / clear the entrance | F |
 | Block | Hold K |
 | Dodge | L or Space |
 | Board at the glowing door | Hold E |
@@ -50,7 +50,7 @@ There is no backend, player tracking, paid API, or Google Maps key. The Maps lin
 
 ## Verified in this build
 
-JavaScript syntax checks, 18 game-rule/progression tests and three character/animation compatibility tests pass. Browser QA verified a full three-stop Easy run, a Normal stop, a seat-theft loss, and desktop/narrow HUD layouts. Character tests verify weighted meshes, combat joints, matching animation targets and independent crowd skeletons. Broad device compatibility, sustained performance, and combat balance still need playtesting.
+JavaScript syntax checks, 21 game-rule/progression tests and three character/animation compatibility tests pass. Browser QA covered win/next-stop transitions, health and gear carry-over, Normal doorway fights, doorway guarding, opening a gap, and desktop/narrow HUD layouts. Character tests verify weighted meshes, combat joints, matching animation targets and independent crowd skeletons. Broad device compatibility, sustained performance, and combat balance still need playtesting.
 
 ## Design tokens
 
