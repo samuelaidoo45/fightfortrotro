@@ -41,12 +41,14 @@ export class HumanLibrary {
     this.aim(a,b,knee);this.aim(b,c,end);
   }
   update(actor,data,dt,time){
-    const state=data.action||data.state||'idle',moving=(data.moving||state==='chase')&&state!=='down';const speed=moving?1:0;
+    const state=data.action||data.state||'idle',moving=(data.moving??(state==='chase'))&&state!=='down';const speed=moving?1:0;
     actor.walkWeight=T.MathUtils.damp(actor.walkWeight,speed,10,dt);actor.walk.setEffectiveWeight(actor.walkWeight);actor.idle.setEffectiveWeight(1-actor.walkWeight);actor.walk.setEffectiveTimeScale(data.action?1.65:1.1);actor.mixer.update(dt);
     actor.body.position.set(0,0,0);actor.body.rotation.set(0,0,0);
     if(state==='down'){actor.body.rotation.z=1.5;actor.body.position.set(.1,.3,0);return;}
     const guard=()=>{this.arm(actor,'left',v(.16,1.42,.32),v(.42,1.14,.05));this.arm(actor,'right',v(-.15,1.38,.39),v(-.42,1.1,.05));};
     if(state==='block'){actor.body.rotation.x=.06;guard();}
+    else if(state==='shove'){const phase=1-Math.max(0,data.actionTime)/.44,extension=Math.sin(Math.min(1,phase)*Math.PI);actor.body.rotation.x=.13*extension;this.arm(actor,'left',v(.19,1.33,.3+extension*.37),v(.4,1.05,.18));this.arm(actor,'right',v(-.19,1.33,.3+extension*.37),v(-.4,1.05,.18));}
+    else if(state==='boarding'){actor.body.rotation.x=.12;this.arm(actor,'left',v(.2,1.25,.46),v(.4,1.08,.13));this.arm(actor,'right',v(-.2,1.4,.4),v(-.4,1.15,.1));}
     else if(state==='attack'||state==='swing'){
       const phase=data.actionTime!==undefined?1-Math.max(0,data.actionTime)/.32:1-Math.max(0,data.timer)/.22;const extension=Math.sin(Math.min(1,phase)*Math.PI)*.44;
       actor.body.rotation.y=-.13+extension*.65;this.arm(actor,'right',v(-.12,1.34,.29+extension),v(-.4,1.16,.15));this.arm(actor,'left',v(.16,1.37,.28),v(.4,1.1,.05));

@@ -1,120 +1,84 @@
 # Fight for Trotro game design
 
-The player is a commuter trying to claim the last seat on a departing trotro. The arena is the bus stop, the opponents are other fictional commuters, and the finish line is the sliding door. Combat creates space for an escape. Knocking everyone down is optional.
+The objective is to get home by winning three contested trotro seats in one run. Each stop has a marked doorway rival who must be knocked down before the player can board. Once that rival falls, other commuters race for the seat. Hesitating can lose the ride even when the player still has plenty of health.
 
-The intended full game has realistic 3D environments and human movement, with exaggerated, playful action. The browser prototype proves the combat and boarding loop. Version 0.2 uses textured Microsoft Rocketbox human models, skeletal idle/walk motion and procedural combat poses, alongside physical road textures and independently built environment geometry. The environment remains approximate. It includes six location-inspired arenas; it does not reproduce every stop in Accra.
+The intended feel is a short, readable fighting challenge with an urgent escape. Realistic human meshes and movement support exaggerated, non-graphic crowd combat. The current environment uses independently built, approximate Accra-inspired layouts; it is not a surveyed reconstruction of every stop.
 
-## The round
+## The home run
 
-1. Choose a stop and difficulty. Read the local arena description and pick a route.
-2. Spawn with a clear view of the trotro and its marked passenger door. The mate checks the last seat for eight seconds while the crowd closes in.
-3. Move, strike, block, and dodge. A three-hit chain finishes with a stronger shove. Spend stamina deliberately; a tired commuter cannot dodge.
-4. Grab a travel bag to extend the swing, or a drink to recover 30 health. Bag swings can catch two close rivals.
-5. When the mate calls, reach the door and hold Board for 1.6 seconds. Taking damage interrupts boarding. You may fight, lure the crowd away, or slip through an opening.
-6. Win by boarding with health remaining before departure. Lose by running out of health or time. Retry immediately or choose another stop.
+Choose a starting stop and Easy, Normal, or Hard. The menu previews a three-stop route through the six-arena roster. Starting at Circle gives Circle, Madina, then Lapaz. These are fictional game circuits, not a public-transport journey planner.
 
-The first satisfying moment should arrive within ten seconds: dodge an obvious wind-up, land a counter, and see the opponent stagger clear of your path. The final seconds should create a story worth sharing: almost no health, an empty stamina bar, a bag swinging past, and a last-second boarding.
+At each stop:
 
-## Combat and crowd behaviour
+1. Locate the marked doorway rival. Their health and the immediate objective appear in the HUD. A world label and a distance marker help the player find them.
+2. Fight through the crowd. Grab the nearby travel bag for wider, stronger swings, or save stamina for a dodge and shove.
+3. Knock down the doorway rival. This immediately opens boarding; there is no waiting timer.
+4. Reach the glowing door and hold Board. A hit interrupts the attempt. Use a power shove to create a short opening.
+5. Watch the rival boarding bar. A rushing commuter can claim the seat first. Strike or shove that commuter to cancel their attempt, or board before they finish.
+6. Bank the ride and score, recover 25 health, keep an acquired travel bag, and advance to a larger crowd. Win the third stop to reach the home-run victory.
 
-| Mechanic | Prototype behaviour | Production direction |
-| --- | --- | --- |
-| Basic strikes | Nearest rival in reach; 11 stamina per strike; 3-hit shove | Directional punches, shoulder bumps, animation-driven contact and stronger hit reactions |
-| Block | Hold to reduce damage substantially; incoming hits cost stamina | Facing-sensitive guard, brief perfect-block window, clear guard-break feedback |
-| Dodge | 23 stamina, short movement burst and brief invulnerability | Lateral sidesteps, readable recovery, animation warping around close crowds |
-| Bags | Pick up once; wider, stronger swings, up to two targets | Carry weight, recovery tradeoffs, varied bag silhouettes and collision |
-| Rival weapons | Bags, long folded umbrellas and hand luggage | Readable styles: sweeping bag, straight umbrella jab, slow luggage shove |
-| Knockdowns | Count as points; rival rejoins after seven seconds | Ragdoll blend, safe stand-up zone and temporary crowd opening |
-| Health | Drops on unblocked hits; drinks restore health | Localised reactions and non-graphic injury feedback |
-| Stamina | Spent by attacks, blocks and dodges; regenerates after a short rest | Tune fatigue against escapes so the last two metres remain tense |
+Lose the run when health reaches zero, the trotro departs, or another commuter finishes boarding. The result explains that specific failure and offers an immediate retry. Personal best scores are saved locally per difficulty and starting stop.
 
-Opponents have distinct wind-up, swing, recovery, chase and knockdown states. An orange ring identifies a coming attack. They pursue around the solid bus and separate from one another so the crowd stays readable. Production AI should also compete for door position, react to other commuters, retreat when hurt, and form temporary gaps. Limit simultaneous attackers so a player can read the encounter.
+## Combat choices
 
-Avoid random unavoidable hits, hidden damage, or a requirement to eliminate every opponent. Provide a visible wind-up and recovery opportunity for every attack. Ordinary commuters and vendors outside the combat area are scenery; the fight is between fictional participants in the arena.
+| Action | Behaviour and purpose |
+| --- | --- |
+| Strike | Tap or hold J. Each connected hit advances a three-hit chain; the third knocks the opponent back. Missing does not build a combo. Basic hits spend 9 stamina and return 2 on contact. |
+| Travel bag | A pickup that increases damage and reach and can hit two nearby rivals. It stays with the player between won stops. |
+| Block | Hold K to reduce damage. Raising the guard just before contact gives a perfect block, stuns the attacker, and awards 75 points. Sustained blocking costs more stamina. |
+| Dodge | L or Space. A short movement burst with brief invulnerability, costing 19 stamina. Avoiding a live strike awards a dodge bonus. |
+| Power shove | F. Costs 28 stamina and recharges over four seconds. Pushes up to four nearby rivals away, interrupts boarding, and gives a recovery window. It creates space rather than replacing the normal damage combo. |
+| Pick up | R near a bag or drink. A drink restores 30 health and is consumed once. |
+| Board | Hold E near the door after the doorway rival is down. The contextual prompt explains when the player must move closer. |
 
-## Difficulty
+Short impact pauses, damage numbers, sound effects, stagger poses and a brief shove ring communicate contact. Camera impacts can be disabled, reduced-motion preference is respected, and sound can be muted from the menu or pause screen. Backgrounding the game pauses the simulation.
 
-| Mode | Rivals | Departure | Base incoming damage | Wind-up | Intended experience |
-| --- | ---: | ---: | ---: | ---: | --- |
-| Easy | 4 | 95 sec | 8 | 0.95 sec | Learn movement, recover from mistakes, make the first escape |
-| Normal | 6 | 75 sec | 12 | 0.72 sec | Balance pressure, stamina and door timing |
-| Hard | 9 | 60 sec | 17 | 0.50 sec | Read overlapping attacks and conserve resources |
+## Opponents and pressure
 
-Rival health and movement speed also rise with difficulty. Umbrella strikes have a small damage multiplier. These are initial tuning values, not fixed production requirements. Measure win rate, damage sources, time at the door, and whether players understand why boarding was interrupted. Target early playtest win rates of roughly 75%, 45%, and 20% for Easy, Normal, and Hard; these targets require testing.
+The doorway rival stays near the bus instead of following the player across the arena. They are the required fight target and stay down after defeat. Other rivals recover after knockdowns and return from their starting area.
 
-## Arenas
+Rushers move toward the door after the doorway clears and can steal the seat. Bag swingers use a slower wind-up; umbrella jabbers have longer reach. Only a bounded number of opponents can wind up simultaneously, preserving readable counter opportunities. Rivals route around the solid bus rather than becoming stuck against its side.
 
-The prototype uses the same combat footprint across six original environmental variants so gameplay can be compared. Signs and shop names are fictional. Each production arena should gain its own verified layout and tactics.
+| Mode | Starting crowd | Departure | Base damage | Wind-up | Rival boarding | Player boarding |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Easy | 4 | 85 sec | 8 | 1.00 sec | 5.0 sec | 1.15 sec |
+| Normal | 6 | 75 sec | 11 | 0.80 sec | 4.0 sec | 1.30 sec |
+| Hard | 8 | 65 sec | 15 | 0.64 sec | 3.3 sec | 1.40 sec |
 
-| Stop | Prototype treatment | Proposed full-game identity |
-| --- | --- | --- |
-| Circle | Flyover backdrop, shops, roadside stalls | Pillars that break sightlines, dense pedestrian streams, loud evening traffic |
-| Kaneshie | Market stalls and warm market buildings | Narrow stall corridors and wider boarding pockets |
-| Madina | Additional colourful market awnings | Market crowd surges and several approach lanes |
-| 37 Station | Larger trees and a roadside setting | Short sightlines, shaded waiting areas and sudden rushes |
-| Lapaz | Shop-front strip and roadside traffic | Longer curbside approach with limited lateral escape space |
-| Tema Station in central Accra | Additional parked trotros | A dense transport yard with multiple door-shaped decoys and clear route signs |
+The second and third stops each add another rival. Rival health, doorway-rival health and movement speed also increase. The initial doorway rival has 68, 88 or 112 health, depending on difficulty. These are tuning values; automated rule checks do not establish that a game is fun or replace player feedback.
 
-These identities are creative proposals. Field verification determines the final layout. “Tema Station” here means the central Accra station, not a claim that this prototype recreates a terminal in Tema city.
+## Reward and replay
 
-## Covering Accra's stops
+Each hit adds a small score, ordinary knockdowns award 150 points and the doorway rival awards 500. Winning a seat adds a clear bonus, remaining-time bonus and health bonus. Perfect blocks and successful dodges reward active defence. The final score combines all three stops.
 
-Treat “all stops” as a maintained catalogue rather than an unverified completeness claim. Informal stop names, boarding sides, route changes and multiple nearby stations require local checking. A place search result alone does not establish an exact boarding location.
+The result screen stamps each cleared stop and identifies the next destination. The player can see the unfinished journey instead of receiving the same isolated win screen repeatedly. Best scores use a new versioned local record store so earlier walk-to-the-door times do not compete with this challenge.
 
-Maintain one record per candidate arena with:
+Keep later additions aligned with this loop. Useful extensions include different crowd entry points, distinct doorway rivals, independently verified arena layouts and locally recorded mate calls. Additional mechanics should create decisions about reaching the seat, rather than add unrelated currencies or mandatory eliminations.
 
-- Stable internal ID, canonical name, local aliases, corridor and neighbourhood.
-- Independently verified coordinates, boarding side and arena bounds, with provenance and review date.
-- Google Maps place/search link for exploration; Street View coverage and capture date when available.
-- Field photographs or scans that the team has permission to use, with ownership and releases recorded.
-- Distinctive landmarks, road width, entrances, vendor areas, obstacles, crowd density and lighting observations.
-- Arena status: candidate, verified, captured, modelled, playtested, or released.
+## Arenas and location expansion
 
-Start with the six hubs, then expand by corridor with local transport operators and commuters. Define the geographic boundary of “Accra” before promising complete coverage. Deduplicate aliases and have a local reviewer confirm every released stop. A completeness claim needs a defined source, boundary, last-verified date and a process for additions.
+The current roster is Circle, Kaneshie, Madina, 37 Station, Lapaz and Tema Station in central Accra. Each has an independently built environmental variant. The core fighting footprint remains shared so combat can be tuned before producing detailed location-specific geometry.
 
-## Google Maps and Street View workflow
+To expand toward all Accra stops, maintain a verified catalogue with a stable internal ID, canonical name, local aliases, corridor, independently verified boarding coordinates and side, map link, review date, source provenance, capture permissions and release status. Define the geographic boundary of Accra, deduplicate aliases and review stops with local commuters and operators. Release arenas in verified batches rather than claim complete coverage from a place search alone.
 
-The current game offers genuine Google Maps search links for each selected stop. Google's documented Maps URLs work without an API key and can open maps or available panoramas. The prototype uses name searches rather than invented precise stop coordinates. [Google Maps URL documentation](https://developers.google.com/maps/documentation/urls/get-started).
+## Maps and Street View
 
-For the production research tool, open the place in Google Maps, confirm the boarding location with a local reviewer, and inspect available Street View in Google's own interface or an approved API viewer. Display required attribution whenever Google content is shown. Street View imagery is dated and coverage varies. [Street View imagery policy](https://www.google.com/streetview/policy/), [Street View API attribution policies](https://developers.google.com/maps/documentation/streetview/policies).
+The game supplies Google Maps search links for exploration. Google's documented Maps URLs work without an API key. The links use location names rather than unverified precise stop coordinates. [Google Maps URL documentation](https://developers.google.com/maps/documentation/urls/get-started).
 
-Do not turn Street View images into game textures or extract, trace, stitch, scrape, or reconstruct environment data from them. Google's published guidelines restrict these uses. Create the playable meshes and textures from independently owned or licensed captures and other appropriately licensed references. [Google geographic content guidelines](https://about.google/brand-resource-center/products-and-services/geo-guidelines/).
+For environment research, inspect available imagery within Google's own interface or an approved viewer, retain required attribution, and verify the boarding area locally. Street View is dated and coverage varies. Do not extract or trace its content into playable meshes, textures or reconstructed scenery. Create game assets from independently owned or appropriately licensed captures. [Street View imagery policy](https://www.google.com/streetview/policy/), [API policies](https://developers.google.com/maps/documentation/streetview/policies), [geographic content guidelines](https://about.google/brand-resource-center/products-and-services/geo-guidelines/).
 
-A live in-app Maps or Street View viewer would need the appropriate configured Maps Platform service, API key, billing setup and attribution. It is not included in this build. External Maps links let the prototype work without those credentials.
+A live in-app Maps or Street View viewer needs the appropriate service configuration, credentials, billing and attribution. The present build uses external links and includes no Google imagery or extracted map geometry.
 
-## Realistic 3D production direction
+## Realistic art production
 
-Use the browser build as a mechanics prototype. For the full PC and console game, evaluate Unreal Engine against the team's existing tools, target hardware and production budget in a technical spike before committing. Target 60 fps for responsive combat; offer a stable lower-spec setting and scalable crowd counts.
+The browser build uses Microsoft Rocketbox human models, skeletal idle/walk motion and procedural combat poses. Characters and motion are licensed under MIT; resized colour textures, asset provenance and the license notice are bundled locally. Asphalt 02 by Rob Tuytel / Poly Haven supplies CC0 surface textures. Full credits appear in the game.
 
-Build a small, convincing vertical slice before modelling the city:
+The next environment quality milestone is one independently captured stop with worn surfaces, kerbs, drainage, shops, a detailed trotro interior and a sliding-door boarding animation. Follow with locally appropriate character wardrobes, stronger combat and reaction animation, original traffic and mate recordings, camera collision testing and target-device performance work. Evaluate the full-game engine against team capability and budget in a technical spike before committing.
 
-1. **One verified stop:** an independently captured ground surface, kerbs, drainage, shops and a hero trotro with a detailed interior and animated sliding door.
-2. **One player and three rival styles:** realistic proportions, locally appropriate clothing, varied faces, bags and umbrellas, with distinct silhouettes.
-3. **Combat animation:** motion-captured or carefully keyed strikes, blocks, dodges, crowd contact, stagger reactions, knockdown recovery and boarding. Keep input responsive while animation preserves weight.
-4. **Materials and lighting:** worn paint, dust, dents, oxidised metal, cloth, rubber and glass; natural Ghanaian daylight, an evening lighting pass and believable contact shadows.
-5. **Sound:** original recordings of traffic, engines, doors, footsteps and market ambience. Record local performers for mate calls in the languages appropriate to each stop. Subtitle meaningful calls; do not rely on sound alone for timing.
-6. **Camera:** a collision-aware over-shoulder or elevated third-person camera with clear door visibility. Use very short impact movement and provide a motion-reduction option. Make crowd occlusion and camera clipping first-class acceptance criteria.
+Target readable, responsive combat alongside natural proportions and material detail. Avoid camera occlusion, exaggerated motion blur and visual noise that hide a coming attack. Full accessibility work should include remapping, gamepad support, scalable text, subtitles, alternate telegraph colours and hold/toggle choices for guard and boarding.
 
-Photorealism must support readable play. Keep silhouettes distinct from the crowd, avoid excessive motion blur, and let objects carry believable weight. Use restrained dust and impact effects rather than graphic gore. Keep the humour in timing, personalities and escapes.
+## Validation scope
 
-## Progression and replay
+The test suite checks required doorway combat, hit chains, cooldowns, interrupted boarding, rival seat theft, power shoves, perfect blocks, dodge protection, attack concurrency, collision, pickups, terminal outcomes and three-stop carry-over. Character checks cover weighted meshes, animation targets and independent crowd skeletons.
 
-The prototype saves fastest escapes per stop and difficulty in the local browser. For production, award mastery for a clean counter, a no-pickup escape, a low-damage run, or a last-second boarding. Unlock clothing, bag styles and route-themed cosmetics through play. Keep character strength equal so progress never makes lower-skill players impossible to beat.
-
-Add a short Accra circuit after the single-stop loop is proven: survive several stops with limited recovery and a final crowded hub. Daily seeded rushes can create fair comparisons. Multiplayer and leaderboards are later milestones because networked crowd combat needs dedicated design, anti-cheat and performance work.
-
-## Controls and accessibility
-
-The browser build supports WASD/arrows, J strike, hold K block, L/Space dodge, hold E board, R pickup and Esc/P pause. Narrow and coarse-pointer devices get touch controls. Health, stamina, the door objective and the departure countdown stay visible. The page respects reduced-motion preference for camera impacts. Sound is opt-in, instructions are available before play, and backgrounding the game pauses the simulation.
-
-For production, add full input remapping, gamepad support, scalable text, subtitles, high-contrast telegraphs, hold/toggle choices for guard and boarding, and separate camera-shake and audio-mix controls. Test the smallest supported screen with the largest supported text size.
-
-## Delivery gates
-
-- **Playable foundation, delivered:** six selectable inspired environments, three difficulties, combat, pickups, crowd pressure, win/loss flow and local records.
-- **Combat vertical slice:** local playtests demonstrate readable attacks, reliable hit reactions, a fun escape and a stable camera in one detailed arena.
-- **Realism vertical slice:** original captured assets, one finished trotro, production characters, animation, sound, lighting and target-hardware performance.
-- **Accra expansion:** verified stop catalogue, local reviews and a reusable environment kit; release arenas in batches after gameplay and location checks.
-- **Release preparation:** accessibility, input coverage, save reliability, performance budgets and device testing. Online modes require their own production plan.
-
-The creator's [reference clip](https://www.youtube.com/shorts/dOuFxjeqBK0) remains part of the brief. It could not be retrieved during this build; no shot-by-shot observations from it are asserted.
+Browser QA includes a complete Easy home run, a Normal stop, the seat-theft loss flow, pause/resume and desktop/narrow HUD layouts. Balance, sustained device performance and enjoyment need broader playtesting with the intended audience.

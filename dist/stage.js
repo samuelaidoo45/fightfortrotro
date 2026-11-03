@@ -146,17 +146,27 @@ export class Stage {
   }
   begin(round){
     this.menuHero.group.visible=false;this.camera.fov=50;this.camera.updateProjectionMatrix();this.clear(this.dynamic);this.effects=[];this.actors=[];this.player=this.character(0xe4b74f,true);this.dynamic.add(this.player.group);
-    this.actors=round.enemies.map(e=>{const a=this.character([0xb87359,0x6e8c94,0x87995d,0xbca278,0x7a7596,0x558c80][e.id%6],false,e.weapon);this.dynamic.add(a.group);return a;});
+    this.actors=round.enemies.map(e=>{
+      const a=this.character([0xb87359,0x6e8c94,0x87995d,0xbca278,0x7a7596,0x558c80][e.id%6],false,e.weapon);this.dynamic.add(a.group);
+      if(e.role==='keeper'||e.role==='rusher'){
+        const material=this.label(e.role==='keeper'?'DOORWAY RIVAL':'TAKING YOUR SEAT',512,64,'#18252c',e.role==='keeper'?'#f4c66a':'#ffb391');material.depthTest=false;material.fog=false;
+        a.roleLabel=new T.Mesh(new T.PlaneGeometry(1.15,.145),material);a.roleLabel.position.y=.15;a.hpGroup.add(a.roleLabel);
+      }
+      if(e.role==='keeper'){a.group.scale.setScalar(1.06);a.hpGroup.scale.setScalar(1.25);}
+      return a;
+    });
     this.pickupMeshes=round.pickups.map(p=>{const mesh=new T.Group();mesh.position.set(p.x,0,p.z);this.dynamic.add(mesh);const ring=new T.Mesh(new T.RingGeometry(.35,.42,24),new T.MeshBasicMaterial({color:p.type==='bag'?0xffd15a:0x94ddb7,side:T.DoubleSide,transparent:true,opacity:.8}));ring.rotation.x=-Math.PI/2;ring.position.y=.02;mesh.add(ring);if(p.type==='bag'){this.box(mesh,.55,.4,.22,0x986a47,0,.5,0);this.box(mesh,.3,.07,.08,0x5f4f39,0,.76,0);}else{this.cylinder(mesh,.11,.12,.4,0x89ac9d,0,.5,0);this.cylinder(mesh,.07,.07,.1,0xf0ead6,0,.75,0);}return mesh;});
   }
   pose(actor,data,dt){
     const isPlayer=actor.player,state=isPlayer?data.action:data.state;actor.group.position.set(data.x,0,data.z);const diff=Math.atan2(Math.sin(data.face-actor.group.rotation.y),Math.cos(data.face-actor.group.rotation.y));actor.group.rotation.y+=diff*Math.min(1,dt*15);
     this.humans.update(actor,data,dt,this.clock);
-    if(!isPlayer){actor.hpGroup.visible=data.hp<data.maxHp&&state!=='down';actor.hp.scale.x=Math.max(0,data.hp/data.maxHp);actor.hp.position.x=-(1-actor.hp.scale.x)*.265;actor.hpGroup.quaternion.copy(this.camera.quaternion);}
-    if(state==='windup'){actor.ring.material.opacity=.3+Math.sin(this.clock*18)*.13;actor.ring.scale.setScalar(1.7);}else if(!isPlayer)actor.ring.material.opacity=0;
+    if(!isPlayer){const claiming=state==='boarding';actor.hpGroup.visible=(data.role==='keeper'||data.hp<data.maxHp||claiming)&&state!=='down';actor.hp.scale.x=Math.max(0,claiming?data.board:data.hp/data.maxHp);actor.hp.position.x=-(1-actor.hp.scale.x)*.265;actor.hp.material.color.setHex(claiming?0xf49775:0xd6b076);actor.hpGroup.quaternion.copy(this.camera.quaternion);if(actor.roleLabel)actor.roleLabel.visible=data.role==='keeper'||claiming;}
+    if(state==='windup'){actor.ring.material.opacity=.35+Math.sin(this.clock*18)*.15;actor.ring.material.color.setHex(0xef8953);actor.ring.scale.setScalar(1.7);}else if(!isPlayer){actor.ring.material.opacity=state==='down'?0:data.role==='keeper'?.28:state==='boarding'?.5:0;actor.ring.material.color.setHex(state==='boarding'?0xef8a60:0xf2c261);}
     if(isPlayer)actor.item.visible=data.weapon;
   }
   impact(x,z,finish=false){for(let i=0;i<7;i++){const mesh=new T.Mesh(new T.BoxGeometry(.06,.06,.06),new T.MeshBasicMaterial({color:finish?0xffce60:0xffeed0}));mesh.position.set(x,1.3,z);this.dynamic.add(mesh);this.effects.push({mesh,v:new T.Vector3((Math.random()-.5)*5,Math.random()*3,(Math.random()-.5)*5),life:.35});}if(this.shakeEnabled)this.shake=finish?.13:.06;}
+  project(x,y,z){const point=new T.Vector3(x,y,z).project(this.camera);return{x:(point.x+1)*innerWidth/2,y:(1-point.y)*innerHeight/2};}
+  shoveWave(x,z){const mesh=new T.Mesh(new T.RingGeometry(.8,.9,48),new T.MeshBasicMaterial({color:0xf2cd80,transparent:true,opacity:.45,side:T.DoubleSide}));mesh.rotation.x=-Math.PI/2;mesh.position.set(x,.035,z);this.dynamic.add(mesh);this.effects.push({mesh,kind:'wave',life:.4});if(this.shakeEnabled)this.shake=.13;}
   update(dt,round,lobby=false){
     this.clock+=dt;const narrow=innerWidth<760;for(const actor of this.extras||[])this.humans.update(actor,{state:'idle'},dt,this.clock);
     if(lobby){const target=new T.Vector3(narrow?12:11,narrow?2.5:2.4,narrow?15:12);this.camera.position.lerp(target,Math.min(1,dt*2));this.look.lerp(new T.Vector3(narrow?5.7:2.7,narrow?-.5:-1.3,narrow?.2:-1),dt*2);}
@@ -168,10 +178,10 @@ export class Stage {
       this.camera.position.lerp(target,1-Math.exp(-dt*3.5));this.look.lerp(focus,1-Math.exp(-dt*5));
     }
     this.camera.lookAt(this.look);if(this.shake>0){this.camera.position.x+=(Math.random()-.5)*this.shake;this.camera.position.y+=(Math.random()-.5)*this.shake;this.shake=Math.max(0,this.shake-dt*.4);}
-    const departed=round&&(round.status==='won'||round.status==='missed');
+    const departed=round&&['won','missed','seat-taken'].includes(round.status);
     if(departed){this.mainBus.position.z+=dt*2.8;this.mate.group.visible=false;if(round.status==='won')this.player.group.visible=false;}
     if(this.doorArrow){this.doorArrow.position.y=1.3+Math.sin(this.clock*3)*.14;this.doorArrow.visible=!departed&&(lobby||!!round?.doorCalled);this.doorRing.visible=!departed;this.doorRing.material.opacity=(lobby||round?.doorCalled)?.65+Math.sin(this.clock*4)*.15:.18;}
-    for(let i=this.effects.length-1;i>=0;i--){const e=this.effects[i];e.life-=dt;e.mesh.position.addScaledVector(e.v,dt);e.v.y-=dt*8;e.mesh.scale.setScalar(Math.max(0,e.life/.35));if(e.life<=0){this.dynamic.remove(e.mesh);e.mesh.geometry.dispose();e.mesh.material.dispose();this.effects.splice(i,1);}}
+    for(let i=this.effects.length-1;i>=0;i--){const e=this.effects[i];e.life-=dt;if(e.kind==='wave'){e.mesh.scale.setScalar(1+(.4-e.life)*6);e.mesh.material.opacity=Math.max(0,e.life/.4)*.45;}else{e.mesh.position.addScaledVector(e.v,dt);e.v.y-=dt*8;e.mesh.scale.setScalar(Math.max(0,e.life/.35));}if(e.life<=0){this.dynamic.remove(e.mesh);e.mesh.geometry.dispose();e.mesh.material.dispose();this.effects.splice(i,1);}}
     this.renderer.render(this.scene,this.camera);
   }
   dispose(){this.clear(this.environment);this.clear(this.dynamic);this.renderer.dispose();}

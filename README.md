@@ -1,8 +1,8 @@
 # Fight for Trotro
 
-A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro. Six Accra-inspired environments, Easy/Normal/Hard, third-person combat, crowd AI, stamina, pickups, and timed boarding.
+A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro. A three-stop home run across six Accra-inspired environments, Easy/Normal/Hard, doorway rivals, seat-stealing commuters, crowd combat, stamina, pickups, and contested boarding.
 
-Version 0.2 replaces the primitive characters with textured, rigged human models from Microsoft Rocketbox. It includes skeletal idle/walk animation, combat arm posing, a closer camera, physical asphalt materials, detailed foliage, and a full-screen game menu. The independently built environment remains approximate; this is not a fully photorealistic recreation of Accra. The production plan is in [the game design](docs/GAME_DESIGN.md).
+Version 0.3 adds a concrete challenge: knock down the marked doorway rival, board before another commuter steals the seat, and win three stops in one run. Later stops add rivals and increase pressure; health, an acquired travel bag, and score carry forward. Characters use textured, rigged Microsoft Rocketbox models with skeletal movement and combat poses. The independently built environment remains approximate; this is not a fully photorealistic recreation of Accra. The production plan is in [the game design](docs/GAME_DESIGN.md).
 
 ## Run
 
@@ -24,14 +24,15 @@ npm test
 | Action | Keyboard |
 | --- | --- |
 | Move | WASD or arrow keys |
-| Strike | J |
+| Strike / connected three-hit combo | Tap or hold J |
+| Power shove / interrupt a boarding rival | F |
 | Block | Hold K |
 | Dodge | L or Space |
 | Board at the glowing door | Hold E |
 | Pick up bag or drink | R |
 | Pause | Esc or P |
 
-Touch controls appear on narrow screens and devices with a coarse pointer. Audio is optional and starts muted. Pausing freezes the simulation; switching tabs pauses automatically. Escape closes the result screen and returns to the lobby. Personal best times are stored only in the browser, per stop and difficulty.
+Touch controls appear on narrow screens and devices with a coarse pointer. Audio can be muted. Pausing freezes the simulation; switching tabs pauses automatically. Escape closes the result screen and returns to the lobby. Personal best home-run scores are stored only in the browser, per starting stop and difficulty. Sound starts enabled and can be muted in the menu or pause screen.
 
 ## Source
 
@@ -49,7 +50,7 @@ There is no backend, player tracking, paid API, or Google Maps key. The Maps lin
 
 ## Verified in this build
 
-JavaScript syntax checks, nine game-rule tests and three character/animation compatibility tests pass. Character tests verify weighted meshes, required combat joints, matching animation targets, and independent crowd skeletons. Browser QA checks desktop and narrow layouts, gameplay, character poses and the boarding result. Broad device compatibility, sustained performance, and combat balance still need playtesting.
+JavaScript syntax checks, 18 game-rule/progression tests and three character/animation compatibility tests pass. Browser QA verified a full three-stop Easy run, a Normal stop, a seat-theft loss, and desktop/narrow HUD layouts. Character tests verify weighted meshes, combat joints, matching animation targets and independent crowd skeletons. Broad device compatibility, sustained performance, and combat balance still need playtesting.
 
 ## Design tokens
 
