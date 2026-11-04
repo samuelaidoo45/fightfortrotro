@@ -2,7 +2,9 @@
 
 A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro. A three-stop home run across six Accra-inspired environments, Easy/Normal/Hard, doorway rivals, defenders who hold their entrance posts, crowd combat, stamina, pickups, and contested boarding.
 
-Version 0.6 gives the station a marked boarding bay, shelter, passenger queue and moving road traffic. Taxis, cars and trotros pass in both directions beyond the fighting area. Timed bonus challenges, hit-streak score multipliers, a charged Crowd Breaker and heavy-swing warnings add combat decisions. Full buses, replacement arrivals and all five weapons remain part of the run. A full trotro leaves, the crowd steps back, and another bus pulls in; a full bus is always followed by one with a free seat. The capacity indicator and next-arrival countdown explain when to wait. Missing one bus keeps the stop alive until service ends. The entrance remains the fight: knock down the marked doorway rival, push aside the remaining blockers, and enter before they regroup. Opponents stay at the doorway and return to their posts after being displaced; they do not chase the player around or board themselves. Win three stops in one run to get home. Later stops add rivals and increase pressure; health, the equipped weapon, and score carry forward. Characters use textured, rigged Microsoft Rocketbox models with skeletal movement and combat poses. The independently built environment remains approximate; this is not a fully photorealistic recreation of Accra. The production plan is in [the game design](docs/GAME_DESIGN.md).
+Version 0.7 implements the roadside scramble. Trotros decelerate into a parallel curbside bay while cars, taxis and buses continue along the road. Every stop begins with a preparation period: choose a weapon, watch the incoming bus and position yourself as passengers gather at its door. Defenders hold their posts and return after being displaced; they never chase the player or board themselves. A shove, counter or combo can create the opening needed to board, with no mandatory knockout. Full buses leave, and the following bus is guaranteed to have space. Health, weapons, pickups and score persist through missed departures; there is no overall service deadline. Win three rides to get home, recovering 25 health between stops. Distinct weapons, timed optional challenges, hit streaks and Crowd Breaker add combat choices.
+
+The camera follows from behind the player and keeps the entrance in view. Subtitled mate calls, engine/brake effects, a last-call countdown and a sliding door signal each phase. Spoken calls use a local English device voice when one is available. Textured, rigged Microsoft Rocketbox models supply natural human proportions and skeletal movement. The environment remains an original Accra-inspired interpretation, not a surveyed or fully photorealistic reconstruction. See [the game design](docs/GAME_DESIGN.md).
 
 ## Run
 
@@ -53,10 +55,11 @@ Press R near a labelled pickup. Equipping a new weapon replaces the current one.
 | Market stool | Heavy sweep hits three rivals | Slow recovery, high stamina cost |
 | Suitcase | Strong knockback, hits two rivals | Slower than bag or baton |
 
-Full buses close their doors and leave. The next bus takes 8.5 seconds from the full-bus notice to parking. Waiting is a chance to collect supplies; defenders step back and do not attack until boarding opens. An available bus stays 34/30/26 seconds on Easy/Normal/Hard. The whole stop has an 85/75/65-second service deadline. Capacity, boarding time and service time appear separately. Defenders regroup for each available arrival.
+Full buses close their doors and leave. From the full-bus notice, the next available bus parks after 13.4 seconds: 2.4 seconds full, 3.2 departing, 4.2 waiting and 3.6 arriving. Preparation and transit do not spend the boarding window or challenge timer. An available bus stays 32/25/19 seconds on Easy/Normal/Hard. Every replacement reforms the doorway crowd. Stay alive and keep trying if a bus leaves.
 
 ## Source
 
+- `dist/layout.js`: shared curb, door, guard posts, traffic lanes and bus movement paths.
 - `dist/core.js`: rendering-independent combat, AI, collision, pickups, and round outcomes.
 - `dist/traffic.js`: lane movement, spacing and traffic wrapping.
 - `dist/stage.js`: environment and minibus geometry, physical materials, Three.js rendering, camera and impact effects.
@@ -64,17 +67,18 @@ Full buses close their doors and leave. The next bus takes 8.5 seconds from the 
 - `dist/game.js`: input, menus, HUD, sound, pause and local records.
 - `dist/game-ui.css`: full-screen menu, responsive game HUD, dialogs and touch controls.
 - `tests/street-challenge.test.mjs`: traffic movement/spacing, charge, score streaks, timed rewards, heavy attacks and last-call cues.
+- `tests/roadside.test.mjs`: preparation, gathering, zero-knockdown boarding, regrouping, full-bus waiting and parallel-bus geometry.
 - `tests/core.test.mjs`: behavioral tests for the game rules.
 - `tests/buses-weapons.test.mjs`: full-bus lifecycle, missed arrivals, capacity, weapon reach, damage, crowd coverage, stamina and carry-over tests.
 - `dist/vendor/`: Three.js r170 (MIT), Barlow and Barlow Condensed (SIL Open Font License); license texts included.
 - `dist/assets/`: local models, animation, textures and credits. Human models/motion are Microsoft Rocketbox (MIT); Asphalt 02 by Rob Tuytel / Poly Haven is CC0. See `assets/CREDITS.txt` and the included notices.
 - `scripts/realism-sources.json`: pinned source revision and asset URLs. Developers can use `fetch-realism-assets.mjs` (Node 22+) then `convert-character-textures.py` (Pillow) to refresh local assets. Raw TGA downloads go to a temporary folder, outside the repository.
 
-There is no backend, player tracking, paid API, or Google Maps key. The Maps links use Google's documented universal URL format. No Google Street View imagery or extracted map geometry is packaged. Arena designs are approximate creative interpretations, not location reconstructions. The referenced YouTube clip could not be retrieved during this build, so the gameplay is based on the creator's written description.
+There is no backend, player tracking, paid API, or Google Maps key. The Maps links use Google's documented universal URL format. No Google Street View imagery or extracted map geometry is packaged. Arena designs are approximate creative interpretations, not location reconstructions. The narration and key scenes of [Why Lagos Bus Stops Turn Into a Fight](https://www.youtube.com/watch?v=NQvoIqS8W8c) informed the roadside waiting and scramble sequence. It is an illustrated Lagos explainer; its footage or illustrations are not packaged as game assets.
 
 ## Verified in this build
 
-JavaScript syntax checks and all 43 tests pass: 40 gameplay/traffic checks and three character/animation checks. This version’s browser QA covered moving street traffic, the waiting queue, full-bus replacement, a completed finisher challenge, a 10-hit streak and ×3 multiplier, Crowd Breaker activation, successful Easy and Normal boarding, and desktop/narrow HUD layouts. Character tests verify weighted meshes, combat joints, matching animation targets and independent crowd skeletons. Broad device compatibility, sustained performance, and combat balance still need playtesting.
+JavaScript syntax checks and all 49 tests pass, including six new roadside scenarios. Browser QA verified preparation pickups, a missed departure retaining health and gear, full-bus replacement, crowd gathering, a successful zero-knockdown boarding with 100 health, next-stop score/weapon carry-over, pause/resume, passing traffic, and desktop/phone controls. Character tests verify weighted meshes, combat joints, matching animation targets and independent crowd skeletons. Broad device compatibility, sustained performance and combat balance still need playtesting.
 
 ## Design tokens
 

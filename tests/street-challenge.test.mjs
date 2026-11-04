@@ -22,7 +22,7 @@ test('unblocked hits break a streak and a parry rewards momentum',()=>{
   const r=new Round();r.chain=5;r.chainTime=3;r.hurtPlayer(10,r.keeper);assert.equal(r.chain,0);r.player.invulnerable=0;r.player.action='block';r.player.blockTime=.1;const before=r.momentum;r.hurtPlayer(10,r.keeper);assert.ok(r.momentum>before);
 });
 test('timed challenges reward once and do not spend time while a full bus waits',()=>{
-  const r=new Round('easy',()=>.5,{stage:2,firstBusFull:true});step(r,2);assert.equal(r.challenge.time,30);r.bus.phase='boarding';r.bus.full=false;Object.assign(r.player,DOOR);r.enemies.slice(0,3).forEach((e,i)=>Object.assign(e,{x:5+i*.3,z:-2}));r.player.hp=50;r.shove();assert.equal(r.challenge.status,'won');assert.equal(r.player.hp,65);const score=r.score;r.progressChallenge('shove');assert.equal(r.score,score);
+  const r=new Round('easy',()=>.5,{stage:2,firstBusFull:true});step(r,2);assert.equal(r.challenge.time,30);r.bus.phase='boarding';r.bus.full=false;Object.assign(r.player,DOOR);r.enemies.slice(0,3).forEach((e,i)=>Object.assign(e,{x:DOOR.x-.3+i*.3,z:DOOR.z+.5}));r.player.hp=50;r.shove();assert.equal(r.challenge.status,'won');assert.equal(r.player.hp,65);const score=r.score;r.progressChallenge('shove');assert.equal(r.score,score);
 });
 test('expired bonus challenges never block the main boarding goal',()=>{
   const r=new Round('easy',()=>.5);r.challenge.time=.01;r.enemies=[];Object.assign(r.player,DOOR);step(r,1.5,{board:true});assert.equal(r.challenge.status,'expired');assert.equal(r.status,'won');

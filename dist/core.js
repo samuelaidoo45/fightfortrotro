@@ -1,7 +1,9 @@
+import {DOOR,PAVEMENT,BUS_BOUNDS,GUARD_POSTS} from './layout.js';
+export {DOOR} from './layout.js';
 export const MODES = {
-  easy: {count:4,time:85,damage:8,speed:1.6,hp:48,gateHp:68,windup:1,attackers:2,boardTime:1.15,busWindow:34,fullChance:.35,description:'4 rivals to start. A little breathing room.'},
-  normal: {count:6,time:75,damage:11,speed:1.95,hp:62,gateHp:88,windup:.8,attackers:2,boardTime:1.3,busWindow:30,fullChance:.45,description:'6 rivals to start. Break through the doorway crowd.'},
-  hard: {count:8,time:65,damage:15,speed:2.3,hp:78,gateHp:112,windup:.64,attackers:3,boardTime:1.4,busWindow:26,fullChance:.55,description:'8 rivals to start. Three brutal rushes.'}
+  easy: {count:4,time:85,damage:8,speed:1.6,hp:48,gateHp:68,windup:1.1,attackers:1,boardTime:1,busWindow:32,fullChance:.35,description:'4 blockers · 32 seconds · generous openings.'},
+  normal: {count:6,time:75,damage:11,speed:1.95,hp:62,gateHp:88,windup:.85,attackers:2,boardTime:1.1,busWindow:25,fullChance:.45,description:'6 blockers · 25 seconds · time your breakthrough.'},
+  hard: {count:8,time:65,damage:15,speed:2.3,hp:78,gateHp:112,windup:.66,attackers:3,boardTime:1.2,busWindow:19,fullChance:.55,description:'8 blockers · 19 seconds · coordinated swings.'}
 };
 export const ARENAS = [
   {id:'circle',name:'Circle',subtitle:'The evening scramble',description:'Under the flyover. In the middle of everything.',query:'Kwame Nkrumah Circle trotro station Accra',color:0xc6c1ac,sky:0xc3d5d8,accent:0x397e8d,route:'CIRCLE  —  MADINA',feature:'flyover'},
@@ -20,12 +22,11 @@ export const WEAPONS={
   suitcase:{name:'Suitcase',trait:'Strong knockback · hits 2',reach:2.65,damage:32,finisher:48,cost:13,cooldown:.46,targets:2,push:2.05,color:0xb9d99b,enemyDamage:1.1,windup:1.15}
 };
 export const weaponStats=key=>WEAPONS[key===true?'bag':key]||WEAPONS.hands;
-export const DOOR={x:5.05,z:-2.45};
 export const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 export function constrain(a,busPresent=true){
-  a.x=Math.max(-9.5,Math.min(9.5,a.x)); a.z=Math.max(-7.7,Math.min(8.7,a.z));
+  a.x=Math.max(PAVEMENT.minX,Math.min(PAVEMENT.maxX,a.x)); a.z=Math.max(PAVEMENT.minZ,Math.min(PAVEMENT.maxZ,a.z));
   // The bus is a solid obstacle. Resolve against the closest expanded edge.
-  const minX=1.15,maxX=4.65,minZ=-7.15,maxZ=.15;
+  const {minX,maxX,minZ,maxZ}=BUS_BOUNDS;
   if(busPresent&&a.x>minX&&a.x<maxX&&a.z>minZ&&a.z<maxZ){
     const edges=[{v:a.x-minX,k:'x',p:minX},{v:maxX-a.x,k:'x',p:maxX},{v:a.z-minZ,k:'z',p:minZ},{v:maxZ-a.z,k:'z',p:maxZ}].sort((u,v)=>u.v-v.v);
     a[edges[0].k]=edges[0].p;
@@ -33,10 +34,10 @@ export function constrain(a,busPresent=true){
 }
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 
-export const BUS_TIMING={full:2.5,departing:1.5,waiting:3,arriving:1.5};
+export const BUS_TIMING={full:2.4,departing:3.2,waiting:4.2,arriving:3.6};
 export class BusCycle {
-  constructor({firstFull=false,window=30,fullChance=.4,random=Math.random}={}){
-    this.random=random;this.window=window;this.fullChance=fullChance;this.number=1;this.full=firstFull;this.phase=firstFull?'full':'boarding';this.duration=firstFull?BUS_TIMING.full:window;this.remaining=this.duration;this.lastWasFull=firstFull;
+  constructor({firstFull=false,startWaiting=false,window=25,fullChance=.4,random=Math.random}={}){
+    this.random=random;this.window=window;this.fullChance=fullChance;this.number=1;this.full=firstFull;this.initialApproach=startWaiting;this.phase=startWaiting?'waiting':firstFull?'full':'boarding';this.duration=this.phase==='boarding'?window:BUS_TIMING[this.phase];this.remaining=this.duration;this.lastWasFull=firstFull;
   }
   get canBoard(){return this.phase==='boarding'&&!this.full;}
   get seats(){return this.full?0:1;}
@@ -46,7 +47,7 @@ export class BusCycle {
     this.remaining=Math.max(0,this.remaining-dt);if(this.remaining>1e-8)return null;const from=this.phase;
     if(from==='full'||from==='boarding'){this.lastWasFull=this.full;this.phase='departing';}
     else if(from==='departing'){this.phase='waiting';}
-    else if(from==='waiting'){this.number++;this.full=!this.lastWasFull&&this.random()<this.fullChance;this.phase='arriving';}
+    else if(from==='waiting'){if(this.initialApproach)this.initialApproach=false;else{this.number++;this.full=!this.lastWasFull&&this.random()<this.fullChance;}this.phase='arriving';}
     else{this.phase=this.full?'full':'boarding';}
     this.duration=this.phase==='boarding'?this.window:BUS_TIMING[this.phase];this.remaining=this.duration;
     return{from,to:this.phase,number:this.number,full:this.full};
@@ -60,33 +61,36 @@ export class Round {
     this.config={...base,count:base.count+level,hp:Math.round(base.hp*(1+level*.1)),gateHp:Math.round(base.gateHp*(1+level*.12)),speed:base.speed*(1+level*.06)};
     this.momentum=35;this.rushTime=0;this.chain=0;this.chainTime=0;this.bestChain=0;this.lastCall=false;this.challenge={kind:['finisher','shove','defend'][(this.stage-1)%3],progress:0,goal:this.stage===1?2:1,time:30,status:'active'};
     this.elapsed=0;this.status='playing';this.kos=0;this.score=0;this.board=0;this.combo=0;this.lastCombo=-10;this.events=[];this.doorCalled=false;this.hitsTaken=0;
-    this.bus=new BusCycle({firstFull:!!options.firstBusFull,window:base.busWindow,fullChance:base.fullChance,random});
-    this.player={x:0,z:5.8,hp:options.health??100,stamina:100,face:Math.PI,action:'idle',actionTime:0,cooldown:0,shoveCooldown:0,invulnerable:0,hurt:0,weapon:options.weapon===true?'bag':options.weapon||null,rest:0,dx:0,dz:-1,walk:0,blockTime:0};
-    const posts=[{x:5.25,z:-1.15},{x:5.3,z:-3.8},{x:6.3,z:-2.5},{x:6.5,z:-.3},{x:6.5,z:-4.7},{x:7.5,z:-2.5},{x:8,z:-.7},{x:8,z:-4.1},{x:8.9,z:-2.5},{x:8.7,z:.8}];
+    this.bus=new BusCycle({firstFull:!!options.firstBusFull,startWaiting:!!options.startWaiting,window:base.busWindow,fullChance:base.fullChance,random});
+    this.player={x:3.6,z:5.2,hp:options.health??100,stamina:100,face:Math.PI,action:'idle',actionTime:0,cooldown:0,shoveCooldown:0,invulnerable:0,hurt:0,weapon:options.weapon===true?'bag':options.weapon||null,rest:0,dx:0,dz:-1,walk:0,blockTime:0};
+    const posts=GUARD_POSTS;
     this.enemies=Array.from({length:this.config.count},(_,i)=>{
       const role=i===0?'keeper':i%3===1?'bruiser':i%3===2?'swinger':'jabber',post=posts[i%posts.length];
       const enemy={id:i,role,x:post.x,z:post.z,hp:i===0?this.config.gateHp:this.config.hp,maxHp:i===0?this.config.gateHp:this.config.hp,face:Math.PI*.2,state:'guard',timer:.5+random(),hurt:0,walk:random()*5,weapon:i===0?'suitcase':['umbrella','stool','bag','baton','suitcase'][(i-1)%5],spawnX:post.x,spawnZ:post.z};
-      this.constrainActor(enemy);return enemy;
+      if(!this.combatActive)Object.assign(enemy,this.waitingPost(enemy));this.constrainActor(enemy);return enemy;
     });
-    this.pickups=[{type:'bag',x:-2.7,z:3.4,used:options.weapon===true||options.weapon==='bag'},{type:'drink',x:-5,z:-3,used:false},{type:'drink',x:7.5,z:4.8,used:false},...([{type:'umbrella',x:-4,z:1},{type:'baton',x:-.7,z:3},{type:'stool',x:7,z:6.4},{type:'suitcase',x:-6,z:5.5}].map(item=>({...item,used:item.type===options.weapon})))];
+    this.pickups=[{type:'bag',x:2.4,z:3.7,used:options.weapon===true||options.weapon==='bag'},{type:'drink',x:-7,z:0,used:false},{type:'drink',x:7.5,z:1,used:false},...([{type:'umbrella',x:-1,z:4},{type:'baton',x:5,z:1.5},{type:'stool',x:-7,z:5.7},{type:'suitcase',x:7.2,z:5.9}].map(item=>({...item,used:item.type===options.weapon})))];
+    this.gapWasOpen=false;this.missedBuses=0;
   }
   get combatActive(){return this.bus.canBoard;}
   get busBlocksGround(){return this.bus.phase==='full'||this.bus.phase==='boarding'||(this.bus.phase==='arriving'&&this.bus.progress>.94)||(this.bus.phase==='departing'&&this.bus.progress<.12);}
   constrainActor(actor){constrain(actor,this.busBlocksGround);}
-  waitingPost(enemy){return{x:6.7+(enemy.id%3)*1.1,z:3.6+Math.floor(enemy.id/3)*1.25};}
+  get gathering(){return this.combatActive||(this.bus.phase==='arriving'&&!this.bus.full&&this.bus.progress>.12);}
+  waitingPost(enemy){return{x:-5.7+(enemy.id%5)*1.2,z:1.4+Math.floor(enemy.id/5)*1.35};}
   busChanged(change){
-    this.board=0;this.combo=0;this.lastCall=false;this.doorCalled=false;if(this.player.action==='boarding')this.player.action='idle';
+    this.board=0;this.combo=0;this.lastCall=false;this.doorCalled=false;this.gapWasOpen=false;if(this.player.action==='boarding')this.player.action='idle';
+    if(change.to==='departing'&&!change.full)this.missedBuses++;
     if(change.to==='departing'||change.to==='boarding')for(const e of this.enemies){e.hp=e.maxHp;e.state='guard';e.hurt=0;e.timer=.5+this.random();}
     this.emit('bus-state',{phase:change.to,full:change.full,number:change.number});
     if(change.to==='departing')this.emit('message',{text:change.full?'This trotro is full. It is leaving. Wait for the next one.':'That trotro has left. Another one is on the way.'});
     else if(change.to==='arriving')this.emit('message',{text:'Another trotro is pulling in. Check for a free seat.'});
-    else if(change.to==='full')this.emit('message',{text:'This one is full too. Save your strength for the next trotro.'});
+    else if(change.to==='full')this.emit('message',{text:'This trotro is full. Save your strength for the next arrival.'});
     else if(change.to==='boarding')this.emit('message',{text:'One free seat! Clear the doorway and fight your way in.'});
   }
   get keeper(){return this.enemies.find(e=>e.role==='keeper');}
-  get gateCleared(){return !this.keeper||this.keeper.state==='down';}
-  get target(){return this.combatActive?(this.gateCleared?DOOR:this.keeper):null;}
-  get blockers(){return this.enemies.filter(e=>e.state!=='down'&&e.state!=='recover'&&distance(e,DOOR)<1.85);}
+  get gateCleared(){return !this.doorBlocked;}
+  get target(){return this.combatActive?DOOR:null;}
+  get blockers(){return this.enemies.filter(e=>e.state!=='down'&&e.state!=='recover'&&distance(e,DOOR)<1.65);}
   get doorBlocked(){return this.blockers.length>0;}
   emit(type,data={}){this.events.push({type,...data});}
   get multiplier(){return Math.min(3,1+Math.floor(this.chain/4));}
@@ -106,7 +110,7 @@ export class Round {
     this.score+=(enemy.role==='keeper'?500:150)*this.multiplier;this.gainMomentum(12);this.player.stamina=Math.min(100,this.player.stamina+12);
     this.emit('down',{x:enemy.x,z:enemy.z,keeper:enemy.role==='keeper'});
     if(enemy.role==='keeper'){
-      this.doorCalled=true;this.emit('door-open');this.emit('message',{text:'Doorway rival down! Push the blockers aside, then hold E to enter.'});
+      this.emit('message',{text:'Heavy blocker down! Take the gap before the others regroup.'});
     }
   }
   strikeEnemy(enemy,damage,push,stun){
@@ -132,7 +136,7 @@ export class Round {
     p.stamina-=28;p.rest=.7;p.shoveCooldown=4;p.action='shove';p.actionTime=.44;p.cooldown=.48;
     const targets=this.enemies.filter(e=>e.state!=='down'&&distance(p,e)<2.65).sort((a,b)=>distance(p,a)-distance(p,b));
     if(targets[0])p.face=Math.atan2(targets[0].x-p.x,targets[0].z-p.z);
-    for(const enemy of targets.slice(0,4))this.strikeEnemy(enemy,12,2.35,2.2);
+    for(const enemy of targets.slice(0,4))this.strikeEnemy(enemy,12,2.35,2.55);
     if(targets.length>=3)this.progressChallenge('shove');this.emit('shove',{x:p.x,z:p.z});return true;
   }
   dodge(mx=0,mz=0){
@@ -150,17 +154,15 @@ export class Round {
   hurtPlayer(damage,enemy){
     const p=this.player;if(!this.combatActive)return 'waiting';if(p.invulnerable>0){if(p.action==='dodge'){this.score+=35;this.gainMomentum(18);this.progressChallenge('defend');this.emit('evade');}return 'dodged';}
     if(p.action==='block'&&p.stamina>=5){
-      if(p.blockTime<.2&&!enemy.heavy){p.stamina=Math.max(0,p.stamina-4);p.rest=.3;enemy.state='recover';enemy.timer=1.25;this.score+=75;this.gainMomentum(25);this.progressChallenge('defend');this.emit('parry',{x:enemy.x,z:enemy.z});return 'parried';}
+      if(p.blockTime<.2&&!enemy.heavy){p.stamina=Math.max(0,p.stamina-4);p.rest=.3;enemy.state='recover';enemy.timer=1.65;this.score+=75;this.gainMomentum(25);this.progressChallenge('defend');this.emit('parry',{x:enemy.x,z:enemy.z});return 'parried';}
       p.stamina=Math.max(0,p.stamina-11);p.rest=.6;damage*=enemy.heavy?.55:.12;this.emit('block');
     }else{this.emit('damage');p.invulnerable=.32;this.hitsTaken++;this.chain=0;this.chainTime=0;}
     p.hp=Math.max(0,p.hp-damage);p.hurt=.2;this.board=0;
     const len=distance(p,enemy)||1;p.x+=(p.x-enemy.x)/len*.16;p.z+=(p.z-enemy.z)/len*.16;this.constrainActor(p);return 'hit';
   }
   moveEnemy(enemy,goal,dt,pace){
-    const d=distance(enemy,goal);if(d<.05)return;let waypoint=goal;
-    const blocked=this.busBlocksGround&&Array.from({length:9},(_,i)=>{const t=(i+1)/10;return{x:enemy.x+(goal.x-enemy.x)*t,z:enemy.z+(goal.z-enemy.z)*t};}).some(a=>a.x>1&&a.x<4.8&&a.z>-7.3&&a.z<.3);
-    if(blocked){const front=Math.abs(enemy.z-.9)+Math.abs(goal.z-.9)<Math.abs(enemy.z+7.6)+Math.abs(goal.z+7.6),lane=front?.9:-7.6;waypoint={x:(front&&enemy.z>-.05)||(!front&&enemy.z<-7.2)?goal.x:enemy.x,z:lane};}
-    const length=distance(enemy,waypoint)||1;enemy.x+=(waypoint.x-enemy.x)/length*pace*dt;enemy.z+=(waypoint.z-enemy.z)/length*pace*dt;enemy.walk+=dt*8;enemy.moving=true;enemy.face=Math.atan2(waypoint.x-enemy.x,waypoint.z-enemy.z);this.constrainActor(enemy);
+    const d=distance(enemy,goal);if(d<.05)return;const amount=Math.min(d,pace*dt);
+    enemy.face=Math.atan2(goal.x-enemy.x,goal.z-enemy.z);enemy.x+=(goal.x-enemy.x)/d*amount;enemy.z+=(goal.z-enemy.z)/d*amount;enemy.walk+=dt*8;enemy.moving=true;this.constrainActor(enemy);
   }
   tick(dt,input={}){
     if(this.status!=='playing')return;dt=clamp(dt,0,.05);this.elapsed+=dt;const change=this.bus.tick(dt);if(change)this.busChanged(change);
@@ -185,7 +187,7 @@ export class Round {
     let attacking=this.enemies.filter(e=>e.state==='windup'||e.state==='swing').length;
     for(const e of this.enemies){
       e.hurt=Math.max(0,e.hurt-dt);e.timer-=dt;e.moving=false;
-      if(!this.combatActive){e.state='guard';e.timer=.5;this.moveEnemy(e,this.waitingPost(e),dt,this.config.speed*1.3);continue;}
+      if(!this.combatActive){e.state='guard';e.timer=.5;this.moveEnemy(e,this.gathering?{x:e.spawnX,z:e.spawnZ}:this.waitingPost(e),dt,this.config.speed*1.65);continue;}
       const post={x:e.spawnX,z:e.spawnZ};
       if(e.state==='down'){if(e.timer<=0){e.hp=e.maxHp*.65;e.x=e.spawnX;e.z=e.spawnZ;e.state='recover';e.timer=.65;this.constrainActor(e);}continue;}
       if(e.state==='recover'){if(e.timer<=0){e.state='guard';e.heavy=false;e.timer=.15;}continue;}
@@ -207,14 +209,16 @@ export class Round {
       for(let j=i+1;j<this.enemies.length;j++){const b=this.enemies[j];if(b.state==='down')continue;const d=distance(a,b);if(d<.78&&d>.01){const dx=(a.x-b.x)/d,dz=(a.z-b.z)/d,q=(.78-d)*.5;a.x+=dx*q;a.z+=dz*q;b.x-=dx*q;b.z-=dz*q;this.constrainActor(a);this.constrainActor(b);}}
       const d=distance(p,a);if(d<.64&&d>.01&&p.action!=='dodge'){p.x+=(p.x-a.x)/d*.025;p.z+=(p.z-a.z)/d*.025;this.constrainActor(p);}
     }
-    this.nearDoor=distance(p,DOOR)<1.65;
-    if(input.board&&this.nearDoor&&this.combatActive&&this.gateCleared&&!this.doorBlocked&&!['dodge','attack','shove'].includes(p.action)){this.board+=dt/this.config.boardTime;if(p.action!=='block')p.action='boarding';}
+    this.nearDoor=distance(p,DOOR)<1.3;
+    const gapOpen=this.combatActive&&!this.doorBlocked;this.doorCalled=gapOpen;
+    if(gapOpen&&!this.gapWasOpen&&distance(p,DOOR)<4.5)this.emit('door-open');this.gapWasOpen=gapOpen;
+    if(input.board&&this.nearDoor&&gapOpen&&!['dodge','attack','shove'].includes(p.action)){this.board+=dt/this.config.boardTime;if(p.action!=='block')p.action='boarding';}
     else this.board=Math.max(0,this.board-dt*2);
-    if(p.hp<=0)this.finish('knocked-out');else if(this.elapsed>=this.config.time)this.finish('missed');else if(this.board>=1)this.finish('won');
+    if(p.hp<=0)this.finish('knocked-out');else if(this.board>=1)this.finish('won');
   }
   finish(result){
     if(this.status!=='playing')return;this.status=result;
-    if(result==='won')this.score+=400+Math.ceil(this.config.time-this.elapsed)*5+Math.ceil(this.player.hp)*4;
+    if(result==='won')this.score+=400+Math.ceil(Math.max(0,this.config.time-this.elapsed))*5+Math.ceil(this.player.hp)*4;
     this.stars=result==='won'?(this.player.hp>=70?3:this.player.hp>=35?2:1):0;this.emit('end',{result});
   }
 }
@@ -224,7 +228,7 @@ export class HomeRun {
     this.mode=mode;this.random=random;const start=Math.max(0,ARENAS.findIndex(a=>a.id===startId));this.route=[0,2,4].map(offset=>ARENAS[(start+offset)%ARENAS.length]);this.index=0;this.score=0;this.health=100;this.weapon=null;this.kos=0;this.time=0;this.history=[];this.complete=false;this.canContinue=false;
   }
   get arena(){return this.route[this.index];}
-  createRound(){this.round=new Round(this.mode,this.random,{stage:this.index+1,health:this.health,weapon:this.weapon,firstBusFull:this.random()<MODES[this.mode].fullChance});return this.round;}
+  createRound(){this.round=new Round(this.mode,this.random,{stage:this.index+1,health:this.health,weapon:this.weapon,startWaiting:true,firstBusFull:this.random()<MODES[this.mode].fullChance});return this.round;}
   record(round){
     if(round.status==='playing'||this.history.some(h=>h.stage===round.stage))return;
     this.score+=round.score;this.kos+=round.kos;this.time+=round.elapsed;this.health=round.player.hp;this.weapon=round.player.weapon;

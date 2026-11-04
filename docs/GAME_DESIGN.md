@@ -1,6 +1,6 @@
 # Fight for Trotro game design
 
-The objective is to get home by winning three contested trotro seats in one run. Each stop has a marked doorway rival who must be knocked down before the player can board. The remaining opponents hold the entrance in a defensive formation. The player must fight or shove them aside and use the opening before they return to their posts. Opponents do not chase the player around the arena or board the trotro themselves.
+The objective is to get home by winning three contested trotro seats in one run. Passengers wait on the pavement until a trotro with space approaches, then gather at the entrance in a defensive formation. Boarding depends on a physical opening; no opponent must be knocked out first. The player must fight or shove them aside and use the opening before they return to their posts. Opponents do not chase the player around the arena or board the trotro themselves.
 
 The intended feel is a short, readable fighting challenge with an urgent escape. Realistic human meshes and movement support exaggerated, non-graphic crowd combat. The current environment uses independently built, approximate Accra-inspired layouts; it is not a surveyed reconstruction of every stop.
 
@@ -10,14 +10,14 @@ Choose a starting stop and Easy, Normal, or Hard. The menu previews a three-stop
 
 At each stop:
 
-1. Check capacity. A full trotro leaves; the next one pulls in after a short wait. Collect weapons or drinks while the defenders stand back. A full bus is always followed by an available one. Once boarding opens, locate the marked doorway rival. Their health and the immediate objective appear in the HUD. A world label and a distance marker help the player find them.
+1. Prepare on the pavement. Collect a weapon or drink while cars pass. The mate calls the destination and capacity as the bus pulls into the parallel bay. A full bus leaves and is always followed by an available one. Passengers approach their assigned doorway posts during an available arrival, before combat starts.
 2. Fight through the crowd. Choose a nearby weapon for reach, attack speed, wide swings or knockback. Save stamina for a dodge and shove.
-3. Knock down the doorway rival. This immediately permits boarding on an available bus; there is no extra combat-clear timer.
+3. Read the swings and break the formation. A counter, shove or finisher staggers defenders and opens an entry window; defeating the heavy blocker is optional.
 4. Fight or shove the remaining blockers out of the doorway. The HUD reports how many opponents still block entry.
 5. Reach the glowing door and hold Board while a gap is open. An active blocker in the doorway or a hit interrupts the attempt. Defenders recover and return to their assigned posts, so the opening is temporary.
 6. Bank the ride and score, recover 25 health, keep the equipped weapon, and advance to a larger crowd. Win the third stop to reach the home-run victory.
 
-A bus departure does not immediately lose the run: wait for the replacement and fight the regrouped doorway crowd. Health, weapon, pickups and score persist. Lose when health reaches zero or the whole stop’s service deadline expires. The result explains that specific failure and offers an immediate retry. Personal best scores are saved locally per difficulty and starting stop.
+A bus departure does not immediately lose the run: wait for the replacement and fight the regrouped doorway crowd. Health, weapon, pickups and score persist. Lose when health reaches zero. There is no overall stop deadline; urgency comes from each individual departure. The result explains that specific failure and offers an immediate retry. Personal best scores are saved locally per difficulty and starting stop.
 
 ## Combat choices
 
@@ -29,13 +29,13 @@ A bus departure does not immediately lose the run: wait for the replacement and 
 | Dodge | L or Space. A short movement burst with brief invulnerability, costing 19 stamina. Avoiding a live strike awards a dodge bonus. |
 | Power shove | F. Costs 28 stamina and recharges over four seconds. Pushes up to four nearby rivals away and gives an entry window. It creates space rather than replacing the normal damage combo. |
 | Pick up | R near a weapon or drink. Equipping a new weapon replaces the old one. A drink restores 30 health and is consumed once. |
-| Board | Hold E near the door after the doorway rival is down and the remaining blockers are clear. The contextual prompt explains when to shove or move closer. |
+| Board | Hold E within 1.3 metres of the door while the blockers are clear or staggered. The contextual prompt explains when to shove or move closer. |
 
 Short impact pauses, damage numbers, sound effects, stagger poses and a brief shove ring communicate contact. Camera impacts can be disabled, reduced-motion preference is respected, and sound can be muted from the menu or pause screen. Backgrounding the game pauses the simulation.
 
 ## A living stop and combat rewards
 
-Marked boarding bays, a bus-stop flag, shelter, bench and six waiting passengers establish the station. The waiting queue advances slightly when boarding opens; doorway fighters still hold posts and never pursue the player or board themselves. Cars, taxis and trotros move in both directions on dedicated lanes outside the playable arena. Ambient traffic has fixed lane spacing and pauses with the game. Boarding vehicles turn in from the road and leave through the station exit. The traffic is scenery, not a vehicle-collision survival mechanic.
+Marked boarding bays, a bus-stop flag, shelter, bench and six waiting passengers establish the station. Bystanders step toward the curb during arrivals while the fighting crowd moves from its waiting area to the doorway; fighters then hold posts and never pursue the player or board themselves. Cars, taxis and trotros move in both directions on dedicated lanes outside the playable arena. Ambient traffic has fixed lane spacing and pauses with the game. Boarding vehicles decelerate along a dedicated approach shoulder into a bay parallel to the road. Their doors open toward the pavement, and they depart along the curb without crossing the playable space. A shared layout module aligns the scene, door target, guard posts and simulation boundaries. The traffic is scenery, not a vehicle-collision survival mechanic.
 
 Connected hits build a streak with score multipliers at four and eight hits, capped at ×3. An unblocked hit or 3.5 seconds without a connection breaks the streak. A separate momentum meter starts at 35 percent and charges from connected hits, knockdowns and active defence. At 100 percent, Q releases Crowd Breaker: a 3.8-metre knockback, 22 base damage, a three-second stagger, full stamina, brief protection and four seconds of 25-percent extra damage. It cannot be activated while waiting for a bus.
 
@@ -60,27 +60,27 @@ Pickups have distinct models, coloured ground rings, names and contextual descri
 
 ## Bus service
 
-Each arrival may be full. The first-bus probability is 35/45/55 percent on Easy/Normal/Hard. Consecutive full buses are prevented. Full buses remain for 2.5 seconds, leave over 1.5 seconds, then a 3-second wait and 1.5-second arrival lead to the next parked trotro. The bus has a closed sliding door and FULL placard when unavailable, seated occupants, and a 1 SEAT placard when available. Replacement buses have a different paint colour and a new number in the HUD.
+Each arrival may be full. The first-bus probability is 35/45/55 percent on Easy/Normal/Hard. Consecutive full buses are prevented. Full buses remain for 2.4 seconds, leave over 3.2 seconds, then a 4.2-second wait and 3.6-second arrival lead to the next parked trotro. Each new stop starts with the waiting and arrival phases, giving time to prepare. The bus has a closed sliding door and FULL placard when unavailable, seated occupants, and a 1 SEAT placard when available. Replacement buses have a different paint colour and a new number in the HUD.
 
-An available bus stays for 34/30/26 seconds. Its departure resets doorway combat and boarding progress, while health, weapon, pickups and earned score persist. Defenders step to waiting posts during the gap, then return to guard the next available bus. Combat and boarding are disabled while the bus is full or moving. The HUD separates the next-arrival/boarding countdown from the overall stop service deadline.
+An available bus stays for 32/25/19 seconds on Easy/Normal/Hard. Its departure resets doorway combat and boarding progress, while health, weapon, pickups and earned score persist. Defenders step to waiting posts during the gap, then return to guard the next available bus. Combat and boarding are disabled while the bus is full or moving. The HUD shows the arrival/boarding countdown, Wait–Arrival–Fight–Board phase, capacity, doorway blockers and subtitles. Engine revs, brake sounds and optional local-device speech reinforce the mate calls. Last call triggers at eight seconds; the door starts closing in the final second.
 
 ## Opponents and pressure
 
-All opponents occupy assigned posts around the trotro entrance. They attack only when the player approaches the doorway and comes within reach. They never use the player's position as a movement destination. A defender pushed away from a post returns to it after recovering. The marked doorway rival stays down after defeat; other knocked-down defenders eventually recover at their posts.
+During waiting and full-bus phases opponents remain in the waiting area. On an available approach, they gather at assigned posts around the trotro entrance. They attack only when the player approaches the doorway and comes within reach. They never use the player's position as a movement destination. A defender pushed away from a post returns to it after recovering. The marked doorway rival stays down after defeat; other knocked-down defenders eventually recover at their posts.
 
-Stool carriers have a slower, heavier swing; umbrella carriers have longer reach; baton carriers wind up faster. A bounded number of defenders can wind up simultaneously. Defenders route around the solid bus when returning to a displaced post. A standing, active opponent close to the door physically blocks boarding; a staggered or displaced defender leaves an opening.
+Stool carriers have a slower, heavier swing; umbrella carriers have longer reach; baton carriers wind up faster. A bounded number of defenders can wind up simultaneously. The playable pavement stays outside both the moving bus bay and the through lanes, including while the bay is empty. A standing, active opponent close to the door physically blocks boarding; a staggered or displaced defender leaves an opening.
 
-| Mode | Starting crowd | Service ends | Base damage | Wind-up | Player boarding |
+| Mode | Starting crowd | Boarding window | Base damage | Wind-up | Player boarding |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Easy | 4 | 85 sec | 8 | 1.00 sec | 1.15 sec |
-| Normal | 6 | 75 sec | 11 | 0.80 sec | 1.30 sec |
-| Hard | 8 | 65 sec | 15 | 0.64 sec | 1.40 sec |
+| Easy | 4 | 32 sec | 8 | 1.10 sec | 1.00 sec |
+| Normal | 6 | 25 sec | 11 | 0.85 sec | 1.10 sec |
+| Hard | 8 | 19 sec | 15 | 0.66 sec | 1.20 sec |
 
-The second and third stops each add another rival. Rival health, doorway-rival health and movement speed also increase. The initial doorway rival has 68, 88 or 112 health, depending on difficulty. These are tuning values; automated rule checks do not establish that a game is fun or replace player feedback.
+Easy allows one simultaneous attacker, Normal two, and Hard three. The second and third stops each add another rival. Rival health, doorway-rival health and movement speed also increase. The initial doorway rival has 68, 88 or 112 health, depending on difficulty. These are tuning values; automated rule checks do not establish that a game is fun or replace player feedback.
 
 ## Reward and replay
 
-Each hit adds a small score, ordinary knockdowns award 150 points and the doorway rival awards 500. Winning a seat adds a clear bonus, remaining-time bonus and health bonus. Perfect blocks and successful dodges reward active defence. The final score combines all three stops.
+Each hit adds a small score, ordinary knockdowns award 150 points and the doorway rival awards 500. Winning a seat adds a clear bonus, speed bonus (floored at zero) and health bonus. Perfect blocks and successful dodges reward active defence. The final score combines all three stops.
 
 The result screen stamps each cleared stop and identifies the next destination. The player can see the unfinished journey instead of receiving the same isolated win screen repeatedly. Best scores use a new versioned local record store so earlier walk-to-the-door times do not compete with this challenge.
 
@@ -108,8 +108,10 @@ The next environment quality milestone is one independently captured stop with w
 
 Target readable, responsive combat alongside natural proportions and material detail. Avoid camera occlusion, exaggerated motion blur and visual noise that hide a coming attack. Full accessibility work should include remapping, gamepad support, scalable text, subtitles, alternate telegraph colours and hold/toggle choices for guard and boarding.
 
-## Validation scope
+## Reference and validation
 
-All 43 tests pass. Bus and weapon checks cover capacity, guaranteed available arrivals after full buses, missed departures without losing the stop, persistent supplies, the empty/returning bus collision, service timeout, all five pickups, weapon replacement and carry-over, reach, damage, stamina, attack cadence and crowd coverage. The existing suite checks required doorway combat, hit chains, cooldowns, interrupted boarding, defenders holding their posts, blocked entry, power shoves, perfect blocks, dodge protection, attack concurrency, collision, pickups, terminal outcomes and three-stop carry-over. An additional regression check ensures a shove gives enough time to board even when bus collision keeps the blocker physically close. Character checks cover weighted meshes, animation targets and independent crowd skeletons.
+The narration and representative scenes in [Why Lagos Bus Stops Turn Into a Fight](https://www.youtube.com/watch?v=NQvoIqS8W8c) informed the wait, arrival and doorway scramble sequence. The reference is an illustrated Lagos transport explainer, not live Accra footage or a source of combat animation. The game uses original environment geometry and its existing licensed assets.
 
-Current browser QA includes moving cars and trotros, a shelter queue, a full first bus and available second arrival, a completed timed finisher challenge, a 10-hit streak at ×3, Crowd Breaker activation and successful Easy and Normal boarding, pause/resume and desktop/narrow HUD layouts. Earlier QA covered won Normal stops and health/gear carry-over. Balance, sustained device performance and enjoyment need broader playtesting with the intended audience.
+All 49 automated tests pass. Six roadside checks cover safe preparation, a crowd formed before boarding, zero-knockdown wins on all difficulties, defender regrouping without pursuit, full arrivals keeping the crowd back, aligned bus/door coordinates and vehicle paths clear of the pavement. Existing tests cover combat, weapons, bus capacity and persistence, traffic spacing, score/challenges, three-stop carry-over and character rigs. Updated tests reflect the physical gap goal and removal of the overall service deadline.
+
+Browser QA verified preparation pickups, missed-bus persistence, full-bus replacement, visible crowd formation, a zero-knockdown win with full health, next-stop weapon/score retention, pause/resume, moving traffic and responsive controls. Automated checks cannot establish enjoyment; difficulty and longer-term replay value need player feedback.

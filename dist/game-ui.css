@@ -36,3 +36,10 @@ dialog{color:var(--ink);background:#121e27ed;border:1px solid #758f9455;box-shad
 
 @media(max-width:760px) and (min-height:691px){.run-status{top:109px}.objective{top:154px}.challenge-panel{top:288px}#announcement{bottom:340px}}
 @media(max-width:760px) and (max-height:690px){.run-status{top:104px}.objective{top:147px}.challenge-panel{top:270px}.challenge-panel>b{display:none}.challenge-panel>span{font-size:9px}#announcement{bottom:295px}}
+
+/* The roadside loop stays legible without a mandatory boss health bar. */
+.phase-strip{display:flex;justify-content:center;align-items:center;gap:10px;margin:7px auto 0;font-size:9px;letter-spacing:.7px;text-transform:uppercase;color:#b1bab2}.phase-strip i{font-style:normal;color:#809593}.phase-strip .current{color:#ffe1a0;border-bottom:2px solid #e9bf65;padding-bottom:3px}.mate-call{color:#ffe1a0;font-size:11px;min-height:14px;font-weight:600}.blocker-notice{margin-top:0}.blocker-notice small{display:none}.objective-marker{z-index:1}.last-call .phase-strip .current{color:#ffc08f;border-color:#f5a771}.last-call .mate-call{color:#ffc08f}
+.objective{background:#0c1b25d9;padding:7px 16px;border-radius:3px}.context-action:not(:empty){background:#0c1b25dc;padding:9px 12px;border-radius:3px}.momentum-panel{text-shadow:0 1px 3px #061018,0 0 6px #061018}
+@media(max-width:760px){.phase-strip{gap:9px;font-size:8px;margin-top:4px}.mate-call{font-size:9px;min-height:12px}.blocker-notice b{font-size:9px}.challenge-panel{top:302px}.objective>strong{font-size:23px}#announcement{bottom:344px}.context-action{bottom:284px}}
+@media(max-height:690px) and (max-width:760px){.challenge-panel{top:289px}#announcement{bottom:280px}.context-action{bottom:245px}.momentum-panel>span{display:none}}
+@media(max-height:540px) and (max-width:900px){.phase-strip,.mate-call{display:none}.challenge-panel{top:135px}.objective{position:static}.context-action{bottom:155px}}
