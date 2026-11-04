@@ -3,11 +3,11 @@ import path from 'node:path';
 const root=path.resolve(import.meta.dirname,'..');
 const catalog=JSON.parse(await fs.readFile(root+'/scripts/realism-sources.json','utf8'));
 const base=`https://raw.githubusercontent.com/microsoft/Microsoft-Rocketbox/${catalog.revision}/`;
-const cast=['Male_Adult_12','Male_Adult_04','Male_Adult_17'];
+const cast=[...new Set(catalog.files.filter(f=>f.endsWith('.fbx')).map(f=>f.split('/')[3]))];
 await fs.mkdir(root+'/dist/assets/characters',{recursive:true});await fs.mkdir('/private/tmp/trotro-source-textures',{recursive:true});
 const jobs=[];
 for(const name of cast){
- const prefix=`Assets/Avatars/Adults/${name}/`;
+ const prefix=catalog.files.find(f=>f.split('/')[3]===name).split('/').slice(0,4).join('/')+'/';
  for(const file of catalog.files.filter(file=>file.startsWith(prefix)).map(path=>({path}))){
   const target=file.path.endsWith('.fbx')?`${root}/dist/assets/characters/${name}.fbx`:`/private/tmp/trotro-source-textures/${file.path.split('/').at(-1)}`;jobs.push({url:base+file.path,target});
  }

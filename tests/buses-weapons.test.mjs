@@ -14,7 +14,7 @@ test('full buses cannot be boarded, and the waiting crowd does not attack or pur
   const r=new Round('normal',()=>.5,{firstBusFull:true});Object.assign(r.player,DOOR);const stamina=r.player.stamina;assert.equal(r.attack(),false);assert.equal(r.shove(),false);step(r,2,{board:true,attack:true});assert.equal(r.board,0);assert.equal(r.player.hp,100);assert.equal(r.player.stamina,stamina);assert.ok(r.enemies.every(e=>e.state==='guard'&&distance(e,r.waitingPost(e))<5));
 });
 test('missing one bus keeps the same stop, supplies, health and score alive',()=>{
-  const r=new Round('easy',()=>.5,{health:63,weapon:'umbrella'});r.score=230;step(r,r.bus.window+BUS_TIMING.departing+BUS_TIMING.waiting+BUS_TIMING.arriving+.2);assert.equal(r.status,'playing');assert.equal(r.bus.number,2);assert.equal(r.bus.canBoard,true);assert.equal(r.player.hp,63);assert.equal(r.player.weapon,'umbrella');assert.equal(r.score,230);assert.equal(r.stage,1);assert.ok(r.enemies.every(e=>e.hp===e.maxHp&&e.state!=='boarding'));
+  const r=new Round('easy',()=>.5,{health:63,weapon:'umbrella'});r.raceClock=100;r.score=230;step(r,r.bus.window+BUS_TIMING.departing+BUS_TIMING.waiting+BUS_TIMING.arriving+.2);assert.equal(r.status,'playing');assert.equal(r.bus.number,2);assert.equal(r.bus.canBoard,true);assert.equal(r.player.hp,63);assert.equal(r.player.weapon,'umbrella');assert.equal(r.score,230);assert.equal(r.stage,1);assert.ok(r.enemies.every(e=>e.hp===e.maxHp&&e.state!=='boarding'));
 });
 test('the road stays outside the playable pavement during an empty bay and arrival',()=>{
   const r=new Round('easy',()=>.5,{firstBusFull:true});step(r,BUS_TIMING.full+BUS_TIMING.departing+.1);assert.equal(r.bus.phase,'waiting');Object.assign(r.player,{x:0,z:-6.2});r.tick(.02);assert.equal(r.player.z,-4.15);step(r,BUS_TIMING.waiting+BUS_TIMING.arriving);assert.equal(r.bus.canBoard,true);assert.ok(r.player.z>=-4.15);
@@ -31,15 +31,15 @@ test('all five weapons can be equipped, replaced, and carried to the next stop',
   r.finish('won');run.record(r);const next=run.advance();assert.equal(next.player.weapon,'suitcase');assert.equal(next.pickups.find(p=>p.type==='suitcase').used,true);
 });
 test('umbrella reach hits beyond bare hands while preserving its lighter damage',()=>{
-  function attempt(weapon){const r=new Round('normal',()=>.5,{weapon});r.enemies=[r.keeper];Object.assign(r.player,{x:-4,z:4});Object.assign(r.keeper,{x:-4,z:6.8});const hp=r.keeper.hp;r.attack();return hp-r.keeper.hp;}
-  assert.equal(attempt(null),0);assert.equal(attempt('umbrella'),20);assert.equal(attempt('stool'),0);
+  function attempt(weapon){const r=new Round('normal',()=>.5,{weapon});r.enemies=[r.keeper];Object.assign(r.player,{x:-4,z:4});Object.assign(r.keeper,{x:-4,z:6.8,spawnX:-4,spawnZ:6.8,timer:100});const hp=r.keeper.hp;r.attack();step(r,.2);return hp-r.keeper.hp;}
+  assert.equal(attempt(null),0);assert.equal(attempt('umbrella'),13);assert.equal(attempt('stool'),0);
 });
 test('stool sweeps three rivals, bag and suitcase hit two, baton hits one',()=>{
-  for(const [kind,hits] of [['stool',3],['bag',2],['suitcase',2],['baton',1]]){const r=new Round('normal',()=>.5,{weapon:kind});Object.assign(r.player,{x:0,z:5.8});r.enemies=r.enemies.slice(0,3);r.enemies.forEach((e,i)=>Object.assign(e,{x:-.4+i*.4,z:4.5}));const hp=r.enemies.map(e=>e.hp);r.attack();assert.equal(r.enemies.filter((e,i)=>e.hp<hp[i]).length,hits);}
+  for(const [kind,hits] of [['stool',3],['bag',2],['suitcase',2],['baton',1]]){const r=new Round('normal',()=>.5,{weapon:kind});Object.assign(r.player,{x:0,z:5.8});r.enemies=r.enemies.slice(0,3);r.enemies.forEach((e,i)=>Object.assign(e,{x:-.4+i*.4,z:4.5,spawnX:-.4+i*.4,spawnZ:4.5,timer:100}));const hp=r.enemies.map(e=>e.hp);r.attack();step(r,.2);assert.equal(r.enemies.filter((e,i)=>e.hp<hp[i]).length,hits);}
 });
 test('heavy weapons spend more stamina and recover slower than the baton',()=>{
-  const fast=new Round('easy',()=>.5,{weapon:'baton'}),heavy=new Round('easy',()=>.5,{weapon:'stool'});fast.enemies=[];heavy.enemies=[];fast.attack();heavy.attack();assert.ok(fast.player.stamina>heavy.player.stamina);step(fast,.26);step(heavy,.26);assert.equal(fast.attack(),true);assert.equal(heavy.attack(),false);heavy.player.cooldown=0;heavy.player.stamina=16;assert.equal(heavy.attack(),false);
+  const fast=new Round('easy',()=>.5,{weapon:'baton'}),heavy=new Round('easy',()=>.5,{weapon:'stool'});fast.enemies=[];heavy.enemies=[];fast.attack();heavy.attack();assert.ok(fast.player.stamina>heavy.player.stamina);step(fast,.31);step(heavy,.31);assert.equal(fast.combat.active,null);assert.ok(heavy.combat.active);heavy.combat.reset();heavy.player.stamina=5;assert.equal(heavy.attack(),false);
 });
-test('a heavy third hit has stronger damage and knockback',()=>{
-  const r=new Round('normal',()=>.5,{weapon:'stool'});r.enemies=[r.keeper];Object.assign(r.player,{x:-4,z:4});Object.assign(r.keeper,{x:-4,z:5.2,hp:200,maxHp:200});r.combo=2;r.lastCombo=r.elapsed;const before=distance(r.player,r.keeper);r.attack();assert.equal(r.keeper.hp,146);assert.ok(distance(r.player,r.keeper)>before+2);assert.equal(r.combo,3);
+test('a heavy stool attack hits harder and pushes farther than a light one',()=>{
+  const attack=kind=>{const r=new Round('easy',()=>.5,{weapon:'stool'});r.enemies=[r.keeper];Object.assign(r.player,{x:-4,z:4});Object.assign(r.keeper,{x:-4,z:5.2,spawnX:-4,spawnZ:5.2,hp:200,maxHp:200,timer:100});r.attack(kind);step(r,.6);return{damage:200-r.keeper.hp,range:distance(r.player,r.keeper)};};const light=attack('light'),heavy=attack('heavy');assert.ok(heavy.damage>light.damage*1.8);assert.ok(heavy.range>light.range+.3);
 });

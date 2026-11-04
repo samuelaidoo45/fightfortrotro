@@ -4,9 +4,14 @@ Human characters and locomotion animations
 Microsoft Rocketbox Avatar Library, Copyright (c) 2020 Microsoft.
 https://github.com/microsoft/Microsoft-Rocketbox
 MIT License. Full notice included in characters/LICENSE.txt.
-Models: Male_Adult_12, Male_Adult_04, Male_Adult_17.
+Models: Male_Adult_12, Male_Adult_04, Male_Adult_17, Male_Child_02,
+Female_Child_02, Female_Adult_15, Construction_Male_07, Business_Male_05,
+Female_Adult_02, Construction_Male_05, Medical_Female_01, Sports_Male_03,
+Delivery_Male_01. Original fictional game identities are assigned to these
+licensed stock models; they do not identify real Accra residents.
 Motion: m_walk_fast_01, m_idle_breathe_01.
 Modifications: resized/converted textures, PBR materials, in-place motion,
+normalized rig names, live-rendered selection portraits,
 and procedural combat poses. These characters are licensed stock humans,
 not scans of Accra residents.
 
