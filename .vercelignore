@@ -1,0 +1,6 @@
+.git
+.openai
+tests
+scripts
+docs
+server.mjs
