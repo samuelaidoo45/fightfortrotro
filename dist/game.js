@@ -3,7 +3,7 @@ import {Stage} from './stage.js';
 const $=selector=>document.querySelector(selector),keys=new Set();
 let mode='normal',arena=ARENAS[0],run=null,round=null,paused=false,stage,lastTime=performance.now(),messageTimeout,comboTimeout,impactPause=0,audio,noiseBuffer,lastCountdown=-1;
 let records={},sound=true;
-try{records=JSON.parse(localStorage.getItem('trotro-door-run-records')||'{}');sound=localStorage.getItem('trotro-sound')!=='off';}catch{}
+try{records=JSON.parse(localStorage.getItem('trotro-street-run-records')||'{}');sound=localStorage.getItem('trotro-sound')!=='off';}catch{}
 function setSound(value){sound=value;$('.sound-off').hidden=sound;$('#sound-setting').checked=sound;$('#sound-toggle').setAttribute('aria-label',sound?'Turn sound off':'Turn sound on');$('#sound-toggle').title=sound?'Turn sound off':'Turn sound on';try{localStorage.setItem('trotro-sound',sound?'on':'off');}catch{}}
 function soundEffect(type){
   if(!sound)return;
@@ -25,7 +25,7 @@ function soundEffect(type){
 function announce(text,duration=2400){$('#announcement').textContent=text;$('#announcement').classList.add('show');clearTimeout(messageTimeout);messageTimeout=setTimeout(()=>$('#announcement').classList.remove('show'),duration);}
 function feedback(text){$('#combo').textContent=text;clearTimeout(comboTimeout);comboTimeout=setTimeout(()=>$('#combo').textContent='',1200);}
 function movement(){const up=keys.has('w')||keys.has('arrowup'),down=keys.has('s')||keys.has('arrowdown'),left=keys.has('a')||keys.has('arrowleft'),right=keys.has('d')||keys.has('arrowright');return{x:(right-left)*.76+(down-up)*.65,z:(left-right)*.65+(down-up)*.76};}
-function action(type){if(!round||paused||round.status!=='playing')return;if(type==='attack')round.attack();if(type==='shove')round.shove();if(type==='dodge'){const m=movement();round.dodge(m.x,m.z);}if(type==='pickup')round.pickup();}
+function action(type){if(!round||paused||round.status!=='playing')return;if(type==='attack')round.attack();if(type==='shove')round.shove();if(type==='dodge'){const m=movement();round.dodge(m.x,m.z);}if(type==='pickup')round.pickup();if(type==='burst')round.burst();}
 function selectArena(next){
   arena=next;stage.build(arena);$('#scene-caption').textContent=`${arena.name}, Accra`;$('#arena-detail').textContent=arena.description;$('#maps-link').href=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(arena.query)}`;
   document.querySelectorAll('.arena-choice').forEach(el=>{const on=el.dataset.arena===arena.id;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',on);});
@@ -49,11 +49,11 @@ function finish(result){
   $('#result-eyebrow').textContent=run.complete?'Home run complete':won?`Stop ${run.index+1} secured`:`Run ended at stop ${run.index+1}`;
   $('#result-title').textContent=run.complete?'You made it home.':won?'That seat is yours.':result==='missed'?'The last trotro left.':'The crowd got you.';
   $('#result-description').textContent=run.complete?'Three rushes beaten. Three rides secured. Accra could not stop you.':won?`Next: ${run.route[run.index+1].name}. Recover 25 health, then face a bigger crowd.`:result==='missed'?'Service has ended at this stop. Grab a weapon and break through when a free seat arrives.':`You cleared ${run.history.filter(h=>h.result==='won').length} of 3 stops. Block their swings and use F to open a gap at the doorway.`;
-  $('#result-time').textContent=`${run.time.toFixed(1)}s`;$('#result-kos').textContent=run.kos;$('#result-hp').textContent=Math.ceil(round.player.hp);$('#result-score').textContent=run.score.toLocaleString();
+  $('#result-time').textContent=`${run.time.toFixed(1)}s`;$('#result-kos').textContent=run.kos;$('#result-hp').textContent=Math.ceil(round.player.hp);$('#result-score').textContent=run.score.toLocaleString();$('#result-feats').textContent=`${run.history.filter(h=>h.challenge).length} bonus ${run.history.filter(h=>h.challenge).length===1?'challenge':'challenges'} · Best streak ${Math.max(...run.history.map(h=>h.bestChain))} hits`;
   $('#result-stamps').innerHTML=run.route.map((a,i)=>`<span class="${run.history[i]?.result==='won'?'cleared':''}">${run.history[i]?.result==='won'?'✓':'○'} ${a.name}</span>`).join('');
   $('#retry').textContent=run.canContinue?`Next stop: ${run.route[run.index+1].name}`:'Try the run again';
   const recordKey=`${arena.id}-${mode}`;
-  if(run.complete){const best=records[recordKey]||0;if(run.score>best){records[recordKey]=run.score;try{localStorage.setItem('trotro-door-run-records',JSON.stringify(records));}catch{}$('#best-time').textContent='New home run best!';}else $('#best-time').textContent=`Your best: ${best.toLocaleString()} points`;}
+  if(run.complete){const best=records[recordKey]||0;if(run.score>best){records[recordKey]=run.score;try{localStorage.setItem('trotro-street-run-records',JSON.stringify(records));}catch{}$('#best-time').textContent='New home run best!';}else $('#best-time').textContent=`Your best: ${best.toLocaleString()} points`;}
   else $('#best-time').textContent=won?(run.weapon?`Keep your ${weaponStats(run.weapon).name.toLowerCase()}. Recover 25 health. Keep the run alive.`:'Your health carries forward. Your score keeps climbing.'):records[recordKey]?`Home run best: ${records[recordKey].toLocaleString()} points`:'The goal: win three last seats in one run.';
   soundEffect(won?'won':result);$('#result').showModal();
 }
@@ -71,19 +71,33 @@ function updateHUD(){
   $('#objective-detail').textContent=!active?'Pick up a weapon or a drink. Save your strength for a free seat.':!cleared?'They hold the doorway. J strikes. K blocks.':blocked?'F shoves blockers out of the entrance.':'Hold E before the blockers return to their posts.';
   $('#keeper-panel').hidden=!active||cleared;$('#keeper-fill').style.width=`${keeper?Math.max(0,keeper.hp/keeper.maxHp*100):0}%`;$('#keeper-health').textContent=keeper?`${Math.ceil(Math.max(0,keeper.hp))} / ${keeper.maxHp}`:'';
   $('#blocker-panel').hidden=!active||!cleared||!blocked;$('#blocker-count').textContent=`${round.blockers.length} ${round.blockers.length===1?'rival blocks':'rivals block'} the entrance`;
-  const ready=active&&p.shoveCooldown<=0&&p.stamina>=28;$('#shove-status').textContent=p.shoveCooldown>0?`Shove ${p.shoveCooldown.toFixed(1)}s`:p.stamina<28?'Shove: need stamina':'Shove ready';
+  const ready=active&&p.shoveCooldown<=0&&p.stamina>=28;$('#shove-status').textContent=!active?'Waiting for a seat':p.shoveCooldown>0?`Shove ${p.shoveCooldown.toFixed(1)}s`:p.stamina<28?'Shove: need stamina':'Shove ready';
   document.querySelectorAll('[data-action="shove"]').forEach(button=>{button.disabled=!ready;});document.querySelectorAll('[data-action="attack"]').forEach(button=>button.disabled=!active);
+  const c=round.challenge,challengeLabels={finisher:'Land 2 three-hit finishers',shove:'Shove 3 rivals in one push',defend:'Perfect block or dodge a live swing'};
+  $('#challenge-title').textContent=c.status==='won'?'BONUS COMPLETE':c.status==='expired'?'NEXT CHALLENGE AT NEXT STOP':'STOP CHALLENGE';
+  $('#challenge-detail').textContent=c.status==='won'?'+300 points · +15 health':c.status==='expired'?'Keep fighting for your seat.':`${challengeLabels[c.kind]} · ${c.progress}/${c.goal} · ${Math.ceil(c.time)}s`;
+  $('#challenge-panel').classList.toggle('completed',c.status==='won');
+  $('#momentum-fill').style.width=`${round.momentum}%`;$('#momentum-label').textContent=round.rushTime>0?`POWER UP · ${round.rushTime.toFixed(1)}s`:round.momentum>=100?'Q · CROWD BREAKER READY':`CROWD BREAKER · ${Math.floor(round.momentum)}%`;
+  $('#momentum-help').textContent=round.momentum>=100?'Knock the crowd back. Take the gap.':'Charge with combos, blocks and dodges.';
+  $('#momentum-panel').classList.toggle('ready',round.momentum>=100);$('#streak').textContent=round.chain>1?`${round.chain} HIT STREAK  ×${round.multiplier}`:'';
+  document.querySelectorAll('[data-action="burst"]').forEach(b=>{b.disabled=!active||round.momentum<100;});
+  const heavy=round.enemies.some(e=>e.heavy&&e.state==='windup'&&distance(p,e)<3.3);
+  $('#objective-detail').classList.toggle('danger',heavy);if(heavy)$('#objective-detail').textContent='HEAVY SWEEP! Dodge with L / Space. Blocking will hurt.';
+  $('#hud').classList.toggle('last-call',active&&bus.remaining<=8);
   const item=round.pickups.find(a=>!a.used&&distance(p,a)<1.65);let content='';
   if(item)content=`<kbd>R</kbd> ${WEAPONS[item.type]?`Equip ${WEAPONS[item.type].name}<small>${WEAPONS[item.type].trait}</small>`:'Drink · +30 health'}`;
   else if(!active)content=bus.phase==='full'?'No space on this trotro. Let it leave.':`Next arrival · ${Math.ceil(bus.arrivalIn)}s`;
   else if(round.nearDoor){content=!cleared?'The doorway rival is blocking you. Drop them first.':blocked?'<kbd>F</kbd> Shove the blockers out of the doorway':`<kbd>E</kbd> Hold to enter<div class="board-meter"><div style="width:${Math.min(100,round.board*100)}%"></div></div>`;}
   else if(cleared&&distance(p,DOOR)<3.8)content=`Move closer to the glowing door · ${Math.ceil(distance(p,DOOR))} m`;
   $('#context-action').innerHTML=content;
-  const target=round.target;if(target){const position=stage.project(target.x,2.45,target.z);$('#objective-marker').hidden=distance(p,target)<3;$('#objective-marker').style.left=`${Math.max(55,Math.min(innerWidth-65,position.x))}px`;$('#objective-marker').style.top=`${Math.max(innerWidth<760?240:160,Math.min(innerHeight-230,position.y))}px`;$('#marker-label').textContent=cleared?'Last seat':'Doorway rival';$('#marker-distance').textContent=`${Math.ceil(distance(p,target))} m`;$('#objective-marker').classList.toggle('door-ready',cleared);}else $('#objective-marker').hidden=true;
+  const target=round.target;if(target){const position=stage.project(target.x,2.45,target.z);$('#objective-marker').hidden=distance(p,target)<3;$('#objective-marker').style.left=`${Math.max(55,Math.min(innerWidth-65,position.x))}px`;$('#objective-marker').style.top=`${Math.max(innerWidth<760?350:160,Math.min(innerHeight-230,position.y))}px`;$('#marker-label').textContent=cleared?'Last seat':'Doorway rival';$('#marker-distance').textContent=`${Math.ceil(distance(p,target))} m`;$('#objective-marker').classList.toggle('door-ready',cleared);}else $('#objective-marker').hidden=true;
 }
 function processEvents(){
   for(const event of round.events.splice(0)){
     if(event.type==='message')announce(event.text);
+    else if(event.type==='challenge'){announce(event.text,3200);soundEffect('won');}
+    else if(event.type==='burst'){stage.shoveWave(event.x,event.z);stage.impact(event.x,event.z,true);feedback('CROWD BREAKER!');announce('Four seconds of extra power. Take the gap!',2200);soundEffect('shove');impactPause=.09;}
+    else if(event.type==='last-call'){soundEffect('danger');}
     else if(event.type==='bus-state'){if(event.phase==='boarding'||event.phase==='full')soundEffect('bus-state');}
     else if(event.type==='end')finish(event.result);
     else if(event.type==='hit'){stage.impact(event.x,event.z,event.finish);soundEffect('hit');impactPause=event.finish?.065:.035;const at=stage.project(event.x,1.7,event.z);if(at.x>0&&at.x<innerWidth&&at.y>0&&at.y<innerHeight){const number=document.createElement('span');number.className='floating-damage'+(event.finish?' finisher':'');number.textContent=event.damage;number.style.left=at.x+'px';number.style.top=at.y+'px';$('#hud').appendChild(number);setTimeout(()=>number.remove(),700);}}
@@ -108,8 +122,8 @@ $('#fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenEl
 window.addEventListener('keydown',e=>{
   const key=e.key.toLowerCase();if(!round||round.status!=='playing')return;
   if(key==='escape'||key==='p'){e.preventDefault();if(!e.repeat)paused?resume():pause();return;}if(paused)return;
-  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','j','k','l',' ','e','r','f'].includes(key))e.preventDefault();keys.add(key);
-  if(!e.repeat){if(key==='j')action('attack');if(key==='f')action('shove');if(key==='l'||key===' ')action('dodge');if(key==='r')action('pickup');}
+  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','j','k','l',' ','e','r','f','q'].includes(key))e.preventDefault();keys.add(key);
+  if(!e.repeat){if(key==='j')action('attack');if(key==='f')action('shove');if(key==='q')action('burst');if(key==='l'||key===' ')action('dodge');if(key==='r')action('pickup');}
 });
 window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();pause();});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
 function bindHold(button,key,press){

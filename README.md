@@ -2,7 +2,7 @@
 
 A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro. A three-stop home run across six Accra-inspired environments, Easy/Normal/Hard, doorway rivals, defenders who hold their entrance posts, crowd combat, stamina, pickups, and contested boarding.
 
-Version 0.5 adds full buses, replacement arrivals, and five weapon pickups. A full trotro leaves, the crowd steps back, and another bus pulls in; a full bus is always followed by one with a free seat. The capacity indicator and next-arrival countdown explain when to wait. Missing one bus keeps the stop alive until service ends. The entrance remains the fight: knock down the marked doorway rival, push aside the remaining blockers, and enter before they regroup. Opponents stay at the doorway and return to their posts after being displaced; they do not chase the player around or board themselves. Win three stops in one run to get home. Later stops add rivals and increase pressure; health, the equipped weapon, and score carry forward. Characters use textured, rigged Microsoft Rocketbox models with skeletal movement and combat poses. The independently built environment remains approximate; this is not a fully photorealistic recreation of Accra. The production plan is in [the game design](docs/GAME_DESIGN.md).
+Version 0.6 gives the station a marked boarding bay, shelter, passenger queue and moving road traffic. Taxis, cars and trotros pass in both directions beyond the fighting area. Timed bonus challenges, hit-streak score multipliers, a charged Crowd Breaker and heavy-swing warnings add combat decisions. Full buses, replacement arrivals and all five weapons remain part of the run. A full trotro leaves, the crowd steps back, and another bus pulls in; a full bus is always followed by one with a free seat. The capacity indicator and next-arrival countdown explain when to wait. Missing one bus keeps the stop alive until service ends. The entrance remains the fight: knock down the marked doorway rival, push aside the remaining blockers, and enter before they regroup. Opponents stay at the doorway and return to their posts after being displaced; they do not chase the player around or board themselves. Win three stops in one run to get home. Later stops add rivals and increase pressure; health, the equipped weapon, and score carry forward. Characters use textured, rigged Microsoft Rocketbox models with skeletal movement and combat poses. The independently built environment remains approximate; this is not a fully photorealistic recreation of Accra. The production plan is in [the game design](docs/GAME_DESIGN.md).
 
 ## Run
 
@@ -26,6 +26,7 @@ npm test
 | Move | WASD or arrow keys |
 | Strike / connected three-hit combo | Tap or hold J |
 | Power shove / clear the entrance | F |
+| Crowd Breaker (at full charge) | Q |
 | Block | Hold K |
 | Dodge | L or Space |
 | Board at the glowing door | Hold E |
@@ -33,6 +34,12 @@ npm test
 | Pause | Esc or P |
 
 Touch controls appear on narrow screens and devices with a coarse pointer. Audio can be muted. Pausing freezes the simulation; switching tabs pauses automatically. Escape closes the result screen and returns to the lobby. Personal best home-run scores are stored only in the browser, per starting stop and difficulty. Sound starts enabled and can be muted in the menu or pause screen.
+
+## Fight for the opening
+
+Combos, knockdowns, perfect blocks and live dodges charge Crowd Breaker. Press Q when ready to knock nearby rivals back, restore stamina and gain four seconds of extra damage. The meter starts at 35 percent each stop. Keeping hits connected builds a score multiplier up to ×3; an unblocked hit or 3.5 seconds without a connection resets it.
+
+Each stop has a different optional 30-second challenge: land two finishers, shove three rivals together, or defend a live attack. The timer runs only while boarding is open. Completion awards 300 points, 15 health and extra charge. A large red wind-up ring warns of the doorway rival’s heavy attack; dodging avoids the damage that leaks through a block. The last eight boarding seconds trigger a last-call cue.
 
 ## Weapons and arrivals
 
@@ -51,10 +58,12 @@ Full buses close their doors and leave. The next bus takes 8.5 seconds from the 
 ## Source
 
 - `dist/core.js`: rendering-independent combat, AI, collision, pickups, and round outcomes.
+- `dist/traffic.js`: lane movement, spacing and traffic wrapping.
 - `dist/stage.js`: environment and minibus geometry, physical materials, Three.js rendering, camera and impact effects.
 - `dist/humans.js`: licensed human models, skeletal animation, independent crowd rigs, and two-bone arm posing for combat.
 - `dist/game.js`: input, menus, HUD, sound, pause and local records.
 - `dist/game-ui.css`: full-screen menu, responsive game HUD, dialogs and touch controls.
+- `tests/street-challenge.test.mjs`: traffic movement/spacing, charge, score streaks, timed rewards, heavy attacks and last-call cues.
 - `tests/core.test.mjs`: behavioral tests for the game rules.
 - `tests/buses-weapons.test.mjs`: full-bus lifecycle, missed arrivals, capacity, weapon reach, damage, crowd coverage, stamina and carry-over tests.
 - `dist/vendor/`: Three.js r170 (MIT), Barlow and Barlow Condensed (SIL Open Font License); license texts included.
@@ -65,7 +74,7 @@ There is no backend, player tracking, paid API, or Google Maps key. The Maps lin
 
 ## Verified in this build
 
-JavaScript syntax checks and all 35 tests pass: 32 gameplay/progression checks and three character/animation checks. This version’s browser QA covered a full first bus and an available second arrival, travel-bag and umbrella pickup/replacement, a market-stool fight, a won Easy stop, and desktop/narrow HUD layouts. Earlier QA covered Normal doorway fights and stop progression. Character tests verify weighted meshes, combat joints, matching animation targets and independent crowd skeletons. Broad device compatibility, sustained performance, and combat balance still need playtesting.
+JavaScript syntax checks and all 43 tests pass: 40 gameplay/traffic checks and three character/animation checks. This version’s browser QA covered moving street traffic, the waiting queue, full-bus replacement, a completed finisher challenge, a 10-hit streak and ×3 multiplier, Crowd Breaker activation, successful Easy and Normal boarding, and desktop/narrow HUD layouts. Character tests verify weighted meshes, combat joints, matching animation targets and independent crowd skeletons. Broad device compatibility, sustained performance, and combat balance still need playtesting.
 
 ## Design tokens
 

@@ -1,5 +1,6 @@
 import * as T from './vendor/three.module.js';
 import {DOOR,WEAPONS} from './core.js';
+import {TrafficFleet} from './traffic.js';
 import {HumanLibrary} from './humans.js';
 import {RoundedBoxGeometry} from './vendor/RoundedBoxGeometry.js';
 const C={blue:0x267d9b,cream:0xe7e0ca,rubber:0x242929,skin:0x73452d,road:0x6b7069};
@@ -39,7 +40,7 @@ export class Stage {
   }
   clear(group){const geometries=new Set(),materials=new Set();group.traverse(o=>{if(o.isMesh){if(!this.humans.geometries.has(o.geometry))geometries.add(o.geometry);const list=Array.isArray(o.material)?o.material:[o.material];for(const m of list)if(!Object.values(this.materials).includes(m)&&!this.humans.materials.has(m))materials.add(m);if(o.isSkinnedMesh)o.skeleton.dispose();if(o.isInstancedMesh)o.dispose();}});for(const g of geometries)g.dispose();for(const m of materials){if(m.map)m.map.dispose();m.dispose();}group.clear();}
   build(arena){
-    this.clear(this.environment);this.clear(this.dynamic);this.actors=[];this.effects=[];this.pickupMeshes=[];this.extras=[];this.busRiders=[];this.escapeDeparture=0;this.arena=arena;
+    this.clear(this.environment);this.clear(this.dynamic);this.actors=[];this.effects=[];this.pickupMeshes=[];this.extras=[];this.busRiders=[];this.escapeDeparture=0;this.queue=[];this.arena=arena;
     this.scene.background=this.sky;this.scene.fog=new T.Fog(0xb9b4a1,35,110);const g=this.environment;
     this.box(g,150,.18,150,this.texture('dirt'),0,-.17,0);this.box(g,65,.08,65,this.texture('road'),1,-.045,-1);
     for(let i=-6;i<10;i++){this.box(g,1.3,.1,.35,i%2?0xc8bda2:0x5c625c,-11,.02,i*1.8);}
@@ -58,21 +59,20 @@ export class Stage {
     // Shop fronts are original fictional signs, never lifted from Street View.
     const signs=arena.id==='kaneshie'?['KANESHIE MARKET','AKUA’S PROVISIONS','FRESH FRUIT']:arena.id==='madina'?['MADINA MARKET','ZONGO STORES','MOBILE MONEY']:['ACCRA STORES','CHOP BAR','MOBILE MONEY'];
     for(let i=0;i<7;i++){
-      const x=-18+i*6.2,h=3.5+(i%3)*1.25,z=-14-(i%2)*1.8;
+      const x=-22+i*7.2,h=3.5+(i%3)*1.25,z=-25-(i%2)*1.8;
       const color=[0xc2ad8e,arena.color,0xc7b99a,0x9baaaa,0xbf9472][i%5];this.box(g,5.7,h,4.3,color,x,h/2,z);this.box(g,6,.17,4.7,0x6c7773,x,h+.1,z);
       this.box(g,5.3,.75,.12,this.label(signs[i%3]),x,2.6,z+2.2);
       for(let k=0;k<3;k++){this.box(g,1.25,1.8,.1,i%2?0x687877:0x465e63,x-1.8+k*1.75,.95,z+2.21);for(let j=0;j<8;j++)this.box(g,1.25,.025,.06,0x8b9990,x-1.8+k*1.75,.2+j*.2,z+2.3);}
       if(h>4)for(let k=0;k<3;k++)this.box(g,1.15,.85,.12,this.materials.glass,x-1.7+k*1.7,h-1,z+2.22);
       for(let k=0;k<5;k++)this.box(g,.18,.08,4.8,0x809088,x-2.8+k*1.4,h+.23,z);
     }
-    this.stall(-11,-4.5,0xbc6e42,'COLD WATER');this.stall(-11,2.4,0xd3aa49,'FRESH FRUIT');this.stall(10,-9,arena.accent,'CHOP BAR');
-    if(arena.feature==='market'){this.stall(-7.5,-9.5,0x9d5c55,'PROVISIONS');this.stall(14,1.2,0xc69248,'FRESH FRUIT');this.stall(13,-4.2,0x588b80,'MARKET');}
+    this.stall(-11,-4.5,0xbc6e42,'COLD WATER');this.stall(-11,2.4,0xd3aa49,'FRESH FRUIT');this.stall(14,-21,arena.accent,'CHOP BAR');
+    if(arena.feature==='market'){this.stall(-7.5,-21,0x9d5c55,'PROVISIONS');this.stall(14,1.2,0xc69248,'FRESH FRUIT');this.stall(15,-4.2,0x588b80,'MARKET');}
     if(arena.feature==='flyover'){
       for(let i=0;i<4;i++)this.box(g,1.4,7,1.8,0xa8aaa0,-21+i*11,3.5,-22);
       this.box(g,65,.75,7,0xaaa99d,0,7.3,-22);this.box(g,65,.65,.25,0xc9c4b0,0,7.95,-18.6);this.box(g,65,.25,.15,0x5e7778,0,8.45,-18.6);
     }
-    if(arena.feature==='yard'){this.buildBus(g,-7,-8,'ACCRA  —  TEMA',.82);this.buildBus(g,12,-7,'CIRCLE  —  ACCRA',.85);}
-    else this.buildBus(g,13,-10,'ACCRA  —  CIRCLE',.75);
+    this.buildStation(g,arena);
     for(const [x,z] of [[-17,-8],[-15,7],[18,-5],[24,-13]])this.tree(x,z,arena.feature==='trees'?1.4:1);
     this.powerPole(-10,8);this.powerPole(-12,-10);
     const wire=new T.CatmullRomCurve3([new T.Vector3(-10,8.4,8),new T.Vector3(-11,7.4,-1),new T.Vector3(-12,8.4,-10)]);g.add(new T.Mesh(new T.TubeGeometry(wire,20,.018,4,false),mat(0x263e3e)));
@@ -80,9 +80,52 @@ export class Stage {
     for(let i=0;i<3;i++){this.cylinder(g,.12,.3,.7,0xd08b4f,-8+i*.8,.35,-8);this.box(g,.65,.08,.65,0x403f36,-8+i*.8,.04,-8);}
     for(let i=0;i<3;i++){const t=new T.Mesh(new T.TorusGeometry(.38,.13,16,32),this.materials.rubber);t.rotation.x=Math.PI/2;t.position.set(-9,.16+i*.24,-7.5);g.add(t);}
     this.mate=this.character(0xd2ba6f,false,2);this.mate.group.position.set(4.55,0,-4.25);this.mate.group.rotation.y=.5;g.add(this.mate.group);this.extras.push(this.mate);
-    for(let i=0;i<6;i++){const a=this.character([0xae7866,0x7d9c91,0xd8bc76,0x60788f][i%4],false,i%3);a.group.position.set(-13+i*4.5,0,-9.5);a.group.rotation.y=.8;g.add(a.group);this.extras.push(a);}
+    for(let i=0;i<6;i++){const a=this.character(0x7d9c91,false,i%2?'bag':'suitcase',i%3);a.group.position.set(7+(i%2)*1.05,0,-8.3+Math.floor(i/2)*.9);a.group.rotation.y=0;g.add(a.group);this.queue.push({actor:a,x:a.group.position.x,z:a.group.position.z,index:i});}
+    for(let i=0;i<3;i++){const a=this.character(0x7d9c91,false,'bag');a.group.position.set(-13+i*9,0,-19.7);a.group.rotation.y=1.6;g.add(a.group);this.extras.push(a);}
     this.menuHero=this.character(0xe4b74f,true);this.menuHero.group.position.set(9.4,0,6);this.menuHero.group.rotation.y=.3;this.menuHero.ring.visible=false;g.add(this.menuHero.group);this.extras.push(this.menuHero);
     this.camera.fov=40;this.camera.updateProjectionMatrix();this.camera.position.set(11,2.4,12);this.look.set(2.7,-1.3,-1);this.camera.lookAt(this.look);
+  }
+  groundText(parent,text,x,z,w,d){const material=this.label(text,1024,160,'#545953','#e9cb76');const mesh=new T.Mesh(new T.PlaneGeometry(w,d),material);mesh.rotation.x=-Math.PI/2;mesh.position.set(x,.035,z);parent.add(mesh);return mesh;}
+  buildStation(g,arena){
+    // Two carriageways around the station forecourt; the combat area ends before either road.
+    for(const [z,width] of [[-13.3,7.5],[14.4,7]]){
+      this.box(g,120,.025,width,0x414947,0,.008,z);
+      for(let x=-55;x<58;x+=5)this.box(g,2.5,.015,.09,0xe7e3cb,x,.03,z);
+      for(const side of [-1,1])this.box(g,120,.015,.12,0xe6dfb7,0,.03,z+side*(width/2-.2));
+    }
+    // Marked boarding bay, pedestrian kerb, shelter, and stop flag.
+    for(const x of [1.25,4.75])for(let z=-7.8;z<.5;z+=1.4)this.box(g,.1,.018,.85,0xf0c75a,x,.035,z);
+    this.groundText(g,'TROTRO ONLY',3,-6.4,3,1);
+    this.groundText(g,'WAIT HERE',7.8,3.1,3.2,.7);
+    this.groundText(g,'BUS STOP',8,-5.9,3.3,.7);
+    for(let x=-15;x<16;x+=1.2){if(x>0&&x<5)continue;this.box(g,1.15,.2,.26,(Math.round(x/1.2)%2)?0xdbcaa7:0x4c5553,x,.1,-9.3);}
+    for(let z=-7.8;z<.2;z+=1.2)this.box(g,.22,.16,1.05,0xcfc8b0,4.77,.08,z);
+    const shelter=new T.Group();shelter.position.set(8.3,0,-8);g.add(shelter);
+    for(const x of [-2,2])for(const z of [-.9,.9])this.cylinder(shelter,.045,.045,2.85,0x385d59,x,1.42,z);
+    this.roundedBox(shelter,4.6,.17,2.5,mat(0x3e706b),0,2.9,0,.055);
+    this.box(shelter,4,.85,.05,this.label(arena.name.toUpperCase()+'  •  TROTRO STOP',1024,128,'#234c48','#f5df8d'),0,2.4,-.91);
+    this.box(shelter,3.5,.13,.55,0x775c3e,0,.53,-.42);for(const x of [-1.3,1.3])this.box(shelter,.1,.5,.45,0x3a5351,x,.25,-.42);
+    this.cylinder(g,.055,.055,3.3,0x67736c,5.35,1.65,-6.9);this.box(g,1.05,1.2,.08,this.label('BUS STOP',256,256,'#dbb45b','#193f42'),5.35,2.7,-6.9);
+    // Direction arrows and entry/exit markings make the vehicle route legible.
+    this.groundText(g,'ENTRY  ↓',3,-8.7,2.6,.65);this.groundText(g,'EXIT  ↓',3,7.9,2.6,.65);
+    this.traffic=new TrafficFleet();this.trafficModels=this.traffic.vehicles.map(v=>{
+      const model=v.kind==='trotro'?this.buildBus(g,v.x,v.z,'ACCRA  —  CIRCLE',.9):this.buildCar(g,v.kind,v.id);model.rotation.y=v.direction*Math.PI/2;return model;
+    });
+  }
+  buildCar(parent,kind,index){
+    const car=new T.Group();parent.add(car);const paint=mat(kind==='taxi'?0xb9933d:[0x476b78,0xd2d3c7,0x6e3f35,0x3a4655][index%4],.32,.45),glass=this.materials.glass;
+    this.roundedBox(car,1.85,.62,4.2,paint,0,.69,0,.16);this.roundedBox(car,1.64,.65,2.05,paint,0,1.21,-.28,.16);
+    this.box(car,1.47,.49,.04,glass,0,1.24,.78).rotation.x=.26;this.box(car,1.45,.45,.04,glass,0,1.23,-1.3).rotation.x=-.22;
+    for(const side of [-1,1]){for(const z of [-.8,.24])this.box(car,.025,.42,.83,glass,side*.83,1.25,z);this.box(car,.03,.5,.07,paint,side*.85,1.25,-.28);this.box(car,.03,.08,.2,this.materials.chrome,side*.94,.88,-.35);this.box(car,.19,.15,.22,paint,side*1,1.02,.69);}
+    const wheels=[];for(const side of [-1,1])for(const z of [-1.35,1.3]){const wheel=new T.Group();wheel.position.set(side*.94,.4,z);car.add(wheel);const tyre=this.cylinder(wheel,.37,.37,.23,this.materials.rubber);tyre.rotation.z=Math.PI/2;const hub=this.cylinder(wheel,.21,.21,.24,this.materials.chrome);hub.rotation.z=Math.PI/2;wheels.push(wheel);}
+    for(const side of [-1,1]){this.box(car,.45,.17,.04,0xf1e7bf,side*.59,.77,2.1);this.box(car,.43,.17,.04,0xa33229,side*.59,.77,-2.1);}
+    this.box(car,1.6,.12,.1,this.materials.chrome,0,.47,2.12);this.box(car,.7,.17,.035,this.label('GR  2438',256,64,'#ddc368','#243a3e'),0,.64,2.13);
+    if(kind==='taxi')this.box(car,.49,.19,.28,this.label('TAXI',256,80,'#f3d25f','#1c373d'),0,1.67,-.15);
+    car.userData.wheels=wheels;return car;
+  }
+  updateStreet(dt,round){
+    this.traffic.tick(dt);this.traffic.vehicles.forEach((v,i)=>{const mesh=this.trafficModels[i];mesh.position.x=v.x;mesh.position.z=v.z;for(const w of mesh.userData.wheels||[])w.rotation.x=v.wheel;});
+    for(const q of this.queue){const goal=q.z+(round?.combatActive?.35:0);q.actor.group.position.z=T.MathUtils.damp(q.actor.group.position.z,goal,2,dt);q.actor.group.rotation.y=.2+Math.sin(this.clock*.5+q.index)*.12;this.humans.update(q.actor,{state:'idle'},dt,this.clock);}
   }
   buildBus(parent,x,z,route,scale=1){
     const bus=new T.Group();bus.position.set(x,0,z);bus.scale.setScalar(scale);parent.add(bus);const m=this.materials;
@@ -155,8 +198,8 @@ export class Stage {
     if(actor.item){this.clear(actor.item);actor.group.remove(actor.item);}
     actor.item=kind?this.weaponModel(kind):new T.Group();actor.weaponId=kind;actor.group.add(actor.item);actor.item.visible=!!kind;
   }
-  character(shirt,player=false,weapon=0){
-    const actor=this.humans.create(player?0:1+(Object.keys(WEAPONS).indexOf(weapon)%2));actor.player=player;
+  character(shirt,player=false,weapon=0,variant){
+    const actor=this.humans.create(variant??(player?0:1+(Object.keys(WEAPONS).indexOf(weapon)%2)));actor.player=player;
     if(player){const fabric=mat(0x252e2c,.95),pack=new T.Group();actor.body.add(pack);this.roundedBox(pack,.33,.4,.17,fabric,0,1.25,-.23,.065);this.roundedBox(pack,.27,.2,.035,fabric,0,1.15,-.325,.025);this.box(pack,.2,.008,.012,this.materials.chrome,0,1.26,-.347);for(const side of [-1,1]){const strap=new T.CatmullRomCurve3([new T.Vector3(side*.15,1.05,-.24),new T.Vector3(side*.19,1.55,-.07),new T.Vector3(side*.19,1.48,.16),new T.Vector3(side*.16,1.12,.16)]);pack.add(new T.Mesh(new T.TubeGeometry(strap,14,.014,6,false),fabric));}}
     actor.weaponId=null;this.equipVisual(actor,player?null:(weapon||'bag'));
     const ring=new T.Mesh(new T.RingGeometry(.34,.365,40),new T.MeshBasicMaterial({color:player?0xe7bb5b:0xc87737,transparent:true,opacity:player?.55:0,side:T.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=.018;actor.group.add(ring);actor.ring=ring;
@@ -186,8 +229,10 @@ export class Stage {
   pose(actor,data,dt){
     const isPlayer=actor.player,state=isPlayer?data.action:data.state;actor.group.position.set(data.x,0,data.z);const diff=Math.atan2(Math.sin(data.face-actor.group.rotation.y),Math.cos(data.face-actor.group.rotation.y));actor.group.rotation.y+=diff*Math.min(1,dt*15);
     this.equipVisual(actor,data.weapon);this.humans.update(actor,data,dt,this.clock);
+    if(isPlayer){actor.ring.material.color.setHex(data.rushing?0x83e4df:0xe7bb5b);actor.ring.scale.setScalar(data.rushing?1.35:1);}
     if(!isPlayer){actor.hpGroup.visible=(data.role==='keeper'||data.hp<data.maxHp)&&state!=='down';actor.hp.scale.x=Math.max(0,data.hp/data.maxHp);actor.hp.position.x=-(1-actor.hp.scale.x)*.265;actor.hp.material.color.setHex(0xd6b076);actor.hpGroup.quaternion.copy(this.camera.quaternion);if(actor.roleLabel)actor.roleLabel.visible=data.role==='keeper';}
-    if(state==='windup'){actor.ring.material.opacity=.35+Math.sin(this.clock*18)*.15;actor.ring.material.color.setHex(0xef8953);actor.ring.scale.setScalar(1.7);}else if(!isPlayer){actor.ring.material.opacity=state==='down'?0:data.role==='keeper'?.28:0;actor.ring.material.color.setHex(0xf2c261);}
+    if(state==='windup'){actor.ring.material.opacity=.35+Math.sin(this.clock*18)*.15;actor.ring.material.color.setHex(data.heavy?0xf04836:0xef8953);actor.ring.scale.setScalar(data.heavy?5.5:1.7);}else if(!isPlayer){actor.ring.scale.setScalar(1);actor.ring.material.opacity=state==='down'?0:data.role==='keeper'?.28:0;actor.ring.material.color.setHex(0xf2c261);}
+    if(state==='down'){actor.item.position.set(.45,.15,.25);actor.item.rotation.set(0,.3,Math.PI/2);}
     if(isPlayer)actor.item.visible=!!data.weapon;
   }
   impact(x,z,finish=false){for(let i=0;i<7;i++){const mesh=new T.Mesh(new T.BoxGeometry(.06,.06,.06),new T.MeshBasicMaterial({color:finish?0xffce60:0xffeed0}));mesh.position.set(x,1.3,z);this.dynamic.add(mesh);this.effects.push({mesh,v:new T.Vector3((Math.random()-.5)*5,Math.random()*3,(Math.random()-.5)*5),life:.35});}if(this.shakeEnabled)this.shake=finish?.13:.06;}
@@ -196,8 +241,8 @@ export class Stage {
   updateBus(round,dt,lobby){
     const bus=this.mainBus,cycle=round?.bus,phase=lobby?'boarding':cycle.phase,departed=round&&['won','missed'].includes(round.status),t=cycle?.progress||0,ease=t*t*(3-2*t);
     bus.visible=phase!=='waiting';bus.rotation.y=0;bus.position.set(3,0,-3.45);
-    if(phase==='departing')bus.position.z+=ease*28;
-    else if(phase==='arriving'){bus.position.x+=24*(1-ease);bus.position.z-=Math.sin(Math.PI*t)*1.5;bus.rotation.y=-Math.PI/2*(1-ease);}
+    if(phase==='departing'){const exit=Math.min(1,t*1.8);bus.position.z+=exit*17.7;if(t>.55){const turn=(t-.55)/.45;bus.position.x+=turn*24;bus.rotation.y=turn*Math.PI/2;}}
+    else if(phase==='arriving'){bus.position.x+=24*(1-ease);bus.position.z-=7.9*(1-ease);bus.rotation.y=-Math.PI/2*(1-ease);}
     if(departed){this.escapeDeparture+=dt*4;bus.position.z+=this.escapeDeparture;if(round.status==='won')this.player.group.visible=false;}
     const parked=phase==='full'||phase==='boarding',full=!lobby&&cycle.full;
     this.busPaint.color.setHex([0x267d9b,0x427f6b,0x935744][((cycle?.number||1)-1)%3]);
@@ -208,10 +253,10 @@ export class Stage {
     this.doorRing.visible=parked&&!departed;this.doorRing.material.color.setHex(full?0xa08d81:round?.doorCalled?0xffd05b:0xcc8d57);this.doorRing.material.opacity=full?.22:(lobby||round?.doorCalled)?.65+Math.sin(this.clock*4)*.15:.18;
   }
   update(dt,round,lobby=false){
-    this.clock+=dt;const narrow=innerWidth<760;for(const actor of this.extras||[])this.humans.update(actor,{state:'idle'},dt,this.clock);
+    this.clock+=dt;this.updateStreet(dt,round);const narrow=innerWidth<760;for(const actor of this.extras||[])this.humans.update(actor,{state:'idle'},dt,this.clock);
     if(lobby){const target=new T.Vector3(narrow?12:11,narrow?2.5:2.4,narrow?15:12);this.camera.position.lerp(target,Math.min(1,dt*2));this.look.lerp(new T.Vector3(narrow?5.7:2.7,narrow?-.5:-1.3,narrow?.2:-1),dt*2);}
     else if(round&&this.player){
-      round.player.moving=!!round.player.moving;this.pose(this.player,round.player,dt);round.enemies.forEach((e,i)=>this.pose(this.actors[i],e,dt));
+      round.player.moving=!!round.player.moving;round.player.rushing=round.rushTime>0;this.pose(this.player,round.player,dt);round.enemies.forEach((e,i)=>this.pose(this.actors[i],e,dt));
       round.pickups.forEach((p,i)=>{const mesh=this.pickupMeshes[i];mesh.visible=!p.used;mesh.userData.display.position.y=.8+Math.sin(this.clock*3+i)*.04;if(mesh.userData.label)mesh.userData.label.quaternion.copy(this.camera.quaternion);});
       const p=round.player,focus=new T.Vector3(p.x*.85+.7,.95,p.z*.85-1.2);const target=focus.clone().add(new T.Vector3(narrow?7.5:5.6,narrow?6.8:3.8,narrow?9:6.6));
       const obstruction=new T.Box3(new T.Vector3(1.35,.25,-6.6),new T.Vector3(4.5,3.2,-.25));const sight=new T.Ray(target,focus.clone().sub(target).normalize());if(round.busBlocksGround&&sight.intersectsBox(obstruction)&&!(p.x>1.1&&p.x<4.7&&p.z>-.25))target.y+=4;

@@ -58,6 +58,7 @@ export class Round {
     this.mode=mode;this.random=random;this.stage=options.stage||1;
     const level=this.stage-1,base=MODES[mode];
     this.config={...base,count:base.count+level,hp:Math.round(base.hp*(1+level*.1)),gateHp:Math.round(base.gateHp*(1+level*.12)),speed:base.speed*(1+level*.06)};
+    this.momentum=35;this.rushTime=0;this.chain=0;this.chainTime=0;this.bestChain=0;this.lastCall=false;this.challenge={kind:['finisher','shove','defend'][(this.stage-1)%3],progress:0,goal:this.stage===1?2:1,time:30,status:'active'};
     this.elapsed=0;this.status='playing';this.kos=0;this.score=0;this.board=0;this.combo=0;this.lastCombo=-10;this.events=[];this.doorCalled=false;this.hitsTaken=0;
     this.bus=new BusCycle({firstFull:!!options.firstBusFull,window:base.busWindow,fullChance:base.fullChance,random});
     this.player={x:0,z:5.8,hp:options.health??100,stamina:100,face:Math.PI,action:'idle',actionTime:0,cooldown:0,shoveCooldown:0,invulnerable:0,hurt:0,weapon:options.weapon===true?'bag':options.weapon||null,rest:0,dx:0,dz:-1,walk:0,blockTime:0};
@@ -74,7 +75,7 @@ export class Round {
   constrainActor(actor){constrain(actor,this.busBlocksGround);}
   waitingPost(enemy){return{x:6.7+(enemy.id%3)*1.1,z:3.6+Math.floor(enemy.id/3)*1.25};}
   busChanged(change){
-    this.board=0;this.combo=0;this.doorCalled=false;if(this.player.action==='boarding')this.player.action='idle';
+    this.board=0;this.combo=0;this.lastCall=false;this.doorCalled=false;if(this.player.action==='boarding')this.player.action='idle';
     if(change.to==='departing'||change.to==='boarding')for(const e of this.enemies){e.hp=e.maxHp;e.state='guard';e.hurt=0;e.timer=.5+this.random();}
     this.emit('bus-state',{phase:change.to,full:change.full,number:change.number});
     if(change.to==='departing')this.emit('message',{text:change.full?'This trotro is full. It is leaving. Wait for the next one.':'That trotro has left. Another one is on the way.'});
@@ -88,19 +89,31 @@ export class Round {
   get blockers(){return this.enemies.filter(e=>e.state!=='down'&&e.state!=='recover'&&distance(e,DOOR)<1.85);}
   get doorBlocked(){return this.blockers.length>0;}
   emit(type,data={}){this.events.push({type,...data});}
+  get multiplier(){return Math.min(3,1+Math.floor(this.chain/4));}
+  gainMomentum(amount){const wasReady=this.momentum>=100;this.momentum=Math.min(100,this.momentum+amount);if(!wasReady&&this.momentum>=100)this.emit('message',{text:'CROWD BREAKER ready! Press Q to blast open the doorway.'});}
+  progressChallenge(kind,amount=1){
+    const c=this.challenge;if(c.status!=='active'||c.kind!==kind)return;c.progress=Math.min(c.goal,c.progress+amount);
+    if(c.progress>=c.goal){c.status='won';this.score+=300;this.player.hp=Math.min(100,this.player.hp+15);this.gainMomentum(25);this.emit('challenge',{text:'Challenge complete! +300 points · +15 health'});}
+  }
+  burst(){
+    const p=this.player;if(!this.combatActive||this.status!=='playing'||this.momentum<100||p.action==='dodge')return false;
+    this.momentum=0;this.rushTime=4;p.stamina=100;p.invulnerable=.8;p.action='shove';p.actionTime=.44;p.cooldown=.5;
+    for(const enemy of this.enemies.filter(e=>e.state!=='down'&&distance(p,e)<3.8))this.strikeEnemy(enemy,22,3.1,3);
+    this.emit('burst',{x:p.x,z:p.z});return true;
+  }
   down(enemy){
     enemy.hp=0;enemy.state='down';enemy.timer=enemy.role==='keeper'?Infinity:8;this.kos++;
-    this.score+=enemy.role==='keeper'?500:150;this.player.stamina=Math.min(100,this.player.stamina+12);
+    this.score+=(enemy.role==='keeper'?500:150)*this.multiplier;this.gainMomentum(12);this.player.stamina=Math.min(100,this.player.stamina+12);
     this.emit('down',{x:enemy.x,z:enemy.z,keeper:enemy.role==='keeper'});
     if(enemy.role==='keeper'){
       this.doorCalled=true;this.emit('door-open');this.emit('message',{text:'Doorway rival down! Push the blockers aside, then hold E to enter.'});
     }
   }
   strikeEnemy(enemy,damage,push,stun){
-    const p=this.player;enemy.hp-=damage;enemy.hurt=.26;
+    const p=this.player;damage=Math.round(damage*(this.rushTime>0?1.25:1));enemy.hp-=damage;enemy.hurt=.26;
     let dx=enemy.x-p.x,dz=enemy.z-p.z,len=Math.hypot(dx,dz);if(len<.01){dx=Math.sin(p.face);dz=Math.cos(p.face);len=1;}
     enemy.x+=dx/len*push;enemy.z+=dz/len*push;this.constrainActor(enemy);enemy.state='recover';enemy.timer=stun;
-    this.score+=10;this.emit('hit',{x:enemy.x,z:enemy.z,finish:push>1,damage});
+    this.score+=10*this.multiplier;this.emit('hit',{x:enemy.x,z:enemy.z,finish:push>1,damage});
     if(enemy.hp<=0)this.down(enemy);
   }
   attack(){
@@ -111,6 +124,7 @@ export class Round {
     this.combo=this.elapsed-this.lastCombo<1.05?this.combo%3+1:1;this.lastCombo=this.elapsed;
     p.face=Math.atan2(targets[0].x-p.x,targets[0].z-p.z);const finish=this.combo===3;
     for(const enemy of targets.slice(0,w.targets))this.strikeEnemy(enemy,finish?w.finisher:w.damage,finish?w.push:.17,finish?1.35:.46);
+    this.chain++;this.bestChain=Math.max(this.bestChain,this.chain);this.chainTime=3.5;this.gainMomentum(finish?18:9);if(finish)this.progressChallenge('finisher');
     p.stamina=Math.min(100,p.stamina+2);this.emit('combo',{count:this.combo});return true;
   }
   shove(){
@@ -119,7 +133,7 @@ export class Round {
     const targets=this.enemies.filter(e=>e.state!=='down'&&distance(p,e)<2.65).sort((a,b)=>distance(p,a)-distance(p,b));
     if(targets[0])p.face=Math.atan2(targets[0].x-p.x,targets[0].z-p.z);
     for(const enemy of targets.slice(0,4))this.strikeEnemy(enemy,12,2.35,2.2);
-    this.emit('shove',{x:p.x,z:p.z});return true;
+    if(targets.length>=3)this.progressChallenge('shove');this.emit('shove',{x:p.x,z:p.z});return true;
   }
   dodge(mx=0,mz=0){
     const p=this.player;if(this.status!=='playing'||p.stamina<19||p.action==='dodge'||p.action==='shove')return false;
@@ -134,11 +148,11 @@ export class Round {
     item.used=true;this.emit('pickup');
   }
   hurtPlayer(damage,enemy){
-    const p=this.player;if(!this.combatActive)return 'waiting';if(p.invulnerable>0){if(p.action==='dodge'){this.score+=35;this.emit('evade');}return 'dodged';}
+    const p=this.player;if(!this.combatActive)return 'waiting';if(p.invulnerable>0){if(p.action==='dodge'){this.score+=35;this.gainMomentum(18);this.progressChallenge('defend');this.emit('evade');}return 'dodged';}
     if(p.action==='block'&&p.stamina>=5){
-      if(p.blockTime<.2){p.stamina=Math.max(0,p.stamina-4);p.rest=.3;enemy.state='recover';enemy.timer=1.25;this.score+=75;this.emit('parry',{x:enemy.x,z:enemy.z});return 'parried';}
-      p.stamina=Math.max(0,p.stamina-11);p.rest=.6;damage*=.12;this.emit('block');
-    }else{this.emit('damage');p.invulnerable=.32;this.hitsTaken++;}
+      if(p.blockTime<.2&&!enemy.heavy){p.stamina=Math.max(0,p.stamina-4);p.rest=.3;enemy.state='recover';enemy.timer=1.25;this.score+=75;this.gainMomentum(25);this.progressChallenge('defend');this.emit('parry',{x:enemy.x,z:enemy.z});return 'parried';}
+      p.stamina=Math.max(0,p.stamina-11);p.rest=.6;damage*=enemy.heavy?.55:.12;this.emit('block');
+    }else{this.emit('damage');p.invulnerable=.32;this.hitsTaken++;this.chain=0;this.chainTime=0;}
     p.hp=Math.max(0,p.hp-damage);p.hurt=.2;this.board=0;
     const len=distance(p,enemy)||1;p.x+=(p.x-enemy.x)/len*.16;p.z+=(p.z-enemy.z)/len*.16;this.constrainActor(p);return 'hit';
   }
@@ -150,6 +164,11 @@ export class Round {
   }
   tick(dt,input={}){
     if(this.status!=='playing')return;dt=clamp(dt,0,.05);this.elapsed+=dt;const change=this.bus.tick(dt);if(change)this.busChanged(change);
+    this.rushTime=Math.max(0,this.rushTime-dt);this.chainTime=Math.max(0,this.chainTime-dt);if(!this.chainTime)this.chain=0;
+    if(this.combatActive){
+      if(this.challenge.status==='active'){this.challenge.time=Math.max(0,this.challenge.time-dt);if(!this.challenge.time)this.challenge.status='expired';}
+      if(this.bus.remaining<=8&&!this.lastCall){this.lastCall=true;this.emit('last-call');this.emit('message',{text:'LAST CALL! Eight seconds. Open a gap and get in!'});}
+    }
     const p=this.player;p.cooldown=Math.max(0,p.cooldown-dt);p.shoveCooldown=Math.max(0,p.shoveCooldown-dt);p.invulnerable=Math.max(0,p.invulnerable-dt);p.hurt=Math.max(0,p.hurt-dt);p.rest=Math.max(0,p.rest-dt);
     if(p.actionTime>0){p.actionTime-=dt;if(p.actionTime<=0)p.action='idle';}
     if(!['dodge','attack','shove'].includes(p.action)){
@@ -169,10 +188,10 @@ export class Round {
       if(!this.combatActive){e.state='guard';e.timer=.5;this.moveEnemy(e,this.waitingPost(e),dt,this.config.speed*1.3);continue;}
       const post={x:e.spawnX,z:e.spawnZ};
       if(e.state==='down'){if(e.timer<=0){e.hp=e.maxHp*.65;e.x=e.spawnX;e.z=e.spawnZ;e.state='recover';e.timer=.65;this.constrainActor(e);}continue;}
-      if(e.state==='recover'){if(e.timer<=0){e.state='guard';e.timer=.15;}continue;}
-      const weapon=weaponStats(e.weapon),reach=e.role==='keeper'?1.9:weapon.reach*.78;
+      if(e.state==='recover'){if(e.timer<=0){e.state='guard';e.heavy=false;e.timer=.15;}continue;}
+      const weapon=weaponStats(e.weapon),reach=e.heavy?2.8:e.role==='keeper'?1.9:weapon.reach*.78;
       if(e.state==='windup'){
-        if(e.timer<=0){const canHit=distance(p,e)<reach+.3&&distance(p,DOOR)<5.2;const result=canHit?this.hurtPlayer(this.config.damage*(e.role==='keeper'?1.15:weapon.enemyDamage),e):'miss';if(result!=='parried'){e.state='swing';e.timer=.23;}}
+        if(e.timer<=0){const canHit=distance(p,e)<reach+.3&&distance(p,DOOR)<5.2;const result=canHit?this.hurtPlayer(this.config.damage*(e.heavy?1.6:e.role==='keeper'?1.15:weapon.enemyDamage),e):'miss';if(result!=='parried'){e.state='swing';e.timer=.23;}}
         continue;
       }
       if(e.state==='swing'){if(e.timer<=0){e.state='recover';e.timer=.85+this.random()*.5;}continue;}
@@ -180,7 +199,7 @@ export class Round {
       if(distance(e,post)>.12)this.moveEnemy(e,post,dt,this.config.speed);
       const d=distance(p,e),nearEntrance=distance(p,DOOR)<5.2;
       if(nearEntrance&&distance(e,post)<1.35&&d<reach+.1&&e.timer<=0&&attacking<this.config.attackers){
-        e.face=Math.atan2(p.x-e.x,p.z-e.z);e.state='windup';e.timer=this.config.windup*weapon.windup;attacking++;
+        e.face=Math.atan2(p.x-e.x,p.z-e.z);e.state='windup';e.attacks=(e.attacks||0)+1;e.heavy=e.role==='keeper'&&e.attacks%3===0;e.timer=this.config.windup*weapon.windup*(e.heavy?1.65:1);attacking++;
       }else if(nearEntrance&&!e.moving)e.face=Math.atan2(p.x-e.x,p.z-e.z);
     }
     for(let i=0;i<this.enemies.length;i++){
@@ -209,7 +228,7 @@ export class HomeRun {
   record(round){
     if(round.status==='playing'||this.history.some(h=>h.stage===round.stage))return;
     this.score+=round.score;this.kos+=round.kos;this.time+=round.elapsed;this.health=round.player.hp;this.weapon=round.player.weapon;
-    this.history.push({stage:round.stage,arena:this.arena.id,result:round.status,score:round.score,stars:round.stars});
+    this.history.push({challenge:round.challenge.status==='won',bestChain:round.bestChain,stage:round.stage,arena:this.arena.id,result:round.status,score:round.score,stars:round.stars});
     this.complete=round.status==='won'&&this.index===2;this.canContinue=round.status==='won'&&!this.complete;
   }
   advance(){if(!this.canContinue)return null;this.index++;this.health=Math.min(100,this.health+25);this.canContinue=false;return this.createRound();}

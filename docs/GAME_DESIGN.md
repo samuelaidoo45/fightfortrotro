@@ -33,6 +33,16 @@ A bus departure does not immediately lose the run: wait for the replacement and 
 
 Short impact pauses, damage numbers, sound effects, stagger poses and a brief shove ring communicate contact. Camera impacts can be disabled, reduced-motion preference is respected, and sound can be muted from the menu or pause screen. Backgrounding the game pauses the simulation.
 
+## A living stop and combat rewards
+
+Marked boarding bays, a bus-stop flag, shelter, bench and six waiting passengers establish the station. The waiting queue advances slightly when boarding opens; doorway fighters still hold posts and never pursue the player or board themselves. Cars, taxis and trotros move in both directions on dedicated lanes outside the playable arena. Ambient traffic has fixed lane spacing and pauses with the game. Boarding vehicles turn in from the road and leave through the station exit. The traffic is scenery, not a vehicle-collision survival mechanic.
+
+Connected hits build a streak with score multipliers at four and eight hits, capped at ×3. An unblocked hit or 3.5 seconds without a connection breaks the streak. A separate momentum meter starts at 35 percent and charges from connected hits, knockdowns and active defence. At 100 percent, Q releases Crowd Breaker: a 3.8-metre knockback, 22 base damage, a three-second stagger, full stamina, brief protection and four seconds of 25-percent extra damage. It cannot be activated while waiting for a bus.
+
+Each stop offers an optional 30-second challenge: two three-hit finishers, a shove hitting at least three rivals, or a perfect block/live dodge. Challenge time advances only while boarding is open. Completion awards 300 points, 15 health and 25 momentum once. An expired challenge never prevents boarding. The result records completed challenges and the best hit streak.
+
+Every third doorway-rival attack is a slower heavy sweep, shown with a large red ring and an on-screen dodge warning. Blocking takes 55 percent of its damage instead of the normal 12 percent; dodge protection avoids it. A last-call announcement fires once per available bus when eight seconds remain.
+
 ## Weapon tuning
 
 All weapons use J and a three-hit chain. The third hit has stronger damage and knockback. These are melee pickups; they have no ammo or durability meter.
@@ -100,6 +110,6 @@ Target readable, responsive combat alongside natural proportions and material de
 
 ## Validation scope
 
-All 35 tests pass. Bus and weapon checks cover capacity, guaranteed available arrivals after full buses, missed departures without losing the stop, persistent supplies, the empty/returning bus collision, service timeout, all five pickups, weapon replacement and carry-over, reach, damage, stamina, attack cadence and crowd coverage. The existing suite checks required doorway combat, hit chains, cooldowns, interrupted boarding, defenders holding their posts, blocked entry, power shoves, perfect blocks, dodge protection, attack concurrency, collision, pickups, terminal outcomes and three-stop carry-over. An additional regression check ensures a shove gives enough time to board even when bus collision keeps the blocker physically close. Character checks cover weighted meshes, animation targets and independent crowd skeletons.
+All 43 tests pass. Bus and weapon checks cover capacity, guaranteed available arrivals after full buses, missed departures without losing the stop, persistent supplies, the empty/returning bus collision, service timeout, all five pickups, weapon replacement and carry-over, reach, damage, stamina, attack cadence and crowd coverage. The existing suite checks required doorway combat, hit chains, cooldowns, interrupted boarding, defenders holding their posts, blocked entry, power shoves, perfect blocks, dodge protection, attack concurrency, collision, pickups, terminal outcomes and three-stop carry-over. An additional regression check ensures a shove gives enough time to board even when bus collision keeps the blocker physically close. Character checks cover weighted meshes, animation targets and independent crowd skeletons.
 
-Current browser QA includes a full first bus and an available second arrival, weapon pickup and replacement, a market-stool fight and successful Easy boarding, pause/resume and desktop/narrow HUD layouts. Earlier QA covered won Normal stops and health/gear carry-over. Balance, sustained device performance and enjoyment need broader playtesting with the intended audience.
+Current browser QA includes moving cars and trotros, a shelter queue, a full first bus and available second arrival, a completed timed finisher challenge, a 10-hit streak at ×3, Crowd Breaker activation and successful Easy and Normal boarding, pause/resume and desktop/narrow HUD layouts. Earlier QA covered won Normal stops and health/gear carry-over. Balance, sustained device performance and enjoyment need broader playtesting with the intended audience.
