@@ -2,7 +2,11 @@
 
 A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro. A three-stop home run across six Accra-inspired environments, Easy/Normal/Hard, doorway rivals, defenders who hold their entrance posts, crowd combat, stamina, pickups, and contested boarding.
 
-Version 0.8 adds ten selectable commuters with distinct human models, starting gear and modest play-style bonuses. Three confirmed combo routes lead to launchers, spinning kicks and shoulder drives. Heavy attacks, low sweeps, throws, counters, air juggles and a three-hit cinematic special replace the old single-strike loop. A practice mode and paused move list help learn timing.
+Version 0.9, **Rush Hour**, adds a replayable run structure: three different stop conditions, eight possible upgrades (choose one after each of the first two rides), and one of three final captains. Mix four moves or defensive actions within six seconds to trigger Rush. Throws and heavy finishers can crash rivals into nearby passengers. Interrupting a boarding rival buys time and earns points. Damage dealt persists across missed buses.
+
+The daily route fixes the fighter, difficulty, conditions and random seeds for that UTC day, with personal bests on this device. Career XP, seven ranks, four fighter-mastery titles and six achievement badges persist in local storage. Practice awards no XP. Every fighter and run upgrade is available immediately; there are no paid upgrades or login rewards. The first trotro at each stop arrives with space in 3.6 seconds.
+
+Ten selectable commuters have distinct human models, starting gear and modest play-style bonuses. Three confirmed combo routes lead to launchers, spinning kicks and shoulder drives. Heavy attacks, low sweeps, throws, counters, air juggles and a three-hit cinematic special provide the combat vocabulary. A practice mode and paused move list help learn timing.
 
 Rivals now compete for the last seat: they hold the doorway, then rush to board. Interrupt the highlighted rival with an attack or shove. If they board first, the bus leaves full and you fight for the next arrival, keeping health, gear and score. Passing traffic, curbside bus movement, three-stop runs and six Accra-inspired arenas remain part of the game.
 
@@ -40,7 +44,7 @@ npm test
 | Equip a weapon or drink | R |
 | Pause | Esc or P |
 
-Touch controls appear on narrow screens and devices with a coarse pointer. Audio can be muted. Pausing freezes the simulation; switching tabs pauses automatically. Escape closes the result screen and returns to the lobby. Personal best home-run scores are stored only in the browser, per starting stop, difficulty and character. Sound starts enabled and can be muted in the menu or pause screen.
+Touch controls appear on narrow screens and devices with a coarse pointer. Audio can be muted. Pausing freezes the simulation; switching tabs pauses automatically. Escape closes the result screen and returns to the lobby. Personal best home-run scores are stored only in the browser, per starting stop, difficulty and character. Career and daily records are also device-local; clearing browser data removes them. Daily records retain the most recent 30 dates. No global leaderboard or cloud save is implied. Sound starts enabled and can be muted in the menu or pause screen.
 
 ## Fight for the opening
 
@@ -60,7 +64,7 @@ Press R near a labelled pickup. Equipping a new weapon replaces the current one.
 | Market stool | Heavy sweep hits three rivals | Slow recovery, high stamina cost |
 | Suitcase | Strong knockback, hits two rivals | Slower than bag or baton |
 
-Full buses close their doors and leave. From the full-bus notice, the next available bus parks after 13.4 seconds: 2.4 seconds full, 3.2 departing, 4.2 waiting and 3.6 arriving. Preparation and transit do not spend the boarding window or challenge timer. An available bus stays 38/32/26 seconds on Easy/Normal/Hard. Rivals begin rushing to board after 9/7/5.5 seconds. Their boarding attempts take 3.4/2.9/2.5 seconds; interrupting resets the race delay. Every replacement reforms the doorway crowd. Stay alive and keep trying if a bus leaves.
+Full buses close their doors and leave. From the full-bus notice, the next available bus parks after 13.4 seconds: 2.4 seconds full, 3.2 departing, 4.2 waiting and 3.6 arriving. Preparation and transit do not spend the boarding window or challenge timer. Before stop-rule modifiers, an available bus stays 38/32/26 seconds on Easy/Normal/Hard. Rivals begin rushing to board after 9/7/5.5 seconds. Their boarding attempts take 3.4/2.9/2.5 seconds; interrupting resets the race delay. Every replacement reforms the doorway crowd, keeping damage dealt to existing rivals. A passenger who boarded is replaced by a fresh rival. Stay alive and keep trying if a bus leaves.
 
 ## Source
 
@@ -94,3 +98,7 @@ JavaScript syntax checks and 66 behavioural/rig tests cover combat timing, board
 Route-board gold `#f3b942`, night blue `#12191d`, light stone `#ece8de`, steel blue `#315563`, and muted grey `#a5aaa9`. Barlow Condensed carries the game title and timers; Barlow carries instructions and controls. The full-window arena and a human commuter form the menu background. A compact left menu opens the rush; stops form a route strip at the foot of the screen. Combat uses readable wind-ups, a small player ring, damage feedback, and a persistent door marker.
 
 # fightfortrotro
+
+## Rush Hour validation
+
+`npm run check` and 83 Node tests cover the original combat, rigs and traffic plus upgrades, fixed daily seeds, captain patterns, crowd crashes, reward idempotency, malformed saves and persistence of enemy damage. Browser QA completed a three-stop run, selected and carried upgrades, used a special to board the last stop, reloaded career progress, and exercised the daily challenge and upgrade selection at 390 × 844. Fun and long-term retention still need observation with real players; these checks establish correct behaviour.

@@ -2,9 +2,11 @@ import {HomeRun,Round,MODES,ARENAS,DOOR,distance,WEAPONS,weaponStats} from './co
 import {CHARACTERS,characterById} from './characters.js';
 import {COMBO_ROUTES} from './combat.js';
 import {Stage} from './stage.js';
+import {UPGRADES,BADGES,cleanProfile,rankFor,masteryFor,awardRound,dailyRoute,seededRandom} from './journey.js';
 const $=selector=>document.querySelector(selector),keys=new Set();
 let mode='normal',arena=ARENAS[0],run=null,round=null,paused=false,stage,lastTime=performance.now(),messageTimeout,comboTimeout,impactPause=0,audio,noiseBuffer,lastCountdown=-1;
-let records={},sound=true,characterId='office';
+let records={},sound=true,characterId='office',profile=cleanProfile(null),dailyRun=null,saveAvailable=true;
+try{profile=cleanProfile(JSON.parse(localStorage.getItem('trotro-career-v1')||'null'));}catch{saveAvailable=false;}
 try{characterId=characterById(localStorage.getItem('trotro-character')).id;}catch{}
 try{records=JSON.parse(localStorage.getItem('trotro-fighters-records')||'{}');sound=localStorage.getItem('trotro-sound')!=='off';}catch{}
 function setSound(value){sound=value;if(!sound)window.speechSynthesis?.cancel();$('.sound-off').hidden=sound;$('#sound-setting').checked=sound;$('#sound-toggle').setAttribute('aria-label',sound?'Turn sound off':'Turn sound on');$('#sound-toggle').title=sound?'Turn sound off':'Turn sound on';try{localStorage.setItem('trotro-sound',sound?'on':'off');}catch{}}
@@ -47,33 +49,54 @@ function refreshJourney(){
 }
 function playRound(next){
   for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();keys.clear();paused=false;impactPause=0;round=next;lastCountdown=-1;
-  stage.build(run.arena);stage.begin(round);document.body.classList.add('playing');$('#hud').hidden=false;$('#round-location').textContent=round.practice?'Combat practice / '+run.arena.name:`Stop ${run.index+1} of 3 / ${run.arena.name}`;$('#combo').textContent='';$('#start').blur();refreshJourney();soundEffect('start');
-  announce(round.practice?'Practice safely. J J I launches. Press M for every move.':run.index===0?'Three rides home. Choose a weapon while you wait. Make a gap and take the seat.':`Stop ${run.index+1}: ${run.arena.name}. Keep your gear. Watch for the next trotro.`,3300);updateHUD();
+  stage.build(run.arena);stage.begin(round);document.body.classList.add('playing');$('#hud').hidden=false;$('#round-location').textContent=round.practice?'Combat practice / '+run.arena.name:`Stop ${run.index+1} of 3 / ${run.arena.name} · ${round.condition.name}`;$('#combo').textContent='';$('#start').blur();refreshJourney();soundEffect('start');
+  announce(round.practice?'Practice safely. J J I launches. Press M for every move.':`${run.index===2?run.captain.name+' guards the last stop. ':''}${round.condition.name}. ${round.condition.detail}`,3300);updateHUD();
 }
-function start(){run=new HomeRun(mode,arena.id,Math.random,characterId);playRound(run.createRound());}
-function practice(){run=new HomeRun(mode,arena.id,Math.random,characterId);playRound(new Round(mode,Math.random,{practice:true,character:characterId}));}
+function start(){dailyRun=null;run=new HomeRun(mode,arena.id,Math.random,characterId);playRound(run.createRound());}
+function startDaily(repeat=false){const d=repeat&&dailyRun?dailyRun:dailyRoute();dailyRun=d;run=new HomeRun('normal',ARENAS[d.start].id,seededRandom(d.seed),d.fighter,{daily:d.day});playRound(run.createRound());}
+function refreshCareer(){
+  const rank=rankFor(profile.xp),d=dailyRoute(),record=profile.daily[d.day];
+  $('#career-rank').textContent=rank.name;$('#career-summary').textContent=`Level ${rank.level} · ${profile.seats} ${profile.seats===1?'seat':'seats'} secured · ${profile.xp.toLocaleString()} XP`;$('#career-fill').style.width=`${Math.round(rank.progress*100)}%`;
+  $('#daily-route').textContent=ARENAS[d.start].name+' rush';$('#daily-detail').textContent=`${characterById(d.fighter).name} · Normal · ${d.day}`;$('#daily-best').textContent=record?`Your best: ${record.best.toLocaleString()} · ${record.seats}/3 seats${record.won?' · Home!':''}`:'A fixed route. A fresh challenge every day.';
+  $('#career-title').textContent=rank.name;$('#career-progress').textContent=rank.next?`Level ${rank.level} · ${profile.xp.toLocaleString()} XP · ${rank.next-profile.xp} XP to ${rankFor(rank.next).name}`:`Level ${rank.level} · ${profile.xp.toLocaleString()} XP · Keep setting new personal bests.`;
+  $('#career-totals').innerHTML=`<span><b>${profile.wins}</b>Home runs</span><span><b>${profile.seats}</b>Seats won</span><span><b>${profile.badges.length}/6</b>Badges</span>`;
+  $('#career-badges').innerHTML=BADGES.map(b=>`<article class="${profile.badges.includes(b.id)?'earned':''}"><span>${profile.badges.includes(b.id)?'✓':'◇'}</span><div><b>${b.name}</b><p>${b.detail}</p></div></article>`).join('');
+  $('#mastery-list').innerHTML=CHARACTERS.map(c=>{const f=profile.fighters[c.id]||{xp:0,seats:0};return `<div><span>${c.name}<small>${c.role}</small></span><b>${masteryFor(f.xp)}<small>${f.xp} XP · ${f.seats} ${f.seats===1?'seat':'seats'}</small></b></div>`;}).join('');
+  $('#save-note').textContent=saveAvailable?'Progress and daily records are saved in this browser on this device.':'Browser storage is unavailable. Progress lasts for this session only.';
+}
+function renderUpgrades(){
+  $('#upgrade-section').hidden=!run.canContinue;$('#result').classList.toggle('has-upgrades',run.canContinue);$('#retry').disabled=run.canContinue&&!run.selectedUpgrade;
+  if(!run.canContinue){$('#upgrade-choices').replaceChildren();return;}
+  const rule=run.conditions[run.index+1];$('#next-stop-rule').textContent=`Next: ${run.route[run.index+1].name} · ${rule.name}${run.index===1?' · '+run.captain.name:''}`;
+  $('#upgrade-choices').replaceChildren(...run.offers.map(u=>{const b=document.createElement('button');b.className='upgrade-choice';b.dataset.upgrade=u.id;b.setAttribute('aria-pressed',u.id===run.selectedUpgrade);b.innerHTML=`<small>${u.tag}</small><b>${u.name}</b><span>${u.detail}</span>`;b.addEventListener('click',()=>{run.chooseUpgrade(u.id);soundEffect('pickup');renderUpgrades();document.querySelector(`[data-upgrade="${u.id}"]`).focus();});return b;}));
+}
+function practice(){dailyRun=null;run=new HomeRun(mode,arena.id,Math.random,characterId);playRound(new Round(mode,Math.random,{practice:true,character:characterId}));}
 function moves(){if(!round||round.status!=='playing')return;paused=true;keys.clear();round.combat.queue=[];$('#moves-dialog').showModal();}
 function selectCharacter(id){characterId=characterById(id).id;const c=characterById(id);stage.selectCharacter(id);$('#character-summary').textContent=`${c.name} · ${c.role}`;$('#character-name').textContent=c.name;$('#character-role').textContent=c.role;$('#character-perk').textContent=c.perk;$('#character-detail').textContent=c.detail;document.querySelectorAll('[data-character]').forEach(b=>{const selected=b.dataset.character===id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',selected);});try{localStorage.setItem('trotro-character',id);}catch{}}
 function characterMenu(){selectCharacter(characterId);$('#character-dialog').showModal();}
-function retry(){if(run?.canContinue)playRound(run.advance());else start();}
-function pause(){if(!round||round.status!=='playing'||paused)return;paused=true;window.speechSynthesis?.cancel();keys.clear();round.combat.queue=[];$('#pause-dialog').showModal();}
+function retry(){if(run?.canContinue){if(run.selectedUpgrade)playRound(run.advance());}else if(dailyRun)startDaily(true);else start();}
+function pause(){if(!round||round.status!=='playing'||paused)return;paused=true;window.speechSynthesis?.cancel();keys.clear();round.combat.queue=[];$('#pause-detail').textContent=round.practice?'Practice is paused. Try different moves to fill the Rush meter.':`${round.condition.name}: ${round.condition.detail}${round.captain?' '+round.captain.name+': '+round.captain.detail:''}`;$('#pause-dialog').showModal();}
 function resume(){paused=false;keys.clear();$('#pause-dialog').close();$('#moves-dialog').close();lastTime=performance.now();}
-function lobby(){window.speechSynthesis?.cancel();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();round=null;run=null;paused=false;keys.clear();$('#hud').hidden=true;document.body.classList.remove('playing');selectArena(arena);$('#start').focus({preventScroll:true});}
+function lobby(){window.speechSynthesis?.cancel();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();round=null;run=null;paused=false;keys.clear();$('#hud').hidden=true;document.body.classList.remove('playing');selectArena(arena);refreshCareer();$('#start').focus({preventScroll:true});}
 function finish(result){
   keys.clear();window.speechSynthesis?.cancel();$('#announcement').classList.remove('show');run.record(round);const won=result==='won';
+  const reward=awardRound(profile,run,round);if(reward){profile=reward.profile;try{localStorage.setItem('trotro-career-v1',JSON.stringify(profile));saveAvailable=true;}catch{saveAvailable=false;}$('#career-reward').textContent=`+${reward.xp} XP · ${reward.mastery} ${round.character?.name||'fighter'}${reward.earned.length?' · New badge: '+reward.earned.join(', '):''}${saveAvailable?'':' · Session only'}`;}renderUpgrades();refreshCareer();
   $('#result-eyebrow').textContent=run.complete?'Home run complete':won?`Stop ${run.index+1} secured`:`Run ended at stop ${run.index+1}`;
   $('#result-title').textContent=run.complete?'You made it home.':won?'That seat is yours.':result==='missed'?'The last trotro left.':'The crowd got you.';
-  $('#result-description').textContent=run.complete?'Three rushes beaten. Three rides secured. Accra could not stop you.':won?`Next: ${run.route[run.index+1].name}. Recover ${run.character?.heal||25} health, then face a bigger crowd.`:result==='missed'?'Service has ended at this stop. Grab a weapon and break through when a free seat arrives.':`You cleared ${run.history.filter(h=>h.result==='won').length} of 3 stops. Block their swings and use F to open a gap at the doorway.`;
+  $('#result-description').textContent=run.complete?'Three rushes beaten. Three rides secured. Accra could not stop you.':won?`Next: ${run.route[run.index+1].name}. Recover ${run.character?.heal||25} health, choose an upgrade for the next fight.`:result==='missed'?'Service has ended at this stop. Grab a weapon and break through when a free seat arrives.':`You cleared ${run.history.filter(h=>h.result==='won').length} of 3 stops. Block their swings and use F to open a gap at the doorway.`;
   $('#result-time').textContent=`${run.time.toFixed(1)}s`;$('#result-kos').textContent=run.kos;$('#result-hp').textContent=Math.ceil(round.player.hp);$('#result-score').textContent=run.score.toLocaleString();$('#result-feats').textContent=`${run.history.filter(h=>h.challenge).length} bonus ${run.history.filter(h=>h.challenge).length===1?'challenge':'challenges'} · Best streak ${Math.max(...run.history.map(h=>h.bestChain))} hits`;
   $('#result-stamps').innerHTML=run.route.map((a,i)=>`<span class="${run.history[i]?.result==='won'?'cleared':''}">${run.history[i]?.result==='won'?'✓':'○'} ${a.name}</span>`).join('');
   $('#retry').textContent=run.canContinue?`Next stop: ${run.route[run.index+1].name}`:'Try the run again';
   const recordKey=`${arena.id}-${mode}-${characterId}`;
-  if(run.complete){const best=records[recordKey]||0;if(run.score>best){records[recordKey]=run.score;try{localStorage.setItem('trotro-fighters-records',JSON.stringify(records));}catch{}$('#best-time').textContent='New home run best!';}else $('#best-time').textContent=`Your best: ${best.toLocaleString()} points`;}
+  if(run.complete&&!run.daily){const best=records[recordKey]||0;if(run.score>best){records[recordKey]=run.score;try{localStorage.setItem('trotro-fighters-records',JSON.stringify(records));}catch{}$('#best-time').textContent='New home run best!';}else $('#best-time').textContent=`Your best: ${best.toLocaleString()} points`;}
   else $('#best-time').textContent=won?(run.weapon?`Keep your ${weaponStats(run.weapon).name.toLowerCase()}. Recover ${run.character?.heal||25} health. Keep the run alive.`:'Your health carries forward. Your score keeps climbing.'):records[recordKey]?`Home run best: ${records[recordKey].toLocaleString()} points`:'The goal: win three last seats in one run.';
-  soundEffect(won?'won':result);$('#result').showModal();
+  if(run.daily)$('#best-time').textContent=`Daily ${run.daily} · Your best: ${profile.daily[run.daily]?.best.toLocaleString()||0} points · Try the same route again.`;soundEffect(won?'won':result);$('#result').showModal();
 }
 function updateHUD(){
-  if(!round)return;$('#player-name').textContent=round.character?.name||'You';const p=round.player,cleared=round.gateCleared,blocked=round.doorBlocked;
+  if(!round)return;
+  $('#rule-label').textContent=run.daily?'Today’s rush · '+run.daily:round.practice?'Practice':'Stop '+(run.index+1)+' / 3';$('#rule-name').textContent=round.captain?round.captain.name:round.condition?.name||'Find your rhythm';$('#rule-detail').textContent=round.captain?round.captain.detail:round.condition?.detail||'Mix moves. Watch the Rush meter.';$('#run-upgrades').textContent=round.upgrades.map(id=>UPGRADES.find(u=>u.id===id).name).join(' + ');
+  $('#style-label').textContent=round.rushTime>0?`RUSH · ${round.rushTime.toFixed(1)}s`:round.surgeCooldown>0?'Catch your breath':'Win over the crowd';$('#style-panel').classList.toggle('active',round.rushTime>0);$('#style-help').textContent=round.rushTime>0?'+25% damage · Half-cost dodges':`Mix moves + defence · ${round.styleMoves.size}/4`;$('#style-pips').querySelectorAll('i').forEach((el,i)=>el.classList.toggle('lit',round.rushTime>0||i<round.styleMoves.size));
+  $('#player-name').textContent=round.character?.name||'You';const p=round.player,cleared=round.gateCleared,blocked=round.doorBlocked;
   $('#health-fill').style.width=`${p.hp}%`;$('#health-fill').style.background=p.hp<30?'#e68e75':'#b9c99c';$('#stamina-fill').style.width=`${p.stamina}%`;$('#health-text').textContent=`${Math.ceil(p.hp)} health`;
   const bus=round.bus,active=round.combatActive;
   $('#timer-label').textContent=round.practice?'Practice time':active?'Boarding closes in':'Next trotro in';$('#timer').innerHTML=round.practice?'∞':`${Math.ceil(active?bus.remaining:bus.arrivalIn)}<span>s</span>`;$('#timer').style.color=active&&bus.remaining<10?'#ffba84':'';
@@ -109,14 +132,16 @@ function updateHUD(){
   else if(cleared&&distance(p,DOOR)<3.8)content=`Move closer to the glowing door · ${Math.ceil(distance(p,DOOR))} m`;
   $('#context-action').innerHTML=round.practice?'S + U low sweep · W + U flying knee':content;
   const foe=round.combat.target;$('#rival-panel').hidden=!active||!foe;
-  if(foe){$('#rival-name').textContent=round.practice?'Sparring partner':foe.character?characterById(foe.character).name+' · '+characterById(foe.character).role:foe.role==='keeper'?'Heavy blocker':foe.role==='bruiser'?'Bag brawler':foe.role==='swinger'?'Street swinger':'Quick striker';$('#rival-health').style.width=`${Math.max(0,foe.hp/foe.maxHp)*100}%`;$('#rival-guard').style.width=`${foe.guard}%`;$('#rival-state').textContent=foe.state==='airborne'?'AIRBORNE':foe.guardBroken>0?'GUARD BROKEN':foe.defending?'HIGH GUARD':foe.state==='boarding'?'BOARDING':'FOCUSED';$('#rival-tip').textContent=p.counterTime>0?'COUNTER WINDOW · I launches':foe.defending?'S + U sweeps · O throws':'O throws · Tab switches rival';}
+  if(foe){$('#rival-name').textContent=round.practice?'Sparring partner':foe.captain?round.captain.name:foe.character?characterById(foe.character).name+' · '+characterById(foe.character).role:foe.role==='keeper'?'Heavy blocker':foe.role==='bruiser'?'Bag brawler':foe.role==='swinger'?'Street swinger':'Quick striker';$('#rival-health').style.width=`${Math.max(0,foe.hp/foe.maxHp)*100}%`;$('#rival-guard').style.width=`${foe.guard}%`;$('#rival-state').textContent=foe.state==='airborne'?'AIRBORNE':foe.guardBroken>0?'GUARD BROKEN':foe.defending?'HIGH GUARD':foe.state==='boarding'?'BOARDING':'FOCUSED';$('#rival-tip').textContent=p.counterTime>0?'COUNTER WINDOW · I launches':foe.defending?'S + U sweeps · O throws':'O throws · Tab switches rival';}
   $('#boarding-alert').hidden=!boarder;$('#boarding-warning').textContent=boarder?.state==='boarding'?'Interrupt now — hit or shove!':'Rival rushing to the door!';$('#rival-board-fill').style.width=`${(boarder?.boardProgress||0)*100}%`;
-  const inputs=round.combat.trail.map(i=>i.key);$('#input-trail').textContent=inputs.length?inputs.join(' › '):'J › J › I';$('#move-name').textContent=round.elapsed<round.combat.moveUntil?round.combat.moveName:'Circle Uppercut';$('#move-hint').textContent=round.chain>1?`${round.chain} hits · ${round.comboDamage} damage · ×${round.multiplier} score`:'Connect hits, then follow with J or U';$('#cinema-bars').classList.toggle('active',round.combat.active?.move.id==='special');
+  const inputs=round.combat.trail.map(i=>i.key);$('#input-trail').textContent=inputs.length?inputs.join(' › '):'J › J › I';$('#move-name').textContent=round.elapsed<round.combat.moveUntil?round.combat.moveName:'Circle Uppercut';$('#move-hint').textContent=round.chain>1?`${round.chain} hits · ${round.comboDamage} damage · ×${round.multiplier} score`:!round.coach.hit?'Get close, then J → J → I to launch.':!round.coach.shove?'F shoves a crowd. Use the gap to reach the door.':'Hold E at the glowing doorway to take the seat.';$('#cinema-bars').classList.toggle('active',round.combat.active?.move.id==='special');
   const target=round.practice?null:round.target;if(target){const position=stage.project(target.x,2.45,target.z);$('#objective-marker').hidden=distance(p,target)<3;$('#objective-marker').style.left=`${Math.max(55,Math.min(innerWidth-65,position.x))}px`;$('#objective-marker').style.top=`${Math.max(innerWidth<760?350:160,Math.min(innerHeight-230,position.y))}px`;$('#marker-label').textContent=boarder?'Stop this rival':cleared?'Last seat':'Board here';$('#marker-distance').textContent=`${Math.ceil(distance(p,target))} m`;$('#objective-marker').classList.toggle('door-ready',cleared);}else $('#objective-marker').hidden=true;
 }
 function processEvents(){
   for(const event of round.events.splice(0)){
     if(event.type==='message')announce(event.text);
+    else if(event.type==='rush'){feedback('RUSH · KEEP IT GOING');soundEffect('won');stage.shoveWave(round.player.x,round.player.z);}
+    else if(event.type==='captain-down'){announce(event.text,3000);soundEffect('won');}
     else if(event.type==='challenge'){announce(event.text,3200);soundEffect('won');}
     else if(event.type==='special'){feedback('LAST SEAT SPECIAL');soundEffect('shove');}
     else if(event.type==='combat-note')announce(event.text,1600);
@@ -124,10 +149,11 @@ function processEvents(){
     else if(event.type==='guard-hit'){stage.impact(event.x,event.z,false);soundEffect('block');feedback('GUARDED · Sweep or throw');impactPause=.02;}
     else if(event.type==='guard-break'){stage.impact(event.x,event.z,true);feedback('GUARD BROKEN');soundEffect('parry');}
     else if(event.type==='launch'){stage.shoveWave(event.x,event.z);}
+    else if(event.type==='crowd-crash'){feedback('CROWD CRASH · MAKE A GAP');stage.shoveWave(event.x,event.z);soundEffect('shove');}
     else if(event.type==='land'){stage.shoveWave(event.x,event.z);soundEffect('hit');}
     else if(event.type==='finisher'){feedback(event.name.toUpperCase());}
     else if(event.type==='rival-boarding'){announce('A rival is going for YOUR seat! Stop them!',1900);soundEffect('danger');}
-    else if(event.type==='boarding-stopped'){feedback('BOARDING INTERRUPTED');soundEffect('parry');}
+    else if(event.type==='boarding-stopped'){feedback(`SEAT SAVED · +${2+round.bonuses.interruptTime}s · +100`);soundEffect('parry');}
     else if(event.type==='seat-stolen'){feedback('SEAT TAKEN · NEXT TROTRO');soundEffect('missed');}
     else if(event.type==='last-call'){soundEffect('danger');mateCall('Last seat! We are going!');}
     else if(event.type==='bus-state'){lastCountdown=-1;if(event.phase==='boarding'||event.phase==='full')soundEffect('bus-state');if(event.phase==='arriving'){soundEffect('arriving');mateCall(run.arena.route.split('—').at(-1).trim()+(event.full?'! Full!':'! One seat!'));}if(event.phase==='departing')soundEffect('departing');}
@@ -147,7 +173,7 @@ $('#mode-description').textContent=MODES[mode].description;
 for(const button of document.querySelectorAll('[data-dialog]'))button.addEventListener('click',()=>$('#'+button.dataset.dialog).showModal());
 for(const button of document.querySelectorAll('.close-dialog'))button.addEventListener('click',()=>button.closest('dialog').close());
 for(const dialog of document.querySelectorAll('.information-dialog'))dialog.addEventListener('click',e=>{if(e.target===dialog){const rect=dialog.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)dialog.close();}});
-$('#play-tab').addEventListener('click',()=>$('#start').focus());$('#start').addEventListener('click',characterMenu);$('#choose-character').addEventListener('click',characterMenu);$('#character-play').addEventListener('click',start);$('#practice').addEventListener('click',practice);$('#moves-button').addEventListener('click',moves);$('#moves-return').addEventListener('click',resume);$('#close-moves').addEventListener('click',resume);$('#moves-dialog').addEventListener('cancel',e=>{e.preventDefault();resume();});$('#combo-routes').innerHTML=COMBO_ROUTES.map(c=>`<article><kbd>${c.keys}</kbd><b>${c.name}</b><p>${c.detail}</p></article>`).join('');$('#retry').addEventListener('click',retry);$('#back-lobby').addEventListener('click',lobby);$('#quit').addEventListener('click',lobby);$('#pause').addEventListener('click',pause);$('#resume').addEventListener('click',resume);
+$('#play-tab').addEventListener('click',()=>$('#start').focus());$('#start').addEventListener('click',start);$('#daily').addEventListener('click',()=>startDaily());$('#career-button').addEventListener('click',()=>{refreshCareer();$('#career-dialog').showModal();});$('#choose-character').addEventListener('click',characterMenu);$('#character-play').addEventListener('click',start);$('#practice').addEventListener('click',practice);$('#moves-button').addEventListener('click',moves);$('#moves-return').addEventListener('click',resume);$('#close-moves').addEventListener('click',resume);$('#moves-dialog').addEventListener('cancel',e=>{e.preventDefault();resume();});$('#combo-routes').innerHTML=COMBO_ROUTES.map(c=>`<article><kbd>${c.keys}</kbd><b>${c.name}</b><p>${c.detail}</p></article>`).join('');$('#retry').addEventListener('click',retry);$('#back-lobby').addEventListener('click',lobby);$('#quit').addEventListener('click',lobby);$('#pause').addEventListener('click',pause);$('#resume').addEventListener('click',resume);
 $('#pause-dialog').addEventListener('cancel',e=>{e.preventDefault();resume();});$('#result').addEventListener('cancel',e=>{e.preventDefault();lobby();});$('#shake-setting').checked=!matchMedia('(prefers-reduced-motion: reduce)').matches;$('#shake-setting').addEventListener('change',e=>stage.shakeEnabled=e.target.checked);
 $('#sound-toggle').addEventListener('click',()=>{setSound(!sound);if(sound)soundEffect('pickup');});$('#sound-setting').addEventListener('change',e=>setSound(e.target.checked));setSound(sound);
 $('#fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{}});
@@ -157,7 +183,7 @@ window.addEventListener('keydown',e=>{
   if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','j','i','u','o','tab','k','l',' ','e','r','f','q'].includes(key))e.preventDefault();keys.add(key);
   if(!e.repeat){if(key==='j')action('attack');if(key==='i')action('heavy');if(key==='u')action('kick');if(key==='o')action('grab');if(key==='tab')action('target');if(key==='f')action('shove');if(key==='q')action('burst');if(key==='l'||key===' ')action('dodge');if(key==='r')action('pickup');}
 });
-window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();pause();});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();pause();});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();else if(!round)refreshCareer();});
 function bindHold(button,key,press){
   button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture?.(e.pointerId);if(key)keys.add(key);press?.();});const release=()=>{if(key)keys.delete(key);};button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
   button.addEventListener('click',e=>{if(e.detail===0){if(press)press();else if(key==='k'){keys.add('k');setTimeout(()=>keys.delete('k'),500);}}});
@@ -167,7 +193,7 @@ document.querySelectorAll('[data-key]').forEach(button=>bindHold(button,button.d
 try{
   stage=new Stage($('#world'));await stage.prepare();
   for(const a of ARENAS){const button=document.createElement('button');button.className='arena-choice';button.dataset.arena=a.id;button.innerHTML=`<strong>${a.name}</strong><small>${a.subtitle}</small>`;button.addEventListener('click',()=>selectArena(a));$('#arena-list').appendChild(button);}
-  selectArena(arena);const portraits=stage.portraits();for(const c of CHARACTERS){const button=document.createElement('button');button.type='button';button.className='character-card';button.dataset.character=c.id;button.style.setProperty('--fighter-color',c.color);button.innerHTML=`<img alt="${c.name}, ${c.role}" src="${portraits.get(c.id)}"><span>${c.role}</span><strong>${c.name}</strong><small>${c.perk}</small>`;button.addEventListener('click',()=>selectCharacter(c.id));$('#character-grid').appendChild(button);}selectCharacter(characterId);$('#load-screen').remove();
+  selectArena(arena);const portraits=stage.portraits();for(const c of CHARACTERS){const button=document.createElement('button');button.type='button';button.className='character-card';button.dataset.character=c.id;button.style.setProperty('--fighter-color',c.color);button.innerHTML=`<img alt="${c.name}, ${c.role}" src="${portraits.get(c.id)}"><span>${c.role}</span><strong>${c.name}</strong><small>${c.perk}</small>`;button.addEventListener('click',()=>selectCharacter(c.id));$('#character-grid').appendChild(button);}selectCharacter(characterId);refreshCareer();$('#load-screen').remove();
   function loop(now){
     const dt=Math.min(.05,(now-lastTime)/1000);lastTime=now;let simulationDt=dt;
     if(impactPause>0){impactPause-=dt;simulationDt*=.15;}

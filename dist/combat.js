@@ -59,6 +59,7 @@ export class CombatSystem {
       damage:weaponStrike?Math.round(base.damage*w.damage/22):base.damage,
       reach:weaponStrike?w.reach+(id==='heavy'?.15:0):base.reach,
       targets:weaponStrike?w.targets:base.targets};
+    if(weaponStrike)move.damage=Math.round(move.damage*r.bonuses.damage);if(id==='throw')move.damage=Math.round(move.damage*(r.condition?.throws||1));
     if(weaponStrike)move.cost=Math.round(move.cost*(r.character?.cost||1));if(['kick','sweep','knee','spin'].includes(id))move.damage=Math.round(move.damage*(r.character?.kick||1));
     if(p.stamina<move.cost){r.emit('combat-note',{text:'Need stamina — create some space.'});return false;}
     const target=this.target;if(target){this.targetId=target.id;p.face=Math.atan2(target.x-p.x,target.z-p.z);}
@@ -107,6 +108,7 @@ export class CombatSystem {
         e.guardBroken=3;e.defending=false;damage=Math.round(damage*.65);move.stun=Math.max(move.stun,1.65);r.emit('guard-break',{x:e.x,z:e.z});
       }
       const aerial=(e.y||0)>.05;if(aerial)damage=Math.round(damage*Math.max(.45,.78**(e.juggleHits||0)));
+      if(!a.counterRewarded&&p.counterStrike){a.counterRewarded=true;p.hp=Math.min(100,p.hp+r.bonuses.counterHeal);r.stylish('counter');}
       const before=e.hp;r.strikeEnemy(e,damage,move.push,move.stun,{smooth:true,move:move.id,finisher:!!move.finisher,air:aerial,trip:move.trip});damageTotal+=Math.min(before,before-e.hp);connected=true;
       if(move.launch||aerial){
         e.juggleHits=aerial?(e.juggleHits||0)+1:0;
@@ -119,7 +121,7 @@ export class CombatSystem {
     if(connected){
       if(!a.confirmed){
         this.history=a.move.finisher?[]:[...this.history,a.input.kind].slice(-2);
-        if(a.move.finisher){r.progressChallenge('finisher');r.emit('finisher',{name:move.name,move:move.id});}
+        r.coach.hit=true;r.stylish(move.id);if(a.move.finisher){r.finisherReward();r.progressChallenge('finisher');r.emit('finisher',{name:move.name,move:move.id});}
       }
       a.confirmed=true;this.lastContact=r.elapsed;r.lastCombo=r.elapsed;r.combo++;
       r.chain++;r.bestChain=Math.max(r.bestChain,r.chain);r.chainTime=3.5;r.comboDamage=(r.comboDamage||0)+damageTotal;r.gainMomentum(move.finisher?17:8);p.stamina=Math.min(100,p.stamina+2);

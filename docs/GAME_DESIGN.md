@@ -1,18 +1,38 @@
-# Fight for Trotro — version 0.8
+# Fight for Trotro — version 0.9 — Rush Hour
 
 Win three contested last seats to get home. The same crowd that blocks your entry now competes to board before you. Combat is non-graphic and uses original moves inspired by fighting-game fundamentals: startup, active contact, recovery, confirmed combo branches, guard breaks, low attacks, throws, launchers and air juggles. This is a browser prototype, not a finished AAA production.
 
 ## The roadside loop
 
 1. Choose a commuter, difficulty and starting stop. A three-stop route uses six Accra-inspired environments.
-2. Prepare on the pavement while traffic passes on separate lanes. Pick up a weapon or water. Trotros pull into a marked bay parallel to the road.
+2. Start close to the action. The first available trotro pulls in over 3.6 seconds. Prepare on the pavement while traffic passes on separate lanes. Pick up a weapon or water. Trotros pull into a marked bay parallel to the road.
 3. If the bus is full, wait. The next bus is guaranteed to have space. When an available bus approaches, passengers gather at the door.
 4. Fight for the opening. Rivals guard the doorway and return to their posts after being displaced; they do not chase you across the arena. No knockout is mandatory to board.
 5. A rival eventually rushes for the last seat. An orange marker, warning and boarding meter identify the threat. Hit, throw, launch or shove them to cancel their attempt. A stopped attempt delays the next rush by 3.2 seconds.
 6. Hold E at the open door to win. If a rival's boarding meter fills first, they disappear into the bus, it becomes full and departs. Keep your health, gear and score, then try the next trotro.
-7. Each successful ride banks score and restores 25 health (40 for the nurse). The next stop has a bigger crowd. Win three rides; reaching zero health ends the run. There is no separate service-expiry timer.
+7. Each successful ride banks score and restores 25 health (40 for the nurse). Choose one of three offered upgrades after each of the first two rides. Each stop has a different condition, and the last has a captain. Win three rides; reaching zero health ends the run. There is no separate service-expiry timer.
 
-Available boarding windows are 38 / 32 / 26 seconds on Easy / Normal / Hard. The first rival rush begins after 9 / 7 / 5.5 seconds, followed by a 3.4 / 2.9 / 2.5-second boarding attempt. The player boards in 1 / 1.1 / 1.2 seconds. A departing full bus guarantees an available replacement. A seat stolen by a rival uses a 1.6-second full-bus notice before the normal 3.2-second departure, 4.2-second wait and 3.6-second arrival.
+Before condition and upgrade modifiers, available boarding windows are 38 / 32 / 26 seconds on Easy / Normal / Hard. The first rival rush begins after 9 / 7 / 5.5 seconds, followed by a 3.4 / 2.9 / 2.5-second boarding attempt. The player boards in 1 / 1.1 / 1.2 seconds. A departing full bus guarantees an available replacement. A seat stolen by a rival uses a 1.6-second full-bus notice before the normal 3.2-second departure, 4.2-second wait and 3.6-second arrival.
+
+## Reasons to play another run
+
+The run offers different combat decisions, not just larger health bars. Three distinct conditions are drawn from six: extra boarding time with fewer rivals; a short express window extended by finishers; a larger market crowd with faster shoves; increased special gain against harder-hitting rivals; early boarding attempts with health rewards for interruptions; and fewer tougher rivals vulnerable to stronger throws.
+
+After a successful ride, choose one of three unowned upgrades. Eight upgrades support damage, movement, crowd control, specials, counters, finisher recovery, boarding, or damage resistance. Two choices carry through the run and reset on replay. The next stop's condition and final captain are shown before choosing. Character perks combine with upgrades.
+
+The final captain has a fixed repeating pattern: The Wall (heavy/low/heavy), Quickstep (jab/kick/low), or Big Swing (low/heavy/kick). Captains guard the door rather than taking the seat. A braced captain resists a raw shove; attacks, guard breaks and whiff recovery create an opening. Captain knockouts grant 350 extra points and refill the special meter. Boarding never requires a mandatory knockout.
+
+Four different connected moves or successful defensive actions within a fixed six-second window trigger a six-second Rush: 25% extra damage, full stamina on activation and half-cost dodges. Repeating jab/cross counts as one style. A ten-second cooldown from activation prevents immediate loops. Whiffs grant no style. Throws and finishers can crash a moving rival into up to two passengers for 14 damage and a stagger; each collision target can be rewarded once per launch.
+
+A real boarding interruption grants 100 points, 15 special charge and two extra boarding seconds (five with Door specialist), capped at the base window plus eight seconds. Market scramble adds 12 health. Hit confirmations, not button presses, grant finisher recovery. Counter healing is once per confirmed move. Existing rivals keep their remaining health when a bus leaves; a departed passenger is replaced at full health.
+
+### Career and daily challenge
+
+Career XP is awarded exactly once at a non-practice round result, including a small reward on defeat. Winning a stop gives 120 XP; losing gives 20. Knockdowns add up to 80, interruptions up to 60, a bonus challenge gives 40, and completing the run gives 160 more. Seven rank thresholds: 0, 300, 900, 1800, 3200, 5200 and 8000 XP. Each fighter also earns mastery titles at 0, 450, 1200 and 2400 XP. Six badges track home runs, interrupts, Rush activations, captains, clean boarding and trying the roster.
+
+Daily challenges use a UTC-date seed, fixed Normal difficulty and a fixed fighter. Route generation and upgrade offers use a separate random stream from combat, so spending longer in one fight cannot reroll later offers or spawns. Replays keep the same day until returning to the lobby; a fresh daily start uses the current UTC date. Best score and furthest seat count are saved locally, with no global ranking claims.
+
+All fighters and build options are available from the start. Career rewards recognise mastery without making a new player weaker. There is no streak penalty, login reward or daily currency. Progress stays in the browser; a storage failure is disclosed and retains progress in memory for the current session.
 
 ## The fighter roster
 

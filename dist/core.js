@@ -1,11 +1,12 @@
 import {DOOR,PAVEMENT,BUS_BOUNDS,GUARD_POSTS} from './layout.js';
 import {CHARACTERS,characterById} from './characters.js';
 import {CombatSystem} from './combat.js';
+import {CONDITIONS,CAPTAINS,UPGRADES,shuffled,upgradeEffects,seededRandom} from './journey.js';
 export {DOOR} from './layout.js';
 export const MODES = {
-  easy: {count:4,time:85,damage:8,speed:1.6,hp:84,gateHp:116,windup:1.1,attackers:1,raceDelay:9,rivalBoardTime:3.4,boardTime:1,busWindow:38,fullChance:.35,description:'4 rivals · 38 seconds · learn the combos.'},
-  normal: {count:6,time:75,damage:11,speed:1.95,hp:108,gateHp:148,windup:.85,attackers:2,raceDelay:7,rivalBoardTime:2.9,boardTime:1.1,busWindow:32,fullChance:.45,description:'6 rivals · 32 seconds · fight for the last seat.'},
-  hard: {count:8,time:65,damage:15,speed:2.3,hp:132,gateHp:180,windup:.66,attackers:3,raceDelay:5.5,rivalBoardTime:2.5,boardTime:1.2,busWindow:26,fullChance:.55,description:'8 rivals · 26 seconds · fast boarding rivals.'}
+  easy: {count:4,time:85,damage:8,speed:1.6,hp:84,gateHp:116,windup:1.1,attackers:1,raceDelay:9,rivalBoardTime:3.4,boardTime:1,busWindow:38,fullChance:.35,description:'Forgiving swings · Extra boarding time.'},
+  normal: {count:6,time:75,damage:11,speed:1.95,hp:108,gateHp:148,windup:.85,attackers:2,raceDelay:7,rivalBoardTime:2.9,boardTime:1.1,busWindow:32,fullChance:.45,description:'Contested seats · Read the crowd and counter.'},
+  hard: {count:8,time:65,damage:15,speed:2.3,hp:132,gateHp:180,windup:.66,attackers:3,raceDelay:5.5,rivalBoardTime:2.5,boardTime:1.2,busWindow:26,fullChance:.55,description:'Fast rivals · Tight windows · Keep your guard up.'}
 };
 export const ARENAS = [
   {id:'circle',name:'Circle',subtitle:'The evening scramble',description:'Under the flyover. In the middle of everything.',query:'Kwame Nkrumah Circle trotro station Accra',color:0xc6c1ac,sky:0xc3d5d8,accent:0x397e8d,route:'CIRCLE  —  MADINA',feature:'flyover'},
@@ -61,9 +62,12 @@ export class Round {
     this.character=options.character?characterById(options.character):null;this.mode=mode;this.random=random;this.stage=options.stage||1;this.practice=!!options.practice;
     const level=this.stage-1,base=MODES[mode];
     this.config={...base,count:base.count+level,hp:Math.round(base.hp*(1+level*.1)),gateHp:Math.round(base.gateHp*(1+level*.12)),speed:base.speed*(1+level*.06)};
+    this.condition=options.condition||null;this.upgrades=[...(options.upgrades||[])];this.bonuses=upgradeEffects(this.upgrades);this.captain=options.captain||null;
+    const rule=this.condition||{};this.config.count=Math.max(2,this.config.count+(rule.count||0));this.config.busWindow=Math.max(18,base.busWindow+(rule.window||0));this.config.raceDelay*=rule.race||1;this.config.damage*=rule.damage||1;this.config.hp=Math.round(this.config.hp*(rule.hp||1));this.config.gateHp=Math.round(this.config.gateHp*(rule.hp||1));this.config.boardTime*=this.bonuses.board;
+    this.stats={interrupts:0,surges:0,captains:0,finishers:0};this.styleMoves=new Set();this.styleTime=0;this.surgeCooldown=0;this.lastInterrupt=-10;this.coach={hit:false,shove:false};
     this.momentum=35;this.rushTime=0;this.chain=0;this.chainTime=0;this.bestChain=0;this.lastCall=false;this.challenge={kind:['finisher','shove','defend'][(this.stage-1)%3],progress:0,goal:this.stage===1?2:1,time:30,status:'active'};
     this.elapsed=0;this.status='playing';this.kos=0;this.score=0;this.board=0;this.combo=0;this.lastCombo=-10;this.events=[];this.doorCalled=false;this.hitsTaken=0;
-    this.bus=new BusCycle({firstFull:!!options.firstBusFull,startWaiting:!!options.startWaiting,window:base.busWindow,fullChance:base.fullChance,random});
+    this.bus=new BusCycle({firstFull:!!options.firstBusFull,startWaiting:!!options.startWaiting||!!options.quickArrival,window:this.config.busWindow,fullChance:base.fullChance,random});
     this.player={x:3.6,z:5.2,hp:options.health??100,stamina:100,face:Math.PI,action:'idle',actionTime:0,cooldown:0,shoveCooldown:0,invulnerable:0,hurt:0,character:this.character?.id,weapon:options.weapon===true?'bag':options.weapon!==undefined?options.weapon:this.character?.item||null,rest:0,dx:0,dz:-1,walk:0,blockTime:0};
     const posts=GUARD_POSTS;
     this.enemies=Array.from({length:this.config.count},(_,i)=>{
@@ -73,7 +77,11 @@ export class Round {
     });
     this.pickups=[{type:'bag',x:2.4,z:3.7,used:options.weapon===true||options.weapon==='bag'},{type:'drink',x:-7,z:0,used:false},{type:'drink',x:7.5,z:1,used:false},...([{type:'umbrella',x:-1,z:4},{type:'baton',x:5,z:1.5},{type:'stool',x:-7,z:5.7},{type:'suitcase',x:7.2,z:5.9}].map(item=>({...item,used:item.type===options.weapon})))];
     for(const item of this.pickups)if(item.type===this.player.weapon)item.used=true;
-    this.gapWasOpen=false;this.missedBuses=0;this.seatsLost=0;this.raceClock=base.raceDelay;this.comboDamage=0;this.combat=new CombatSystem(this);
+    this.gapWasOpen=false;this.missedBuses=0;this.seatsLost=0;this.raceClock=this.config.raceDelay;this.comboDamage=0;this.combat=new CombatSystem(this);
+    this.momentum=Math.min(100,this.momentum+this.bonuses.charge);
+    if(options.quickArrival){this.bus.initialApproach=false;this.bus.phase='arriving';this.bus.full=false;this.bus.duration=BUS_TIMING.arriving;this.bus.remaining=BUS_TIMING.arriving;}
+    if(this.captain){Object.assign(this.keeper,{captain:this.captain.id,character:this.captain.character,hp:this.config.gateHp+35,maxHp:this.config.gateHp+35});}
+    if(options.closeStart)Object.assign(this.player,{x:1.7,z:1.4});
     if(this.practice){this.bus.phase='boarding';this.bus.full=false;this.bus.remaining=base.busWindow;this.enemies=this.enemies.slice(0,1);Object.assign(this.keeper,{hp:350,maxHp:350});Object.assign(this.player,{x:DOOR.x,z:DOOR.z+2.5});this.momentum=100;}
   }
   get weapon(){return weaponStats(this.player.weapon);}
@@ -86,7 +94,7 @@ export class Round {
   busChanged(change){
     this.combat.reset();this.raceClock=this.config.raceDelay;this.board=0;this.combo=0;this.lastCall=false;this.doorCalled=false;this.gapWasOpen=false;if(this.player.action==='boarding')this.player.action='idle';
     if(change.to==='departing'&&!change.full)this.missedBuses++;
-    if(['departing','arriving','boarding'].includes(change.to))for(const e of this.enemies){if(e.state==='boarded'&&change.to==='departing')continue;if(e.state==='boarded')Object.assign(e,this.waitingPost(e));e.hp=e.maxHp;e.state='guard';e.hurt=0;e.timer=.5+this.random();e.y=0;e.vy=0;e.knockX=0;e.knockZ=0;e.boardProgress=0;e.guard=100;e.guardBroken=0;e.tripTime=0;e.defending=false;}
+    if(['departing','arriving','boarding'].includes(change.to))for(const e of this.enemies){if(e.state==='boarded'&&change.to==='departing')continue;if(e.state==='boarded'){Object.assign(e,this.waitingPost(e));e.hp=e.maxHp;}if(e.hp<=0){e.state='down';e.y=0;e.vy=0;continue;}e.state='guard';e.hurt=0;e.timer=.5+this.random();e.y=0;e.vy=0;e.knockX=0;e.knockZ=0;e.boardProgress=0;e.guard=100;e.guardBroken=0;e.tripTime=0;e.defending=false;}
     this.emit('bus-state',{phase:change.to,full:change.full,number:change.number});
     if(change.to==='departing')this.emit('message',{text:change.full?'This trotro is full. It is leaving. Wait for the next one.':'That trotro has left. Another one is on the way.'});
     else if(change.to==='arriving')this.emit('message',{text:'Another trotro is pulling in. Check for a free seat.'});
@@ -100,42 +108,59 @@ export class Round {
   get doorBlocked(){return this.blockers.length>0;}
   emit(type,data={}){this.events.push({type,...data});}
   get multiplier(){return Math.min(3,1+Math.floor(this.chain/4));}
-  gainMomentum(amount){amount*=this.character?.meter||1;const wasReady=this.momentum>=100;this.momentum=Math.min(100,this.momentum+amount);if(!wasReady&&this.momentum>=100)this.emit('message',{text:'LAST SEAT SPECIAL ready! Get close and press Q.'});}
+  gainMomentum(amount){amount*=(this.character?.meter||1)*this.bonuses.meter*(this.condition?.meter||1);const wasReady=this.momentum>=100;this.momentum=Math.min(100,this.momentum+amount);if(!wasReady&&this.momentum>=100)this.emit('message',{text:'LAST SEAT SPECIAL ready! Get close and press Q.'});}
   progressChallenge(kind,amount=1){
     const c=this.challenge;if(c.status!=='active'||c.kind!==kind)return;c.progress=Math.min(c.goal,c.progress+amount);
     if(c.progress>=c.goal){c.status='won';this.score+=300;this.player.hp=Math.min(100,this.player.hp+15);this.gainMomentum(25);this.emit('challenge',{text:'Challenge complete! +300 points · +15 health'});}
+  }
+  addBusTime(seconds){if(this.bus.canBoard)this.bus.remaining=Math.min(this.bus.window+8,this.bus.remaining+seconds);}
+  stylish(kind){
+    if(this.rushTime>0||this.surgeCooldown>0)return;
+    if(!this.styleTime)this.styleTime=6;this.styleMoves.add(['jab','cross'].includes(kind)?'hands':kind);
+    if(this.styleMoves.size>=4){this.styleMoves.clear();this.rushTime=6;this.surgeCooldown=10;this.player.stamina=100;this.gainMomentum(20);this.stats.surges++;this.emit('rush');}
+  }
+  finisherReward(){this.stats.finishers++;this.player.hp=Math.min(100,this.player.hp+this.bonuses.finisherHeal);this.player.stamina=Math.min(100,this.player.stamina+this.bonuses.finisherStamina);this.addBusTime(this.condition?.finisherTime||0);}
+  interruptReward(){
+    // A multi-target strike grants one time reward, and only for an actual boarding attempt.
+    this.stats.interrupts++;this.addBusTime(2+this.bonuses.interruptTime);this.player.hp=Math.min(100,this.player.hp+(this.condition?.interruptHeal||0));this.score+=100;this.gainMomentum(15);this.stylish('interrupt');this.lastInterrupt=this.elapsed;
   }
   burst(){return this.combat.special();}
   down(enemy){
     enemy.hp=0;enemy.state='down';enemy.downAge=0;enemy.timer=this.practice?2.5:enemy.role==='keeper'?Infinity:8;this.kos++;
     this.score+=(enemy.role==='keeper'?500:150)*this.multiplier;this.gainMomentum(12);this.player.stamina=Math.min(100,this.player.stamina+12);
+    if(enemy.captain){this.stats.captains++;this.score+=350;this.momentum=100;this.emit('captain-down',{text:'CAPTAIN DOWN · Special ready · Take your seat!'});}
     this.emit('down',{x:enemy.x,z:enemy.z,keeper:enemy.role==='keeper'});
-    if(enemy.role==='keeper'){
+    if(enemy.role==='keeper'&&!enemy.captain){
       this.emit('message',{text:'Heavy blocker down! Take the gap before the others regroup.'});
     }
   }
   strikeEnemy(enemy,damage,push,stun,hit={}){
-    if(enemy.state==='rushing'||enemy.state==='boarding'){this.raceClock=3.2;enemy.boardProgress=0;this.emit('boarding-stopped',{x:enemy.x,z:enemy.z});}
+    if(enemy.state==='rushing'||enemy.state==='boarding'){this.raceClock=3.2;enemy.boardProgress=0;this.interruptReward();this.emit('boarding-stopped',{x:enemy.x,z:enemy.z});}
     enemy.defending=false;
     const p=this.player;damage=Math.round(damage*(this.rushTime>0?1.25:1));enemy.hp-=damage;enemy.hurt=.26;
     let dx=enemy.x-p.x,dz=enemy.z-p.z,len=Math.hypot(dx,dz);if(len<.01){dx=Math.sin(p.face);dz=Math.cos(p.face);len=1;}
     if(hit.smooth){enemy.knockX=dx/len*push*6;enemy.knockZ=dz/len*push*6;}else{enemy.x+=dx/len*push;enemy.z+=dz/len*push;}this.constrainActor(enemy);enemy.state='recover';enemy.timer=stun;enemy.tripTime=hit.trip?stun:0;
+    if(hit.smooth&&(hit.finisher||hit.move==='throw'))enemy.crash={time:.65,hit:new Set()};
     this.score+=10*this.multiplier;this.emit('hit',{x:enemy.x,z:enemy.z,y:enemy.y||0,finish:hit.finisher||push>1,damage,move:hit.move,air:hit.air});
     if(enemy.hp<=0)this.down(enemy);
   }
   attack(kind='light',direction=0){return this.combat.press(kind,direction);}
   shove(){
     const p=this.player;if(!this.combatActive||this.status!=='playing'||p.shoveCooldown>0||p.stamina<28||!this.combat.neutral())return false;
-    p.stamina-=28;p.rest=.7;p.shoveCooldown=4;p.action='shove';p.actionTime=.44;p.cooldown=.48;
+    p.stamina-=28;p.rest=.7;p.shoveCooldown=4*this.bonuses.shove*(this.condition?.shove||1);p.action='shove';p.actionTime=.44;p.cooldown=.48;
     const targets=this.enemies.filter(e=>e.state!=='down'&&distance(p,e)<2.65).sort((a,b)=>distance(p,a)-distance(p,b));
     if(targets[0])p.face=Math.atan2(targets[0].x-p.x,targets[0].z-p.z);
-    for(const enemy of targets.slice(0,4))this.strikeEnemy(enemy,12,2.35*(this.character?.shove||1),2.55);
-    if(targets.length>=3)this.progressChallenge('shove');this.emit('shove',{x:p.x,z:p.z});return true;
+    for(const enemy of targets.slice(0,4)){
+      const braced=enemy.captain&&enemy.state==='guard'&&enemy.guardBroken<=0;
+      this.strikeEnemy(enemy,12,2.35*(this.character?.shove||1)*this.bonuses.push*(braced?.18:1),braced?.45:2.55);
+      if(braced)this.emit('combat-note',{text:'Captain braced! Bait a swing or break their guard, then shove.'});
+    }
+    if(targets.length){this.stylish('shove');this.coach.shove=true;}if(targets.length>=3)this.progressChallenge('shove');this.emit('shove',{x:p.x,z:p.z});return true;
   }
   dodge(mx=0,mz=0){
-    const p=this.player;if(this.status!=='playing'||p.stamina<19*(this.character?.dodge||1)||['dodge','shove','hitstun'].includes(p.action)||this.combat.active)return false;
+    const p=this.player;if(this.status!=='playing'||p.stamina<19*(this.character?.dodge||1)*this.bonuses.dodge*(this.rushTime>0?.5:1)||['dodge','shove','hitstun'].includes(p.action)||this.combat.active)return false;
     let len=Math.hypot(mx,mz);if(!len){mx=Math.sin(p.face);mz=Math.cos(p.face);len=1;}
-    p.dx=mx/len;p.dz=mz/len;p.stamina-=19*(this.character?.dodge||1);p.rest=.5;p.invulnerable=.46;p.action='dodge';p.actionTime=.29;p.cooldown=.35;this.emit('dodge');return true;
+    p.dx=mx/len;p.dz=mz/len;p.stamina-=19*(this.character?.dodge||1)*this.bonuses.dodge*(this.rushTime>0?.5:1);p.rest=.5;p.invulnerable=.46;p.action='dodge';p.actionTime=.29;p.cooldown=.35;this.emit('dodge');return true;
   }
   pickup(){
     const p=this.player;if(this.status!=='playing')return;
@@ -145,21 +170,31 @@ export class Round {
     item.used=true;this.emit('pickup');
   }
   hurtPlayer(damage,enemy){
-    const p=this.player;if(!this.combatActive)return 'waiting';if(p.invulnerable>0){if(p.action==='dodge'){p.counterTime=1.2;this.score+=35;this.gainMomentum(18);this.progressChallenge('defend');this.emit('evade');}return 'dodged';}
+    const p=this.player;if(!this.combatActive)return 'waiting';if(p.invulnerable>0){if(p.action==='dodge'){p.counterTime=1.2;this.score+=35;this.gainMomentum(18);this.progressChallenge('defend');this.stylish('evade');this.emit('evade');}return 'dodged';}
     if(p.action==='block'&&p.stamina>=5&&(enemy.attackKind!=='low'||p.crouch)){
-      if(p.blockTime<.2*(this.character?.parry||1)&&!enemy.heavy){p.stamina=Math.max(0,p.stamina-4);p.rest=.3;enemy.state='recover';enemy.timer=1.65;enemy.defending=false;p.counterTime=1.4;this.score+=75;this.gainMomentum(25);this.progressChallenge('defend');this.emit('parry',{x:enemy.x,z:enemy.z});return 'parried';}
+      if(p.blockTime<.2*(this.character?.parry||1)*this.bonuses.parry&&!enemy.heavy){p.stamina=Math.max(0,p.stamina-4);p.rest=.3;enemy.state='recover';enemy.timer=1.65;enemy.defending=false;p.counterTime=1.4;this.score+=75;this.gainMomentum(25);this.progressChallenge('defend');this.stylish('parry');this.emit('parry',{x:enemy.x,z:enemy.z});return 'parried';}
       p.stamina=Math.max(0,p.stamina-11);p.rest=.6;damage*=enemy.heavy?.55:.12;this.emit('block');
     }else{this.combat.interrupted();p.action='hitstun';p.actionTime=.26;p.cooldown=.26;this.emit('damage');p.invulnerable=.32;this.hitsTaken++;this.chain=0;this.chainTime=0;}
-    p.hp=this.practice?100:Math.max(0,p.hp-damage*(this.character?.armor||1));p.hurt=.2;this.board=0;
+    p.hp=this.practice?100:Math.max(0,p.hp-damage*(this.character?.armor||1)*this.bonuses.armor);p.hurt=.2;this.board=0;
     const len=distance(p,enemy)||1;p.x+=(p.x-enemy.x)/len*.16;p.z+=(p.z-enemy.z)/len*.16;this.constrainActor(p);return 'hit';
   }
   moveEnemy(enemy,goal,dt,pace){
     const d=distance(enemy,goal);if(d<.05)return;const amount=Math.min(d,pace*dt);
     enemy.face=Math.atan2(goal.x-enemy.x,goal.z-enemy.z);enemy.x+=(goal.x-enemy.x)/d*amount;enemy.z+=(goal.z-enemy.z)/d*amount;enemy.walk+=dt*8;enemy.moving=true;this.constrainActor(enemy);
   }
+  crowdCrash(source,dt){
+    const crash=source.crash;if(!crash)return;crash.time-=dt;
+    if(crash.time<=0||!this.combatActive){source.crash=null;return;}
+    if((source.y||0)>1.5||Math.hypot(source.knockX||0,source.knockZ||0)<3)return;
+    for(const other of this.enemies){
+      if(other===source||other.hp<=0||other.state==='boarded'||(other.y||0)>1.5||crash.hit.has(other.id)||distance(source,other)>.85)continue;
+      crash.hit.add(other.id);this.strikeEnemy(other,14,.65,1.3,{smooth:true,move:'collision',trip:true});this.gainMomentum(6);this.stylish('crash');this.emit('crowd-crash',{x:other.x,z:other.z});
+      if(crash.hit.size>=2){source.crash=null;break;}
+    }
+  }
   tick(dt,input={}){
     if(this.status!=='playing')return;dt=clamp(dt,0,.05);this.elapsed+=dt;const change=this.practice?null:this.bus.tick(dt);if(change)this.busChanged(change);
-    this.rushTime=Math.max(0,this.rushTime-dt);this.chainTime=Math.max(0,this.chainTime-dt);if(!this.chainTime){this.chain=0;this.comboDamage=0;}
+    this.rushTime=Math.max(0,this.rushTime-dt);this.surgeCooldown=Math.max(0,this.surgeCooldown-dt);this.styleTime=Math.max(0,this.styleTime-dt);if(!this.styleTime)this.styleMoves.clear();this.chainTime=Math.max(0,this.chainTime-dt);if(!this.chainTime){this.chain=0;this.comboDamage=0;}
     if(this.combatActive){
       if(this.challenge.status==='active'){this.challenge.time=Math.max(0,this.challenge.time-dt);if(!this.challenge.time)this.challenge.status='expired';}
       if(this.bus.remaining<=8&&!this.lastCall){this.lastCall=true;this.emit('last-call');this.emit('message',{text:'LAST CALL! Eight seconds. Open a gap and get in!'});}
@@ -174,7 +209,7 @@ export class Round {
     if(!p.rest&&p.action!=='block')p.stamina=Math.min(100,p.stamina+28*(this.character?.regen||1)*dt);
     if(this.combatActive&&input.attack&&p.cooldown===0&&!this.combat.active)this.attack();
     this.combat.tick(dt);if(this.practice)this.momentum=Math.min(100,this.momentum+dt*14);
-    const crouched=p.action==='block'&&p.crouch,mx=crouched?0:input.x||0,mz=crouched?0:input.z||0,len=Math.hypot(mx,mz),speed=(p.action==='block'?1.9:4.25)*(this.character?.speed||1);
+    const crouched=p.action==='block'&&p.crouch,mx=crouched?0:input.x||0,mz=crouched?0:input.z||0,len=Math.hypot(mx,mz),speed=(p.action==='block'?1.9:4.25)*(this.character?.speed||1)*this.bonuses.speed;
     p.moving=len>.01;p.moveX=mx;p.moveZ=mz;
     if(p.action==='dodge'){p.x+=p.dx*12*dt;p.z+=p.dz*12*dt;}
     else if(len){const factor=p.action==='hitstun'?0:['shove','attack'].includes(p.action)?.3:1;p.x+=mx/Math.max(1,len)*speed*factor*dt;p.z+=mz/Math.max(1,len)*speed*factor*dt;if(p.action!=='attack')p.face=Math.atan2(mx,mz);p.walk+=dt*10;}
@@ -183,7 +218,7 @@ export class Round {
     for(const e of this.enemies){
       e.hurt=Math.max(0,e.hurt-dt);e.timer-=dt;e.moving=false;e.guardBroken=Math.max(0,(e.guardBroken||0)-dt);e.tripTime=Math.max(0,(e.tripTime||0)-dt);e.downAge=(e.downAge||0)+dt;
       if(e.state==='boarded')continue;
-      if(Math.abs(e.knockX||0)+Math.abs(e.knockZ||0)>.01){e.x+=(e.knockX||0)*dt;e.z+=(e.knockZ||0)*dt;e.knockX*=Math.exp(-dt*6);e.knockZ*=Math.exp(-dt*6);this.constrainActor(e);}
+      if(Math.abs(e.knockX||0)+Math.abs(e.knockZ||0)>.01){e.x+=(e.knockX||0)*dt;e.z+=(e.knockZ||0)*dt;e.knockX*=Math.exp(-dt*6);e.knockZ*=Math.exp(-dt*6);this.constrainActor(e);}this.crowdCrash(e,dt);
       if((e.y||0)>0||e.vy>0){e.y=Math.max(0,(e.y||0)+e.vy*dt);e.vy-=14*dt;if(e.y===0){e.vy=0;e.juggleHits=0;if(e.hp>0){e.state='recover';e.timer=.85;}this.emit('land',{x:e.x,z:e.z});}}
       if(!this.combatActive){if(e.hp<=0)continue;e.state='guard';e.timer=.5;this.moveEnemy(e,this.gathering?{x:e.spawnX,z:e.spawnZ}:this.waitingPost(e),dt,this.config.speed*1.65);continue;}
       const post={x:e.spawnX,z:e.spawnZ};
@@ -198,13 +233,13 @@ export class Round {
         if(e.timer<=0){const canHit=distance(p,e)<reach+.3&&distance(p,DOOR)<5.2;const result=canHit?this.hurtPlayer(this.config.damage*(e.heavy?1.6:e.role==='keeper'?1.15:weapon.enemyDamage),e):'miss';if(result!=='parried'){e.state='swing';e.timer=.23;}}
         continue;
       }
-      if(e.state==='swing'){if(e.timer<=0){if(e.followUp){e.followUp=false;e.state='windup';e.timer=.42;}else{e.state='recover';e.timer=.85+this.random()*.5;}}continue;}
+      if(e.state==='swing'){if(e.timer<=0){if(e.followUp){e.followUp=false;e.state='windup';e.timer=.42;}else{e.state='recover';e.timer=e.captain?this.captain.recovery:.85+this.random()*.5;}}continue;}
       // Hold the entrance until a boarding opportunity. Never pursue into the street.
       if(distance(e,post)>.12)this.moveEnemy(e,post,dt,this.config.speed);
       const d=distance(p,e),nearEntrance=distance(p,DOOR)<5.2;
       e.defending=this.mode!=='easy'&&['keeper','bruiser'].includes(e.role)&&e.guardBroken<=0&&e.state==='guard'&&!e.moving&&nearEntrance&&d<3.5&&(this.elapsed+e.id*.65)%4<1.25;
       if(nearEntrance&&distance(e,post)<1.35&&d<reach+.1&&e.timer<=0&&attacking<this.config.attackers){
-        e.face=Math.atan2(p.x-e.x,p.z-e.z);e.state='windup';e.attacks=(e.attacks||0)+1;e.heavy=e.role==='keeper'&&e.attacks%3===0;e.attackKind=e.heavy?'heavy':e.role==='swinger'&&e.attacks%3===2?'low':e.attacks%2?'jab':'kick';e.defending=false;e.followUp=this.mode==='hard'&&e.role==='bruiser'&&e.attacks%2===0;e.timer=this.config.windup*weapon.windup*(e.heavy?1.65:e.attackKind==='low'?1.2:1);e.windupDuration=e.timer;attacking++;
+        e.face=Math.atan2(p.x-e.x,p.z-e.z);e.state='windup';e.attacks=(e.attacks||0)+1;e.heavy=e.role==='keeper'&&e.attacks%3===0;e.attackKind=e.heavy?'heavy':e.role==='swinger'&&e.attacks%3===2?'low':e.attacks%2?'jab':'kick';if(e.captain){e.attackKind=this.captain.pattern[(e.attacks-1)%this.captain.pattern.length];e.heavy=e.attackKind==='heavy';}e.defending=false;e.followUp=!e.captain&&this.mode==='hard'&&e.role==='bruiser'&&e.attacks%2===0;e.timer=this.config.windup*weapon.windup*(e.heavy?1.65:e.attackKind==='low'?1.2:1);if(e.captain)e.timer=Math.max(e.timer,e.heavy?1.15:.8);e.windupDuration=e.timer;attacking++;
       }else if(nearEntrance&&!e.moving)e.face=Math.atan2(p.x-e.x,p.z-e.z);
     }
     for(let i=0;i<this.enemies.length;i++){
@@ -212,7 +247,7 @@ export class Round {
       for(let j=i+1;j<this.enemies.length;j++){const b=this.enemies[j];if(['down','boarded','boarding','airborne'].includes(b.state))continue;const d=distance(a,b);if(d<.78&&d>.01){const dx=(a.x-b.x)/d,dz=(a.z-b.z)/d,q=(.78-d)*.5;a.x+=dx*q;a.z+=dz*q;b.x-=dx*q;b.z-=dz*q;this.constrainActor(a);this.constrainActor(b);}}
       const d=distance(p,a);if(d<.64&&d>.01&&p.action!=='dodge'){p.x+=(p.x-a.x)/d*.025;p.z+=(p.z-a.z)/d*.025;this.constrainActor(p);}
     }
-    if(this.combatActive&&!this.practice){this.raceClock=Math.max(0,this.raceClock-dt);if(!this.boardingRival&&this.raceClock===0){const rival=this.enemies.filter(e=>e.hp>0&&e.state==='guard'&&e.guardBroken<1).sort((a,b)=>distance(a,DOOR)-distance(b,DOOR))[0];if(rival){rival.state='rushing';rival.defending=false;rival.boardProgress=0;this.emit('rival-boarding',{id:rival.id});}}}
+    if(this.combatActive&&!this.practice){this.raceClock=Math.max(0,this.raceClock-dt);if(!this.boardingRival&&this.raceClock===0){const rival=this.enemies.filter(e=>e.hp>0&&!e.captain&&e.state==='guard'&&e.guardBroken<1).sort((a,b)=>distance(a,DOOR)-distance(b,DOOR))[0];if(rival){rival.state='rushing';rival.defending=false;rival.boardProgress=0;this.emit('rival-boarding',{id:rival.id});}}}
     this.nearDoor=distance(p,DOOR)<1.3;
     const gapOpen=this.combatActive&&!this.doorBlocked;this.doorCalled=gapOpen;
     if(gapOpen&&!this.gapWasOpen&&distance(p,DOOR)<4.5)this.emit('door-open');this.gapWasOpen=gapOpen;
@@ -234,16 +269,17 @@ export class Round {
 }
 
 export class HomeRun {
-  constructor(mode='normal',startId='circle',random=Math.random,character=null){
-    this.character=character?characterById(character):null;this.mode=mode;this.random=random;const start=Math.max(0,ARENAS.findIndex(a=>a.id===startId));this.route=[0,2,4].map(offset=>ARENAS[(start+offset)%ARENAS.length]);this.index=0;this.score=0;this.health=100;this.weapon=this.character?.item||null;this.kos=0;this.time=0;this.history=[];this.complete=false;this.canContinue=false;
+  constructor(mode='normal',startId='circle',random=Math.random,character=null,options={}){
+    this.character=character?characterById(character):null;this.mode=mode;this.random=random;const start=Math.max(0,ARENAS.findIndex(a=>a.id===startId));this.route=[0,2,4].map(offset=>ARENAS[(start+offset)%ARENAS.length]);this.index=0;this.score=0;this.health=100;this.weapon=this.character?.item||null;this.kos=0;this.time=0;this.history=[];this.complete=false;this.canContinue=false;this.daily=options.daily||null;this.upgrades=[];this.offers=[];this.selectedUpgrade=null;this.conditions=shuffled(CONDITIONS,random).slice(0,3);this.captain=CAPTAINS[Math.floor(random()*CAPTAINS.length)];this.roundSeeds=[0,1,2].map(i=>`${random()}-${i}`);
   }
   get arena(){return this.route[this.index];}
-  createRound(){this.round=new Round(this.mode,this.random,{character:this.character?.id,stage:this.index+1,health:this.health,weapon:this.weapon,startWaiting:true,firstBusFull:this.random()<MODES[this.mode].fullChance});return this.round;}
+  createRound(){this.round=new Round(this.mode,seededRandom(this.roundSeeds[this.index]),{character:this.character?.id,stage:this.index+1,health:this.health,weapon:this.weapon,condition:this.conditions[this.index],upgrades:this.upgrades,captain:this.index===2?this.captain:null,quickArrival:true,closeStart:true});return this.round;}
+  chooseUpgrade(id){if(!this.canContinue||!this.offers.some(u=>u.id===id))return false;this.selectedUpgrade=id;return true;}
   record(round){
     if(round.status==='playing'||this.history.some(h=>h.stage===round.stage))return;
     this.score+=round.score;this.kos+=round.kos;this.time+=round.elapsed;this.health=round.player.hp;this.weapon=round.player.weapon;
     this.history.push({challenge:round.challenge.status==='won',bestChain:round.bestChain,stage:round.stage,arena:this.arena.id,result:round.status,score:round.score,stars:round.stars});
-    this.complete=round.status==='won'&&this.index===2;this.canContinue=round.status==='won'&&!this.complete;
+    this.complete=round.status==='won'&&this.index===2;this.canContinue=round.status==='won'&&!this.complete;this.selectedUpgrade=null;if(this.canContinue)this.offers=shuffled(UPGRADES.filter(u=>!this.upgrades.includes(u.id)),this.random).slice(0,3);
   }
-  advance(){if(!this.canContinue)return null;this.index++;this.health=Math.min(100,this.health+(this.character?.heal||25));this.canContinue=false;return this.createRound();}
+  advance(){if(!this.canContinue)return null;if(this.selectedUpgrade)this.upgrades.push(this.selectedUpgrade);this.offers=[];this.selectedUpgrade=null;this.index++;this.health=Math.min(100,this.health+(this.character?.heal||25));this.canContinue=false;return this.createRound();}
 }

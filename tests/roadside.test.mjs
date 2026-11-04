@@ -6,9 +6,8 @@ const step=(r,n,input={})=>{for(let i=0;i<Math.ceil(n/.02);i++)r.tick(.02,input)
 
 test('a home run starts with a safe preparation period, then a crowd forms before the door opens',()=>{
   const r=new HomeRun('normal','circle',()=>.9).createRound();
-  assert.equal(r.bus.phase,'waiting');assert.equal(r.attack(),false);assert.equal(r.shove(),false);
-  assert.ok(r.enemies.every(e=>distance(e,r.waitingPost(e))<.01));
-  Object.assign(r.player,DOOR);step(r,BUS_TIMING.waiting+BUS_TIMING.arriving-.1,{board:true});
+  assert.equal(r.bus.phase,'arriving');assert.equal(r.bus.full,false);assert.equal(r.attack(),false);assert.equal(r.shove(),false);
+  Object.assign(r.player,DOOR);step(r,BUS_TIMING.arriving-.1,{board:true});
   assert.equal(r.bus.phase,'arriving');assert.equal(r.board,0);assert.equal(r.player.hp,100);
   assert.ok(r.enemies.filter(e=>distance(e,{x:e.spawnX,z:e.spawnZ})<.2).length>=3);
   step(r,.12);assert.equal(r.bus.number,1);assert.equal(r.combatActive,true);assert.equal(r.doorBlocked,true);

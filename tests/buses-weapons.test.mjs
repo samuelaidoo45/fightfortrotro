@@ -20,7 +20,7 @@ test('the road stays outside the playable pavement during an empty bay and arriv
   const r=new Round('easy',()=>.5,{firstBusFull:true});step(r,BUS_TIMING.full+BUS_TIMING.departing+.1);assert.equal(r.bus.phase,'waiting');Object.assign(r.player,{x:0,z:-6.2});r.tick(.02);assert.equal(r.player.z,-4.15);step(r,BUS_TIMING.waiting+BUS_TIMING.arriving);assert.equal(r.bus.canBoard,true);assert.ok(r.player.z>=-4.15);
 });
 test('waiting for a full bus never banks a ride or advances the home run',()=>{
-  const run=new HomeRun('easy','circle',()=>0),r=run.createRound();step(r,BUS_TIMING.waiting+BUS_TIMING.arriving+Object.values(BUS_TIMING).reduce((a,b)=>a+b,0)+.2);run.record(r);assert.equal(run.index,0);assert.equal(run.history.length,0);assert.equal(run.canContinue,false);assert.equal(r.bus.canBoard,true);
+  const run=new HomeRun('easy','circle',()=>0),r=new Round('easy',()=>0,{firstBusFull:true,startWaiting:true});step(r,BUS_TIMING.waiting+BUS_TIMING.arriving+Object.values(BUS_TIMING).reduce((a,b)=>a+b,0)+.2);run.record(r);assert.equal(run.index,0);assert.equal(run.history.length,0);assert.equal(run.canContinue,false);assert.equal(r.bus.canBoard,true);
 });
 test('missing several arrivals never ends a healthy run on an unrelated service timer',()=>{
   const r=new Round('hard',()=>0,{firstBusFull:true});r.enemies=[];step(r,r.config.time*3);assert.equal(r.status,'playing');assert.equal(r.player.hp,100);assert.ok(r.bus.number>3);assert.ok(r.missedBuses>1);

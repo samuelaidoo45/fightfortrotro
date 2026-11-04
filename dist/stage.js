@@ -225,7 +225,7 @@ export class Stage {
     this.actors=round.enemies.map(e=>{
       const a=this.character([0xb87359,0x6e8c94,0x87995d,0xbca278,0x7a7596,0x558c80][e.id%6],false,e.weapon,null,e.character);this.dynamic.add(a.group);
       if(e.role==='keeper'){
-        const material=this.label('HEAVY BLOCKER',512,64,'#18252c','#f4c66a');material.depthTest=false;material.fog=false;
+        const material=this.label(e.captain?round.captain.name.toUpperCase():'HEAVY BLOCKER',512,64,'#18252c','#f4c66a');material.depthTest=false;material.fog=false;
         a.roleLabel=new T.Mesh(new T.PlaneGeometry(1.15,.145),material);a.roleLabel.position.y=.15;a.hpGroup.add(a.roleLabel);
       }
       if(e.role==='keeper'){a.group.scale.multiplyScalar(1.04);a.hpGroup.scale.setScalar(1.25);}
