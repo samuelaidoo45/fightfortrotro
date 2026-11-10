@@ -8,9 +8,9 @@ export const ENCOUNTERS=[
   {kind:'captain',name:'Captain showdown',detail:'Outlast the captain and crowd, then take your seat.',goal:1}
 ];
 export const TRAVEL_CHOICES=[
-  {id:'rest',name:'Take a breather',tag:'Recovery',detail:'Recover 40 health before the next encounter.'},
-  {id:'charge',name:'Arrive ready',tag:'Special',detail:'Recover 15 health. Start the next fight with a full special meter.'},
-  {id:'risk',name:'Raise the stakes',tag:'High score',detail:'Recover 25 health. Next encounter: +30% score, but rivals hit 20% harder.'}
+  {id:'rest',name:'Recover health',tag:'Recovery',detail:'Recover 40 health before the next encounter.'},
+  {id:'charge',name:'Fill special meter',tag:'Special',detail:'Recover 15 health. Start the next fight with a full special meter.'},
+  {id:'risk',name:'Harder fight, more points',tag:'High score',detail:'Recover 25 health. Next encounter: +30% score, but rivals hit 20% harder.'}
 ];
 const count=(n,max=1e8)=>Number.isFinite(n)?Math.max(0,Math.min(max,Math.floor(n))):0;
 const validKind=k=>['campaign','endless'].includes(k);
@@ -29,14 +29,15 @@ export class CityJourney {
   conditionAt(index){return shuffled(CONDITIONS,seededRandom(this.seed+':conditions:'+Math.floor(index/6)))[index%6];}
   get conditions(){return Array.from({length:this.index+2},(_,i)=>this.conditionAt(i));}
   get offers(){return this.canContinue?shuffled(UPGRADES.filter(u=>!this.upgrades.includes(u.id)),seededRandom(this.seed+':offers:'+this.index)).slice(0,3):[];}
-  get ready(){return this.canContinue&&!!this.selectedUpgrade&&(this.upgrades.length<3||this.upgrades.includes(this.replaceUpgrade));}
+  get ready(){return this.canContinue&&(!this.selectedUpgrade||this.upgrades.length<3||this.upgrades.includes(this.replaceUpgrade));}
+  get nextHealth(){const healing=this.travel==='rest'?40:this.travel==='charge'?15:25;return Math.min(100,this.health+healing+(this.character.heal===40?15:0));}
   createRound(){
     if(this.phase!=='fight')return null;
     const r=new Round(this.mode,seededRandom(this.seed+':fight:'+this.index),{character:this.character.id,stage:this.index+1,difficultyLevel:Math.min(4,this.district),health:this.health,weapon:this.weapon,condition:this.conditionAt(this.index),upgrades:this.upgrades,captain:this.index%3===2?this.captain:null,quickArrival:true,closeStart:true,streetPace:2,encounter:this.encounter});
     if(this.arrival==='charge')r.momentum=100;if(this.arrival==='risk'){r.config.damage*=1.2;r.scoreBonus=1.3;}
     this.round=r;return r;
   }
-  chooseUpgrade(id){if(!this.offers.some(u=>u.id===id))return false;this.selectedUpgrade=id;return true;}
+  chooseUpgrade(id){if(!this.canContinue)return false;if(id===null){this.selectedUpgrade=null;this.replaceUpgrade=null;return true;}if(!this.offers.some(u=>u.id===id))return false;this.selectedUpgrade=id;return true;}
   chooseReplacement(id){if(!this.canContinue||!this.upgrades.includes(id))return false;this.replaceUpgrade=id;return true;}
   chooseTravel(id){if(!this.canContinue||!TRAVEL_CHOICES.some(t=>t.id===id))return false;this.travel=id;return true;}
   record(r){
@@ -49,9 +50,8 @@ export class CityJourney {
   }
   advance(){
     if(!this.ready)return null;
-    if(this.upgrades.length===3)this.upgrades=this.upgrades.filter(id=>id!==this.replaceUpgrade);
-    this.upgrades.push(this.selectedUpgrade);const healing=this.travel==='rest'?40:this.travel==='charge'?15:25;
-    this.health=Math.min(100,this.health+healing+(this.character.heal===40?15:0));this.arrival=this.travel;this.index++;this.phase='fight';this.canContinue=false;this.complete=false;this.selectedUpgrade=null;this.replaceUpgrade=null;return this.createRound();
+    if(this.selectedUpgrade){if(this.upgrades.length===3)this.upgrades=this.upgrades.filter(id=>id!==this.replaceUpgrade);this.upgrades.push(this.selectedUpgrade);}
+    this.health=this.nextHealth;this.arrival=this.travel;this.index++;this.phase='fight';this.canContinue=false;this.complete=false;this.selectedUpgrade=null;this.replaceUpgrade=null;return this.createRound();
   }
   retry(){if(this.phase!=='retry')return null;this.phase='fight';this.health=Math.max(70,this.health);return this.createRound();}
   snapshot(){return{version:1,kind:this.kind,mode:this.mode,startId:this.startId,character:this.character.id,seed:this.seed,index:this.index,score:this.score,kos:this.kos,time:this.time,health:this.health,weapon:this.weapon,upgrades:[...this.upgrades],history:this.history.slice(-24),phase:this.phase,selectedUpgrade:this.selectedUpgrade,replaceUpgrade:this.replaceUpgrade,travel:this.travel,arrival:this.arrival,lastResult:this.lastResult};}

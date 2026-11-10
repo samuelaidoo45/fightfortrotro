@@ -33,7 +33,7 @@ test('captain showdowns cannot be bypassed while the captain is alive, and the n
 });
 
 test('full three-slot builds require an explicit replacement, never accumulate all upgrades',()=>{
- const j=new CityJourney({seed:'slots'});for(let n=0;n<7;n++){finish(j);assert.equal(j.advance(),null);const selected=j.offers[0].id;j.chooseUpgrade(selected);if(j.upgrades.length===3){assert.equal(j.ready,false);assert.equal(j.advance(),null);const removed=j.upgrades[0];j.chooseReplacement(removed);j.advance();assert.ok(!j.upgrades.includes(removed));}else j.advance();assert.ok(j.upgrades.includes(selected));assert.ok(j.upgrades.length<=3);}
+ const j=new CityJourney({seed:'slots'});for(let n=0;n<7;n++){finish(j);assert.equal(j.ready,true);const selected=j.offers[0].id;j.chooseUpgrade(selected);if(j.upgrades.length===3){assert.equal(j.ready,false);assert.equal(j.advance(),null);const removed=j.upgrades[0];j.chooseReplacement(removed);j.advance();assert.ok(!j.upgrades.includes(removed));}else j.advance();assert.ok(j.upgrades.includes(selected));assert.ok(j.upgrades.length<=3);}
 });
 
 test('travel choices change recovery, initial special charge and actual risk/reward',()=>{
@@ -71,4 +71,18 @@ test('campaign achievements survive profile reload and endless best is tracked s
 test('checkpoint validation rejects incompatible data and sanitizes loadout and counters',()=>{
  assert.equal(CityJourney.restore(null),null);assert.equal(CityJourney.restore({version:1,kind:'bad'}),null);const good=new CityJourney({seed:'validate'}).snapshot();for(const bad of [{version:2},{index:18},{index:-1},{kind:'oops'},{mode:'__proto__'},{character:'<script>'},{phase:'travel',index:17},{phase:'complete',index:0}])assert.equal(CityJourney.restore({...good,...bad}),null);
  const cleaned=CityJourney.restore({...good,score:'<script>',health:Infinity,upgrades:['brawler','brawler','tough','dancer','flow','bad'],history:[null,{stage:'bad'}]});assert.equal(cleaned.score,0);assert.equal(cleaned.health,100);assert.equal(cleaned.upgrades.length,3);assert.equal(cleaned.history.length,0);
+});
+
+
+test('continue works without choosing upgrades and preserves a full loadout',()=>{
+ const j=new CityJourney({seed:'optional'});j.upgrades=['brawler','tough','dancer'];const r=finish(j);j.health=35;
+ const saved=CityJourney.restore(j.snapshot());assert.equal(saved.ready,true);const next=saved.advance();assert.equal(next.status,'playing');assert.equal(saved.index,1);assert.equal(next.player.hp,75);assert.deepEqual(next.upgrades,['brawler','tough','dancer']);
+});
+test('a pending replacement can be cancelled without losing existing upgrades',()=>{
+ const j=new CityJourney({seed:'cancel-upgrade'});j.upgrades=['brawler','tough','dancer'];finish(j);j.chooseUpgrade(j.offers[0].id);assert.equal(j.ready,false);assert.equal(j.advance(),null);j.chooseUpgrade(null);assert.equal(j.ready,true);const next=j.advance();assert.deepEqual(next.upgrades,['brawler','tough','dancer']);assert.equal(j.chooseUpgrade(null),false);
+});
+test('starting-health preview matches the next fight for every recovery choice and healer bonus',()=>{
+ for(const character of ['office','nurse'])for(const choice of ['rest','charge','risk'])for(const health of [20,90]){
+  const j=new CityJourney({character,seed:'health-preview'});finish(j);j.health=health;j.chooseTravel(choice);const expected=j.nextHealth;assert.equal(j.advance().player.hp,expected);assert.ok(expected<=100&&expected>health);
+ }
 });

@@ -3,7 +3,7 @@ import {CHARACTERS,characterById} from './characters.js';
 import {COMBO_ROUTES} from './combat.js';
 import {Stage} from './stage.js';
 import {stickVector,contextAction,arrivalCall} from './mobile.js';
-import {CityJourney,TRAVEL_CHOICES} from './campaign.js';
+import {CityJourney,TRAVEL_CHOICES,ENCOUNTERS} from './campaign.js';
 import {UPGRADES,BADGES,cleanProfile,rankFor,masteryFor,awardRound,dailyRoute,seededRandom} from './journey.js';
 let playMode='campaign',checkpointSaved=true,cityReward='';const savedJourneys={};
 for(const kind of ['campaign','endless']){try{const saved=CityJourney.restore(JSON.parse(localStorage.getItem('trotro-'+kind+'-v1')||'null'));if(saved)savedJourneys[kind]=saved.snapshot();}catch{}}
@@ -72,16 +72,37 @@ function refreshJourney(){
   $('#journey-progress').innerHTML=run.kind?`<span class="current"><b>${run.kind==='campaign'?'City Journey':'Endless Commute'}</b> ${run.index+1}${run.kind==='campaign'?'/18':''}</span><i>›</i><span>${run.arena.name}</span>`:run.route.map((a,i)=>`<span class="${i<run.index?'complete':i===run.index?'current':''}">${i<run.index?'✓':i+1} <b>${a.name}</b></span>`).join('<i>›</i>');
 }
 function renderCityTravel(){
-  const won=run.phase!=='retry',complete=run.complete;$('#city-build').hidden=!run.canContinue;$('#travel-eyebrow').textContent=run.kind==='campaign'?`City Journey · Encounter ${run.index+1}/18`:`Endless Commute · Encounter ${run.index+1}`;
-  $('#travel-title').textContent=complete?'You conquered Accra.':!won?'Get back in the fight.':run.index%3===2?run.arena.name+' is yours.':'Seat secured. Journey continues.';
-  $('#travel-detail').textContent=complete?`${run.score.toLocaleString()} points across 18 encounters. Your completed journey is saved. Keep going in Endless Commute.`:!won?'This encounter got you. Retry with at least 70 health. Your completed encounters, score and build stay intact.':`Next: ${run.arenaAt(run.index+1).name} · ${run.index%3===1?'Captain showdown':run.index%3===2?'Break the queue':'Hold your place'}. ${run.score.toLocaleString()} points banked.`;
-  $('#travel-map').innerHTML=mapMarkup(run);$('#travel-reward').textContent=cityReward||`${run.upgrades.length}/3 build slots · ${Math.ceil(run.health)} health at the checkpoint`;$('#build-help').textContent=run.upgrades.length===3?'Your build is full. Pick a new upgrade, then choose one to replace.':'Choose an upgrade to carry through the journey. You have three build slots.';
-  $('#city-offers').replaceChildren(...run.offers.map(u=>{const b=document.createElement('button');b.className='upgrade-choice';b.dataset.cityUpgrade=u.id;b.setAttribute('aria-pressed',run.selectedUpgrade===u.id);b.innerHTML=`<small>${u.tag}</small><b>${u.name}</b><span>${u.detail}</span>`;b.addEventListener('click',()=>{run.chooseUpgrade(u.id);saveJourney();renderCityTravel();document.querySelector(`[data-city-upgrade="${u.id}"]`).focus();});return b;}));
-  $('#replace-section').hidden=!run.canContinue||run.upgrades.length<3;$('#replace-options').replaceChildren(...run.upgrades.map(id=>{const b=document.createElement('button');b.dataset.replace=id;b.textContent=UPGRADES.find(u=>u.id===id).name;b.setAttribute('aria-pressed',run.replaceUpgrade===id);b.addEventListener('click',()=>{run.chooseReplacement(id);saveJourney();renderCityTravel();document.querySelector(`[data-replace="${id}"]`).focus();});return b;}));
-  $('#travel-options').replaceChildren(...TRAVEL_CHOICES.map(t=>{const b=document.createElement('button');b.dataset.travel=t.id;b.setAttribute('aria-pressed',run.travel===t.id);b.innerHTML=`<b>${t.name}</b><span>${t.detail}</span>`;b.addEventListener('click',()=>{run.chooseTravel(t.id);saveJourney();renderCityTravel();document.querySelector(`[data-travel="${t.id}"]`).focus();});return b;}));
-  $('#city-save-status').textContent=checkpointSaved?'Checkpoint saved on this device. Your current travel choices are saved too.':'Browser storage unavailable. This journey is kept for this session only.';$('#city-continue').disabled=run.canContinue&&!run.ready;$('#city-continue').textContent=complete?'Keep riding in Endless':won?(!run.selectedUpgrade?'Choose your upgrade':!run.ready?'Choose an upgrade to replace':'Travel to the next encounter'):'Retry this encounter';$('#city-leave').textContent=checkpointSaved?'Save and return to menu':'Return to menu (session only)';
+  const won=run.phase!=='retry',complete=run.complete,nextIndex=won&&!complete?run.index+1:run.index;
+  $('#city-build').hidden=!run.canContinue;
+  $('#travel-eyebrow').textContent=run.kind==='campaign'?'City Journey':'Endless Commute';
+  $('#travel-title').textContent=complete?'You conquered Accra!':won?'You got a seat!':'Try this fight again';
+  $('#travel-detail').textContent=complete?'All 18 fights won. Your journey is saved.':won?`Fight ${run.index+1} complete. Your progress is saved.`:'Your completed fights and upgrades are safe.';
+  $('#travel-reward').textContent=cityReward;$('#travel-reward').hidden=!cityReward;
+  $('#travel-next').hidden=complete;
+  $('#travel-next-label').textContent=won?'Next fight':'Retry';
+  $('#travel-next-title').textContent=`${run.arenaAt(nextIndex).name} · ${ENCOUNTERS[nextIndex%3].name}`;
+  $('#travel-next-goal').textContent=ENCOUNTERS[nextIndex%3].detail;
+  const nextHealth=won?run.nextHealth:Math.max(70,run.health);
+  $('#travel-health').textContent=`Starting health: ${Math.ceil(nextHealth)} / 100`;
+  const done=run.index+(won?1:0);
+  $('#travel-progress-label').textContent=run.kind==='campaign'?`Journey progress · ${done} of 18 fights won`:`Journey progress · ${done} fights won`;
+  $('#travel-map').innerHTML=mapMarkup(run);
+  $('#build-help').textContent=run.upgrades.length===3?'You have three upgrades. Keep them, or pick a new one and choose which to replace.':'You can add one free upgrade, or continue with what you have.';
+  $('#keep-upgrades').setAttribute('aria-pressed',!run.selectedUpgrade);
+  $('#keep-upgrades').textContent=run.upgrades.length?'Keep current upgrades':'Continue without an upgrade';
+  $('#city-offers').replaceChildren(...run.offers.map(u=>{const b=document.createElement('button');b.className='upgrade-choice';b.dataset.cityUpgrade=u.id;b.setAttribute('aria-pressed',run.selectedUpgrade===u.id);b.innerHTML=`<b>${u.name}</b><span>${u.detail}</span>`;b.addEventListener('click',()=>{run.chooseUpgrade(u.id);saveJourney();renderCityTravel();document.querySelector(`[data-city-upgrade="${u.id}"]`).focus();});return b;}));
+  $('#replace-section').hidden=!run.canContinue||!run.selectedUpgrade||run.upgrades.length<3;
+  $('#replace-options').replaceChildren(...run.upgrades.map(id=>{const b=document.createElement('button');b.dataset.replace=id;b.textContent=UPGRADES.find(u=>u.id===id).name;b.setAttribute('aria-pressed',run.replaceUpgrade===id);b.addEventListener('click',()=>{run.chooseReplacement(id);saveJourney();renderCityTravel();document.querySelector(`[data-replace="${id}"]`).focus();});return b;}));
+  $('#travel-options').replaceChildren(...TRAVEL_CHOICES.map(t=>{const b=document.createElement('button');b.dataset.travel=t.id;b.setAttribute('aria-pressed',run.travel===t.id);b.innerHTML=`<b>${t.name}${t.id==='rest'?' (default)':''}</b><span>${t.detail}</span>`;b.addEventListener('click',()=>{run.chooseTravel(t.id);saveJourney();renderCityTravel();document.querySelector(`[data-travel="${t.id}"]`).focus();});return b;}));
+  const upgrade=UPGRADES.find(u=>u.id===run.selectedUpgrade),replaced=UPGRADES.find(u=>u.id===run.replaceUpgrade);
+  $('#travel-selection').hidden=!run.canContinue;
+  $('#travel-selection').textContent=run.ready?`${TRAVEL_CHOICES.find(t=>t.id===run.travel).name}. ${upgrade?replaced?`${upgrade.name} replaces ${replaced.name}.`:`Add ${upgrade.name}.`:'Keep current upgrades.'}`:'Choose an upgrade to replace, or keep your current upgrades.';
+  $('#city-save-status').textContent=checkpointSaved?'Progress saved on this device.':'Progress is kept for this session only; browser storage is unavailable.';
+  $('#city-continue').disabled=run.canContinue&&!run.ready;
+  $('#city-continue').textContent=complete?'Play Endless':won?'Continue to next fight':'Retry fight';
+  $('#city-leave').textContent='Back to menu';
 }
-function showCityTravel(){clearInput();paused=true;renderCityTravel();$('#city-travel').showModal();}
+function showCityTravel(){clearInput();paused=true;$('#city-build').open=false;$('#travel-progress').open=false;renderCityTravel();if(run.canContinue&&!run.ready)$('#city-build').open=true;$('#city-travel').showModal();if(!$('#city-continue').disabled)$('#city-continue').focus();}
 function startCity(fresh=false){
   dailyRun=null;cityReward='';const saved=!fresh?CityJourney.restore(savedJourneys[playMode]):null;run=saved&&!saved.complete?saved:new CityJourney({kind:playMode,mode,startId:arena.id,character:characterId});saveJourney();
   if(run.phase==='fight')playRound(run.createRound());else showCityTravel();
@@ -234,11 +255,14 @@ function processEvents(){
 for(const button of document.querySelectorAll('[data-mode]')){button.setAttribute('aria-pressed',button.dataset.mode===mode);button.addEventListener('click',()=>{mode=button.dataset.mode;document.querySelectorAll('[data-mode]').forEach(b=>{const selected=b.dataset.mode===mode;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',selected);});$('#mode-description').textContent=MODES[mode].description;refreshJourneyMenu();});}
 for(const b of document.querySelectorAll('[data-journey]'))b.addEventListener('click',()=>{playMode=b.dataset.journey;document.querySelectorAll('[data-journey]').forEach(el=>{el.classList.toggle('selected',el===b);el.setAttribute('aria-pressed',el===b);});refreshJourneyMenu();});
 $('#fresh-journey').addEventListener('click',()=>$('#new-journey-dialog').showModal());$('#cancel-fresh').addEventListener('click',()=>$('#new-journey-dialog').close());$('#confirm-fresh').addEventListener('click',()=>{$('#new-journey-dialog').close();startCity(true);});
+$('#keep-upgrades').addEventListener('click',()=>{run.chooseUpgrade(null);saveJourney();renderCityTravel();});
 $('#city-continue').addEventListener('click',()=>{if(run.complete){playMode='endless';$('#city-travel').close();startCity();return;}const next=run.phase==='retry'?run.retry():run.advance();if(next){cityReward='';playRound(next);}});$('#city-leave').addEventListener('click',lobby);$('#city-travel').addEventListener('cancel',e=>{e.preventDefault();lobby();});
+// Native/programmatic dismissal must not leave a finished round hidden and paused.
+$('#city-travel').addEventListener('close',()=>{if(!$('#city-travel').open&&run?.kind&&run.phase!=='fight')lobby();});
 $('#mode-description').textContent=MODES[mode].description;
 for(const button of document.querySelectorAll('[data-dialog]'))button.addEventListener('click',()=>$('#'+button.dataset.dialog).showModal());
 for(const button of document.querySelectorAll('.close-dialog'))button.addEventListener('click',()=>button.closest('dialog').close());
-for(const dialog of document.querySelectorAll('.information-dialog'))dialog.addEventListener('click',e=>{if(e.target===dialog){const rect=dialog.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)dialog.close();}});
+for(const dialog of document.querySelectorAll('.information-dialog'))dialog.addEventListener('click',e=>{if(e.target===dialog){const rect=dialog.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom){if(dialog.id==='city-travel')lobby();else dialog.close();}}});
 $('#play-tab').addEventListener('click',()=>$('#start').focus());$('#start').addEventListener('click',start);$('#daily').addEventListener('click',()=>startDaily());$('#career-button').addEventListener('click',()=>{refreshCareer();$('#career-dialog').showModal();});$('#choose-character').addEventListener('click',characterMenu);$('#character-play').addEventListener('click',start);$('#practice').addEventListener('click',practice);$('#moves-button').addEventListener('click',moves);$('#moves-return').addEventListener('click',resume);$('#close-moves').addEventListener('click',resume);$('#moves-dialog').addEventListener('cancel',e=>{e.preventDefault();resume();});$('#combo-routes').innerHTML=COMBO_ROUTES.map(c=>`<article><kbd>${c.keys}</kbd><b>${c.name}</b><p>${c.detail}</p></article>`).join('');$('#retry').addEventListener('click',retry);$('#back-lobby').addEventListener('click',lobby);$('#quit').addEventListener('click',lobby);$('#pause').addEventListener('click',pause);$('#resume').addEventListener('click',resume);
 $('#pause-dialog').addEventListener('cancel',e=>{e.preventDefault();resume();});$('#result').addEventListener('cancel',e=>{e.preventDefault();lobby();});$('#shake-setting').checked=!matchMedia('(prefers-reduced-motion: reduce)').matches;$('#shake-setting').addEventListener('change',e=>stage.shakeEnabled=e.target.checked);
 $('#sound-toggle').addEventListener('click',()=>{setSound(!sound);if(sound)soundEffect('pickup');});$('#sound-setting').addEventListener('change',e=>setSound(e.target.checked));setSound(sound);
