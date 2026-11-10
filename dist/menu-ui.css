@@ -1,0 +1,67 @@
+/* A game menu with one primary action; configuration lives in its own dialog. */
+body:not(.playing) #vignette{background:linear-gradient(90deg,rgba(12,26,34,.98) 0%,rgba(12,26,34,.92) 25%,rgba(12,26,34,.38) 53%,rgba(12,26,34,.08) 100%)}
+body:not(.playing) #header{height:76px;left:0;right:0;padding:0 clamp(24px,5vw,88px);background:transparent;border:0}
+#header #play-tab{display:none}
+#header .brand-emblem{border:0;background:none;transform:none;padding:0;font-size:24px}
+#header .brand{gap:18px}#header .brand>span:last-child{font-size:12px;color:#c1cdcf}
+#header .nav-button{font-size:13px}#header .icon-button{width:40px;height:40px;border-color:#f0eee038}
+#lobby{display:block;position:absolute;inset:76px 0 0;overflow:auto;padding:clamp(28px,5vh,60px) clamp(24px,5vw,88px) 32px;max-width:none;margin:0;background:transparent}
+#lobby .hero{position:relative;inset:auto;width:360px;max-width:100%;display:flex;flex-direction:column;gap:0;padding:0;margin:0}
+#lobby .hero h1{order:0;font-family:'Barlow Condensed',Impact,sans-serif;font-size:clamp(56px,5vw,76px);font-weight:800;line-height:.94;letter-spacing:-1px;margin:0 0 16px;color:#f3f1e6;text-shadow:none}
+#lobby .hero h1 span{color:inherit}
+#lobby .hero .intro{order:1;display:block;color:#c5d0d0;font-size:16px;line-height:1.5;margin:0 0 28px}
+#lobby #start{order:2;display:flex;align-items:center;justify-content:space-between;width:100%;min-height:58px;padding:16px 20px;margin:0;border:0;border-radius:6px;clip-path:none;background:#f3bd4b;color:#182a33;font-size:19px;font-weight:700;box-shadow:none;transition:background .15s}
+#lobby #start:hover{background:#ffcd66;transform:none}#lobby .button-arrow{font-size:28px;font-weight:400}
+#lobby #checkpoint-note{order:3;font-size:11px;line-height:1.5;color:#b5c5c8;margin:10px 0 24px;max-width:100%}
+#lobby #choose-character,#lobby #menu-options{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-height:64px;padding:13px 16px;margin:0 0 10px;border:1px solid #a1bec42b;border-radius:6px;background:#17303bd9;color:#f2f1e7;text-align:left;box-shadow:none;font-size:14px}
+#lobby #choose-character{order:4}#lobby #menu-options{order:5}
+#lobby .menu-copy{display:flex;flex-direction:column;gap:5px;min-width:0}#lobby .menu-copy small{font-size:11px;line-height:1.4;font-weight:400;color:#b6c9ce}#lobby .menu-copy b,#lobby #character-summary{font-size:14px;font-weight:600;line-height:1.4}
+#lobby .menu-change{flex-shrink:0;font-size:12px;color:#ebc46d}
+#lobby #choose-character:hover,#lobby #menu-options:hover{background:#21404b;border-color:#a7bec36b}
+#lobby #practice{order:6;display:flex;align-items:center;justify-content:space-between;width:100%;min-height:44px;padding:10px 2px;margin:0 0 18px;border:0;background:none;font-size:13px;color:#e5eae6}
+#lobby #practice span{font-size:11px;color:#b6c9ce}
+#lobby .menu-extras{order:7;display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:1px solid #b2c5c533;padding-top:17px}
+#lobby #daily,#lobby #career-button{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:5px;position:relative;width:auto;min-height:48px;padding:0;margin:0;background:none;border:0;clip-path:none;text-align:left;color:#f0eee4;box-shadow:none}
+#lobby #daily>b,#lobby #career-button>b{font-size:13px;font-weight:600}#lobby #daily-route,#lobby #career-rank{font-size:11px;color:#b6c9ce;line-height:1.5}
+#lobby #daily-detail,#lobby #daily-best,#lobby #career-summary,#lobby .career-track{display:none}
+#lobby #daily:hover>b,#lobby #career-button:hover>b,#lobby #practice:hover{color:#f3bd4b}
+#lobby .scene-caption{display:flex;position:fixed;right:5vw;bottom:40px;left:auto;top:auto;flex-direction:column;gap:5px;width:auto;text-align:right;color:#faf8ed;text-shadow:0 2px 5px #132630}
+#lobby .scene-caption small{font-size:12px;letter-spacing:0;text-transform:none;color:#d5e1df}#lobby #scene-caption{font-family:'Barlow Condensed',Impact,sans-serif;font-size:32px;font-weight:600}
+#lobby button:focus-visible,#game-setup button:focus-visible,#game-setup summary:focus-visible{outline:3px solid #ffe09a;outline-offset:4px}
+body.playing #lobby{display:none}
+#game-setup{width:640px;max-width:calc(100vw - 32px);max-height:calc(100dvh - 40px);padding:30px;background:#142b35;border:1px solid #92acb043;border-radius:12px;color:#eff1e8;box-shadow:0 24px 90px #0008}
+#game-setup::backdrop{background:#07131bbb;backdrop-filter:blur(6px)}
+#game-setup h2{font-size:36px;line-height:1.1;letter-spacing:0;margin:0 40px 10px 0}
+#game-setup .setup-intro{font-size:13px;line-height:1.6;color:#b8cbcf;margin:0 0 24px}
+#game-setup .journey-modes,#game-setup .difficulty{width:100%;border:0;padding:0;margin:0 0 20px}
+#game-setup legend{font-size:13px;font-weight:600;color:#e5e9e4;margin-bottom:10px}
+#game-setup .segmented{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+#game-setup .segmented button{min-height:44px;padding:10px 6px;border:1px solid #9cbdc43b;border-radius:5px;font-size:13px;background:#213b47;color:#d7e2e2;box-shadow:none}
+#game-setup .segmented button.selected{color:#ffda84;background:#67552d55;border-color:#e3b650}
+#game-setup #journey-description,#game-setup #mode-description{font-size:12px;line-height:1.5;color:#b8cbcf;margin:9px 0 0}
+#game-setup #mode-description{display:block;margin:-10px 0 24px}
+#game-setup .arena-picker{display:block;position:static;inset:auto;width:100%;margin:0;padding:0;background:none}
+#game-setup .arena-heading{padding:0;align-items:center;margin-bottom:10px}#game-setup .arena-heading h2{font:600 13px 'Barlow',sans-serif;margin:0}#game-setup .arena-count{font-size:11px;color:#b8cbcf}
+#game-setup .arena-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;overflow:visible;margin:0;padding:0}
+#game-setup .arena-choice{width:auto;min-width:0;min-height:58px;margin:0;padding:12px;border:1px solid #9cbdc43b;border-radius:5px;background:#213b47;box-shadow:none;flex:none}
+#game-setup .arena-choice strong{font-size:13px}#game-setup .arena-choice small{display:none}#game-setup .arena-choice.selected{background:#67552d55;border-color:#e3b650}
+#game-setup .arena-footer{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin:12px 0 22px;padding:0;font-size:11px;line-height:1.5;color:#b8cbcf}#game-setup #maps-link{color:#dfc27e;font-size:11px}
+#game-setup .route-details{border-top:1px solid #9cbdc42b;padding-top:15px;margin-bottom:18px}#game-setup summary{cursor:pointer;font-size:13px;color:#dce6e6;padding:6px 0}
+#game-setup .dispatch-ticket{background:none;color:#dce6e6;padding:0;clip-path:none;display:block}#game-setup #city-ticket-title{font-size:19px;margin:18px 0 7px}#game-setup #city-ticket-detail{font-size:12px;color:#b8cbcf}#game-setup .city-route{border:0;grid-template-columns:repeat(3,1fr);padding:5px 0;margin:15px 0}
+#game-setup .district>b,#game-setup .district.current>b{color:#e7ddbf}#game-setup .district>small{color:#b8cbcf}#game-setup .district i,#game-setup .district.current>span i:not(.won){border-color:#83a4a4;color:#c7d7d5}#game-setup .district .won{color:#fff}
+#game-setup .route-preview{display:block;font-size:11px;color:#b8cbcf;margin:15px 0;line-height:1.5}
+#game-setup #fresh-journey{font-size:12px;min-height:44px;color:#dfc27e;margin-bottom:10px}
+#game-setup .setup-done{display:block;width:100%;min-height:48px;border-radius:6px;background:#f3bd4b;color:#182a33;clip-path:none;font-size:16px;margin-top:8px}
+@media(max-width:760px){
+ body:not(.playing) #vignette{background:linear-gradient(90deg,#0c1a22f2,#0c1a22ad 75%,#0c1a2275)}
+ body:not(.playing) #header{height:64px;padding:0 22px}
+ #header .brand>span:last-child{display:none}#header nav{gap:12px}#header .nav-button{font-size:12px}
+ #lobby{inset:64px 0 0;padding:24px 24px 32px;max-width:none;margin:0;display:block}
+ #lobby .hero{width:360px;margin:0 auto}#lobby .hero h1{font-size:54px;line-height:.94;margin-bottom:12px}#lobby .hero .intro{font-size:14px;margin-bottom:22px}
+ #lobby #start{min-height:54px;font-size:18px}#lobby #checkpoint-note{font-size:11px;margin:9px 0 18px}
+ #lobby #choose-character,#lobby #menu-options{min-height:60px;padding:12px 14px;margin-bottom:9px}
+ #lobby #practice{margin-bottom:12px}#lobby .menu-extras{padding-top:14px}#lobby .scene-caption{display:none}
+ #game-setup{padding:24px 20px;max-height:calc(100dvh - 24px)}#game-setup h2{font-size:30px}#game-setup .arena-list{grid-template-columns:repeat(2,minmax(0,1fr))}#game-setup .city-route{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-height:600px) and (min-width:761px){#lobby{padding-top:18px}#lobby .hero h1{font-size:48px}#lobby .hero .intro{margin-bottom:18px}#lobby #checkpoint-note{margin-bottom:14px}#lobby .scene-caption{bottom:24px}}
+@media(prefers-reduced-motion:reduce){#lobby #start{transition:none}}

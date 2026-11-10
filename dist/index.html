@@ -7,8 +7,9 @@
   <title>Fight for Trotro — Last seat, no mercy.</title>
   <link rel="stylesheet" href="./game-ui.css">
   <link rel="stylesheet" href="./journey-ui.css">
-  <link rel="stylesheet" href="./campaign-ui.css?v=1.4.0">
-  <link rel="stylesheet" href="./mobile-ui.css?v=1.4.0">
+  <link rel="stylesheet" href="./campaign-ui.css?v=1.4.1">
+  <link rel="stylesheet" href="./mobile-ui.css?v=1.4.1">
+  <link rel="stylesheet" href="./menu-ui.css?v=1.4.1">
 </head>
 <body>
   <canvas id="world" aria-label="3D trotro arena"></canvas>
@@ -16,28 +17,36 @@
   <div id="load-screen"><span class="loading-wheel"></span><strong>Finding your trotro…</strong><p>Accra is waiting.</p></div>
   <header id="header"><div class="brand"><span class="brand-emblem">F/T</span><span>Accra, Ghana</span></div><nav aria-label="Main navigation"><button class="nav-button active" id="play-tab">Main menu</button><button class="nav-button" data-dialog="guide">Controls</button><button class="nav-button" data-dialog="about">About</button><button class="icon-button" id="fullscreen" aria-label="Enter fullscreen" title="Fullscreen">⛶</button><button class="icon-button" id="sound-toggle" aria-label="Turn sound on" title="Turn sound on">♪<span class="sound-off">/</span></button></nav></header>
   <main id="lobby">
-    <section class="hero">
-      <div class="location-line"><span></span> The roadside scramble</div>
+    <section class="hero" aria-label="Play Fight for Trotro">
       <h1>FIGHT FOR<br><span>TROTRO</span></h1>
-      <p class="intro">Everyone fights for the last seat.</p>
-      <p class="hero-description">Bowl through the crowd. Land a wild combo. Steal the last seat.</p><div id="route-preview" class="route-preview">Queue clash › Seat defence › Captain › Next district</div>
+      <p class="intro">One last seat. Make it yours.</p>
+      <button class="start-button" id="start"><span>Play City Journey</span><span class="button-arrow" aria-hidden="true">›</span></button>
+      <p id="checkpoint-note" class="checkpoint-note"></p>
+      <button id="choose-character" class="character-summary"><span class="menu-copy"><small>Your fighter</small><span id="character-summary">Kojo · Office worker</span></span><span class="menu-change">Change</span></button>
+      <button id="menu-options" class="secondary" aria-haspopup="dialog" aria-controls="game-setup"><span class="menu-copy"><b>Game setup</b><small id="setup-summary">City Journey · Normal · Circle</small></span><span class="menu-change">Edit</span></button>
+      <button class="practice-button" id="practice">Combat practice <span>Learn the moves</span></button>
+      <div class="menu-extras">
+        <button id="daily" class="daily-ticket"><b>Daily challenge</b><span id="daily-route"></span><small id="daily-detail"></small><span id="daily-best"></span></button>
+        <button id="career-button" class="career-summary"><b>Career</b><span id="career-rank">New arrival</span><small id="career-summary"></small><span class="career-track"><i id="career-fill"></i></span></button>
+      </div>
+    </section>
+    <div class="scene-caption"><small>Your next stop</small><span id="scene-caption">Circle, Accra</span></div>
+  </main>
+  <dialog id="game-setup" class="information-dialog setup-dialog" aria-labelledby="setup-title">
+    <button class="close-dialog" aria-label="Close game setup">×</button>
+    <h2 id="setup-title">Set up your ride.</h2>
+    <p class="setup-intro" id="setup-hint">Choose how you play, then pick your first stop.</p>
       <fieldset class="journey-modes"><legend>Choose your journey</legend><div class="segmented"><button data-journey="campaign" aria-pressed="true" class="selected">City Journey</button><button data-journey="endless" aria-pressed="false">Endless</button><button data-journey="quick" aria-pressed="false">Quick ride</button></div><p id="journey-description">18 encounters · 6 districts · Saved checkpoints</p></fieldset><fieldset class="difficulty"><legend>Difficulty</legend><div class="segmented"><button data-mode="easy">Easy</button><button data-mode="normal" class="selected" aria-pressed="true">Normal</button><button data-mode="hard">Hard</button></div></fieldset>
       <p id="mode-description" class="mode-description">6 blockers · 25 seconds · time your breakthrough.</p>
-      <button id="menu-options" class="secondary" aria-expanded="false">Game options</button><button id="choose-character" class="character-summary"><span id="character-summary">Kojo · Office worker</span><span>Change fighter ↗</span></button><button class="start-button" id="start"><span>Start City Journey</span><span class="button-arrow">›</span></button>
-      <button id="fresh-journey" class="fresh-journey" hidden>Start a new journey instead</button><p id="checkpoint-note" class="checkpoint-note"></p><button class="practice-button" id="practice">Combat practice <span>Learn your moves →</span></button><div class="play-note"><kbd>WASD</kbd> Move <span></span><kbd>J</kbd> Light <span></span><kbd>F</kbd> Shove</div>
-    </section>
-    <aside class="dispatch-board" aria-label="Your journey">
-      <div class="dispatch-ticket"><span class="ticket-punch">THE ACCRA CIRCUIT</span><h2 id="city-ticket-title">Make the city yours.</h2><p id="city-ticket-detail">Three encounters in each district.<br>Your next chapter is always waiting.</p><div id="city-route" class="city-route"></div></div>
-      <button id="daily" class="daily-ticket"><span class="daily-heading">Today's rush <b>Daily route</b></span><strong id="daily-route"></strong><small id="daily-detail"></small><span id="daily-best"></span><em>Play today's route ›</em></button>
-      <button id="career-button" class="career-summary"><span><b id="career-rank">New arrival</b><small id="career-summary">Your story starts at the stop.</small></span><strong>Career ›</strong></button><div class="career-track"><i id="career-fill"></i></div>
-    </aside>
-    <div class="scene-caption"><small>Selected battleground</small><span id="scene-caption">Circle, Accra</span><div class="caption-line"></div><span class="caption-description">One last seat.<br>A whole city in your way.</span></div>
     <section class="arena-picker" aria-labelledby="arena-heading">
-      <div class="arena-heading"><h2 id="arena-heading">Start your run here</h2><span class="arena-count" id="arena-count">6 districts to conquer</span></div>
+      <div class="arena-heading"><h2 id="arena-heading">Starting stop</h2><span class="arena-count" id="arena-count">6 districts to conquer</span></div>
       <div id="arena-list" class="arena-list"></div>
       <div class="arena-footer"><span id="arena-detail">Under the flyover. In the middle of everything.</span><a id="maps-link" target="_blank" rel="noopener noreferrer">Explore this stop on Google Maps ↗</a></div>
     </section>
-  </main>
+    <details class="route-details"><summary>Your route progress</summary><div class="dispatch-ticket"><h3 id="city-ticket-title">Make the city yours.</h3><p id="city-ticket-detail"></p><div id="city-route" class="city-route"></div><div id="route-preview" class="route-preview"></div></div></details>
+    <button id="fresh-journey" class="fresh-journey" hidden>Start a new journey instead</button>
+    <button class="primary close-dialog setup-done">Done</button>
+  </dialog>
   <section id="hud" hidden aria-label="Game status">
     <div class="hud-top">
       <div class="player-panel"><div class="player-heading"><b id="player-name">You</b><span id="weapon-label">Bare hands</span></div><div id="weapon-trait" class="weapon-trait">Quick single strikes</div><div class="meter health"><div id="health-fill"></div></div><div class="meter stamina"><div id="stamina-fill"></div></div><div class="meter-labels"><span id="health-text">100 health</span><span>Stamina</span></div></div>
@@ -72,8 +81,8 @@
   <dialog id="career-dialog" class="information-dialog career-dialog"><button class="close-dialog" aria-label="Close career">×</button><span class="small-label">Your Accra story</span><h2 id="career-title">New arrival</h2><p id="career-progress"></p><div id="career-totals" class="career-totals"></div><p id="career-city" class="tip"></p><h3>Something to aim for</h3><div id="career-badges" class="career-badges"></div><h3>Fighter mastery</h3><p>Every real run earns experience. All fighters and upgrades are available from the start.</p><div id="mastery-list" class="mastery-list"></div><p class="tip" id="save-note">Progress and daily records are saved in this browser on this device.</p></dialog>
   <dialog id="city-travel" class="information-dialog city-travel"><span id="travel-eyebrow" class="small-label"></span><h2 id="travel-title"></h2><p id="travel-detail"></p><div id="travel-map" class="travel-map"></div><div id="travel-reward" class="career-reward" role="status"></div><section id="city-build"><h3>Build your next opening</h3><p id="build-help"></p><div id="city-offers" class="upgrade-choices"></div><div id="replace-section" hidden><h4>Replace one of your three upgrades</h4><div id="replace-options" class="replace-options"></div></div><h3>How will you arrive?</h3><div id="travel-options" class="travel-options"></div></section><p id="city-save-status" class="checkpoint-note" role="status"></p><button id="city-continue" class="primary">Continue the journey</button><button id="city-leave" class="secondary">Save and return to menu</button></dialog>
   <dialog id="new-journey-dialog" class="result-dialog"><h2>Start a fresh journey?</h2><p>This replaces the saved checkpoint for this mode. Your career XP, badges and other mode's checkpoint stay saved.</p><button id="confirm-fresh" class="primary">Start fresh</button><button id="cancel-fresh" class="secondary">Keep my journey</button></dialog>
-  <div class="game-credit"><span>Single player</span><span>Fight for Trotro / v1.4 · New Trotro, New Crowd</span></div>
-  <script type="importmap">{"imports":{"./crowd.js":"./crowd.js?v=1.4.0","./core.js":"./core.js?v=1.4.0","./combat.js":"./combat.js?v=1.4.0","./stage.js":"./stage.js?v=1.4.0","./humans.js":"./humans.js?v=1.4.0","./characters.js":"./characters.js?v=1.4.0","./traffic.js":"./traffic.js?v=1.4.0","./layout.js":"./layout.js?v=1.4.0","./campaign.js":"./campaign.js?v=1.4.0","./journey.js":"./journey.js?v=1.4.0","./street.js":"./street.js?v=1.4.0","./boarding.js":"./boarding.js?v=1.4.0","./mobile.js":"./mobile.js?v=1.4.0"}}</script>
-  <script type="module" src="./game.js?v=1.4.0"></script>
+  <div class="game-credit"><span>Single player</span><span>Fight for Trotro / v1.4.1 · New Trotro, New Crowd</span></div>
+  <script type="importmap">{"imports":{"./crowd.js":"./crowd.js?v=1.4.1","./core.js":"./core.js?v=1.4.1","./combat.js":"./combat.js?v=1.4.1","./stage.js":"./stage.js?v=1.4.1","./humans.js":"./humans.js?v=1.4.1","./characters.js":"./characters.js?v=1.4.1","./traffic.js":"./traffic.js?v=1.4.1","./layout.js":"./layout.js?v=1.4.1","./campaign.js":"./campaign.js?v=1.4.1","./journey.js":"./journey.js?v=1.4.1","./street.js":"./street.js?v=1.4.1","./boarding.js":"./boarding.js?v=1.4.1","./mobile.js":"./mobile.js?v=1.4.1"}}</script>
+  <script type="module" src="./game.js?v=1.4.1"></script>
 </body>
 </html>

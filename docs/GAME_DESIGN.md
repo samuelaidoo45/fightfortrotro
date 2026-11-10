@@ -1,4 +1,4 @@
-# Fight for Trotro — version 1.4 — New Trotro, New Crowd
+# Fight for Trotro — version 1.4.1 — New Trotro, New Crowd
 
 Play an 18-encounter City Journey, an Endless Commute, or a three-stop Quick ride. The same crowd that blocks your entry now competes to board before you. Combat is non-graphic and uses original moves inspired by fighting-game fundamentals: startup, active contact, recovery, confirmed combo branches, guard breaks, low attacks, throws, launchers and air juggles. This is a browser prototype, not a finished AAA production.
 
@@ -111,7 +111,7 @@ An NPC knockout removes that rival from the current vehicle’s fight but awards
 
 ## Mobile readability and recovery
 
-The centre of the arena stays clear. Health, stamina, a timer and one status line sit above play. A thumb joystick sits bottom-left; Fight, Guard, Dodge, Special and a contextual action sit bottom-right. Hold Fight chains original combo routes and sweeps guarded opponents. The context action changes to nearby props, throws, boarding, mate shoves, vaulting, kick-free or pulling a window rival down. Pause contains detailed objectives and moves; menu settings expand only when requested.
+The centre of the arena stays clear. Health, stamina, a timer and one status line sit above play. A thumb joystick sits bottom-left; Fight, Guard, Dodge, Special and a contextual action sit bottom-right. Hold Fight chains original combo routes and sweeps guarded opponents. The context action changes to nearby props, throws, boarding, mate shoves, vaulting, kick-free or pulling a window rival down. Pause contains detailed objectives and moves; Game Setup opens a modal for mode, difficulty, starting stop and expandable route progress. The main menu presents one Play/Continue action, Fighter and Game Setup rows, and smaller Practice, Daily Challenge and Career actions.
 
 Incoming enemy damage is 65% of the previous values. Unblocked damage grants 0.65 seconds of protection. After four damage-free seconds, being more than 5.2 metres from the door or between buses restores 3 health/second up to 70. Conductor rebuffs deal 6 damage with a repeat cooldown. Full buses cannot be boarded by either route. Engine sounds, impact effects, optional vibration and device-speech mate calls provide feedback; sound and camera effects can be disabled.
 
