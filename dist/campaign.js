@@ -31,6 +31,10 @@ export class CityJourney {
   get offers(){return this.canContinue?shuffled(UPGRADES.filter(u=>!this.upgrades.includes(u.id)),seededRandom(this.seed+':offers:'+this.index)).slice(0,3):[];}
   get ready(){return this.canContinue&&(!this.selectedUpgrade||this.upgrades.length<3||this.upgrades.includes(this.replaceUpgrade));}
   get nextHealth(){const healing=this.travel==='rest'?40:this.travel==='charge'?15:25;return Math.min(100,this.health+healing+(this.character.heal===40?15:0));}
+  setDifficulty(mode){
+    if(!Object.hasOwn(MODES,mode)||this.round?.status==='playing')return false;
+    this.mode=mode;return true;
+  }
   createRound(){
     if(this.phase!=='fight')return null;
     const r=new Round(this.mode,seededRandom(this.seed+':fight:'+this.index),{character:this.character.id,stage:this.index+1,difficultyLevel:Math.min(4,this.district),health:this.health,weapon:this.weapon,condition:this.conditionAt(this.index),upgrades:this.upgrades,captain:this.index%3===2?this.captain:null,quickArrival:true,closeStart:true,streetPace:2,encounter:this.encounter});

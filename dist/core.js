@@ -7,9 +7,9 @@ import {WindowBoarding} from './boarding.js';
 import {CONDITIONS,CAPTAINS,UPGRADES,shuffled,upgradeEffects,seededRandom} from './journey.js';
 export {DOOR} from './layout.js';
 export const MODES = {
-  easy: {count:4,time:85,damage:8,speed:1.6,hp:84,gateHp:116,windup:1.1,attackers:1,raceDelay:9,rivalBoardTime:3.4,boardTime:1,busWindow:38,fullChance:.35,description:'Forgiving swings · Extra boarding time.'},
-  normal: {count:6,time:75,damage:11,speed:1.95,hp:108,gateHp:148,windup:.85,attackers:2,raceDelay:7,rivalBoardTime:2.9,boardTime:1.1,busWindow:32,fullChance:.45,description:'Contested seats · Read the crowd and counter.'},
-  hard: {count:8,time:65,damage:15,speed:2.3,hp:132,gateHp:180,windup:.66,attackers:3,raceDelay:5.5,rivalBoardTime:2.5,boardTime:1.2,busWindow:26,fullChance:.55,description:'Fast rivals · Tight windows · Keep your guard up.'}
+  easy: {count:4,time:85,damage:8,speed:1.6,pursuit:.65,hp:84,gateHp:116,windup:1.1,attackers:1,raceDelay:9,rivalBoardTime:3.4,boardTime:1,busWindow:38,fullChance:.35,description:'Fewer rivals · Gentler hits · More time to board.'},
+  normal: {count:6,time:75,damage:11,speed:1.95,pursuit:.8,hp:108,gateHp:148,windup:.85,attackers:2,raceDelay:7,rivalBoardTime:2.9,boardTime:1.1,busWindow:32,fullChance:.45,description:'Balanced pressure · Up to two attackers at once.'},
+  hard: {count:8,time:65,damage:15,speed:2.3,pursuit:1,hp:132,gateHp:180,windup:.66,attackers:3,raceDelay:5.5,rivalBoardTime:2.5,boardTime:1.2,busWindow:26,fullChance:.55,description:'More rivals · Heavier hits · Faster pursuit and boarding.'}
 };
 export const ARENAS = [
   {id:'circle',name:'Circle',subtitle:'The evening scramble',description:'Under the flyover. In the middle of everything.',query:'Kwame Nkrumah Circle trotro station Accra',color:0xc6c1ac,sky:0xc3d5d8,accent:0x397e8d,route:'CIRCLE  —  MADINA',feature:'flyover'},
@@ -278,7 +278,7 @@ export class Round {
       // Nearby challengers engage the player; the rest brawl and challenge seat thieves.
       const opponent=crowdTarget(this,e),nearEntrance=!!opponent,d=opponent?distance(opponent,e):Infinity;
       const chasing=opponent&&distance(e,DOOR)<SCRAMBLE_RADIUS+.6&&d>reach*.85;
-      if(chasing)this.moveEnemy(e,opponent,dt,this.config.speed*.8);
+      if(chasing)this.moveEnemy(e,opponent,dt,this.config.speed*this.config.pursuit);
       else if(!opponent&&distance(e,post)>.12)this.moveEnemy(e,post,dt,this.config.speed);
       e.defending=this.mode!=='easy'&&(['keeper','bruiser'].includes(e.role)||(e.readUntil||0)>this.elapsed)&&e.guardBroken<=0&&e.state==='guard'&&!e.moving&&nearEntrance&&d<3.5&&((this.elapsed+e.id*.65)%4<1.25||(e.readUntil||0)>this.elapsed);
       const targetId=opponent===p?'player':opponent?.id;

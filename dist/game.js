@@ -10,7 +10,7 @@ let playMode='campaign',checkpointSaved=true,cityReward='';const savedJourneys={
 for(const kind of ['campaign','endless']){try{const saved=CityJourney.restore(JSON.parse(localStorage.getItem('trotro-'+kind+'-v1')||'null'));if(saved)savedJourneys[kind]=saved.snapshot();}catch{}}
 const $=selector=>document.querySelector(selector),keys=new Set(),touchState={x:0,z:0,assist:false};
 function clearInput(){keys.clear();touchState.x=0;touchState.z=0;touchState.assist=false;$('#stick-knob').style.transform='translate(-50%,-50%)';}
-let mode='normal',arena=ARENAS[0],run=null,round=null,paused=false,stage,lastTime=performance.now(),messageTimeout,comboTimeout,impactPause=0,audio,noiseBuffer,lastCountdown=-1;
+let mode='normal',difficultyOverride=null,arena=ARENAS[0],run=null,round=null,paused=false,stage,lastTime=performance.now(),messageTimeout,comboTimeout,impactPause=0,audio,noiseBuffer,lastCountdown=-1;
 let records={},sound=true,characterId='office',profile=cleanProfile(null),dailyRun=null,saveAvailable=true;
 try{profile=cleanProfile(JSON.parse(localStorage.getItem('trotro-career-v1')||'null'));}catch{saveAvailable=false;}
 try{characterId=characterById(localStorage.getItem('trotro-character')).id;}catch{}
@@ -59,12 +59,14 @@ function mapMarkup(journey){
 function refreshJourneyMenu(){
   document.querySelectorAll('[data-journey]').forEach(el=>{el.classList.toggle('selected',el.dataset.journey===playMode);el.setAttribute('aria-pressed',el.dataset.journey===playMode);});
   const city=playMode!=='quick',saved=city?CityJourney.restore(savedJourneys[playMode]):null,ongoing=saved&&!saved.complete;
+  if(ongoing&&!difficultyOverride)mode=saved.mode;
+  document.querySelectorAll('[data-mode]').forEach(button=>{const selected=button.dataset.mode===mode;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',selected);});$('#mode-description').textContent=MODES[mode].description;
   $('#journey-description').textContent=playMode==='campaign'?'18 encounters · 6 districts · Saved checkpoints':playMode==='endless'?'Keep riding · Evolving builds · Chase your longest journey':'Three stops · The original short arcade run';
   $('#start>span:first-child').textContent=ongoing?'Continue journey':playMode==='campaign'?'Play City Journey':playMode==='endless'?'Play Endless':'Play Quick Ride';
   const modeName=playMode==='campaign'?'City Journey':playMode==='endless'?'Endless':'Quick Ride';
   $('#setup-summary').textContent=`${modeName} · ${mode[0].toUpperCase()+mode.slice(1)} · ${arena.name}`;
-  $('#setup-hint').textContent=ongoing?'Continue keeps your saved fighter and settings. To use new settings, start a new journey below.':'Choose how you play, then pick your first stop.';
-  $('#fresh-journey').hidden=!ongoing;$('#checkpoint-note').textContent=ongoing?`Saved: ${saved.character.name} · ${saved.mode} · ${saved.arena.name} · ${saved.index+1}${playMode==='campaign'?' / 18':''}`:city?'Your journey saves after every encounter.':'Three stops. One ride home.';
+  $('#setup-hint').textContent=ongoing?'Your selected difficulty applies to the next fight. Continue keeps your saved fighter and route.':'Choose how you play, then pick your first stop.';
+  $('#fresh-journey').hidden=!ongoing;$('#checkpoint-note').textContent=ongoing?`Saved: ${saved.character.name} · ${mode} · ${saved.arena.name} · ${saved.index+1}${playMode==='campaign'?' / 18':''}`:city?'Your journey saves after every encounter.':'Three stops. One ride home.';
   $('#arena-count').textContent=playMode==='campaign'?'6 districts · 18 encounters':playMode==='endless'?'As far as you can go':'3 stops to win';
   const preview=saved||new CityJourney({kind:playMode==='endless'?'endless':'campaign',startId:arena.id,seed:'preview'});$('#city-route').innerHTML=mapMarkup(preview);$('#city-ticket-title').textContent=playMode==='endless'?'How far can you go?':'Make the city yours.';$('#city-ticket-detail').textContent=playMode==='quick'?'A short run. Try City Journey when you want a longer adventure.':'Queue clash. Seat defence. Captain showdown. Three battles in every district.';
   $('#route-preview').textContent=city?'Queue clash  ›  Seat defence  ›  Captain  ›  Next district':new HomeRun(mode,arena.id).route.map(a=>a.name).join(' › ')+' › Home';
@@ -105,7 +107,7 @@ function renderCityTravel(){
 }
 function showCityTravel(){clearInput();paused=true;$('#city-build').open=false;$('#travel-progress').open=false;renderCityTravel();if(run.canContinue&&!run.ready)$('#city-build').open=true;$('#city-travel').showModal();if(!$('#city-continue').disabled)$('#city-continue').focus();}
 function startCity(fresh=false){
-  dailyRun=null;cityReward='';const saved=!fresh?CityJourney.restore(savedJourneys[playMode]):null;run=saved&&!saved.complete?saved:new CityJourney({kind:playMode,mode,startId:arena.id,character:characterId});saveJourney();
+  dailyRun=null;cityReward='';const saved=!fresh?CityJourney.restore(savedJourneys[playMode]):null;run=saved&&!saved.complete?saved:new CityJourney({kind:playMode,mode,startId:arena.id,character:characterId});run.setDifficulty(difficultyOverride||run.mode);mode=run.mode;difficultyOverride=null;saveJourney();
   if(run.phase==='fight')playRound(run.createRound());else showCityTravel();
 }
 function playRound(next){
@@ -253,7 +255,7 @@ function processEvents(){
     else{soundEffect(event.type);if(event.type==='damage'&&stage.shakeEnabled)stage.shake=.14;}
   }
 }
-for(const button of document.querySelectorAll('[data-mode]')){button.setAttribute('aria-pressed',button.dataset.mode===mode);button.addEventListener('click',()=>{mode=button.dataset.mode;document.querySelectorAll('[data-mode]').forEach(b=>{const selected=b.dataset.mode===mode;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',selected);});$('#mode-description').textContent=MODES[mode].description;refreshJourneyMenu();});}
+for(const button of document.querySelectorAll('[data-mode]')){button.setAttribute('aria-pressed',button.dataset.mode===mode);button.addEventListener('click',()=>{mode=button.dataset.mode;difficultyOverride=mode;document.querySelectorAll('[data-mode]').forEach(b=>{const selected=b.dataset.mode===mode;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',selected);});$('#mode-description').textContent=MODES[mode].description;refreshJourneyMenu();});}
 for(const b of document.querySelectorAll('[data-journey]'))b.addEventListener('click',()=>{playMode=b.dataset.journey;document.querySelectorAll('[data-journey]').forEach(el=>{el.classList.toggle('selected',el===b);el.setAttribute('aria-pressed',el===b);});refreshJourneyMenu();});
 $('#fresh-journey').addEventListener('click',()=>$('#new-journey-dialog').showModal());$('#cancel-fresh').addEventListener('click',()=>$('#new-journey-dialog').close());$('#confirm-fresh').addEventListener('click',()=>{$('#new-journey-dialog').close();startCity(true);});
 $('#keep-upgrades').addEventListener('click',()=>{run.chooseUpgrade(null);saveJourney();renderCityTravel();});
