@@ -1,4 +1,4 @@
-# Fight for Trotro — version 1.4.4 — Rivals Challenge the Player
+# Fight for Trotro — version 1.4.5 — Mobile Controls and Screen Modes
 
 Play an 18-encounter City Journey, an Endless Commute, or a three-stop Quick ride. The same crowd that blocks your entry now competes to board before you. Combat is non-graphic and uses original moves inspired by fighting-game fundamentals: startup, active contact, recovery, confirmed combo branches, guard breaks, low attacks, throws, launchers and air juggles. This is a browser prototype, not a finished AAA production.
 
@@ -132,3 +132,9 @@ The current scope prioritises readable combat and a contested boarding objective
 ## Between-fight navigation
 
 The result screen shows the next arena, fight objective and exact starting health, including the healer bonus and 100-health cap. Upgrades and recovery alternatives share a closed disclosure; the route map has its own disclosure. A pending three-slot replacement opens the choices on resume and requires an explicit replacement or Keep current upgrades. Outside clicks, Escape and unexpected dialog closure save and return to the menu. Continue starts the next fight; its queued close event must not redirect to the menu.
+
+## Mobile controls and display
+
+Touch controls use a gold circular Fight button, shield Guard, directional Dodge and a teal Special button with a live charge bar. The contextual button stays below the combat controls. Movement uses a bounded stick radius based on its rendered size. Both portrait and landscape layouts reserve safe-area space around notches and gesture bars; short landscape screens use smaller controls.
+
+Fullscreen and Rotate controls appear in the menu, active HUD and Pause dialog. Fullscreen is explicit and reversible. Rotate targets the opposite of the current viewport orientation and requests native screen locking, normally after entering fullscreen. Unsupported or rejected requests show concise guidance to turn the phone and enable auto-rotate. A busy guard prevents overlapping requests. Exiting fullscreen unlocks orientation, and native fullscreen/orientation/resize events refresh labels. Resizing clears held input. No CSS rotation or transformed touch coordinates are used.
