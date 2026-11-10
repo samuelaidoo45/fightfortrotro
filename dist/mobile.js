@@ -10,7 +10,7 @@ export function contextAction(round){
   const p=round.player;
   if(round.window.active)return{kind:'window-kick',label:'Kick free'};
   const rival=round.boardingRival;if(round.combatActive&&rival?.boardRoute==='window'&&rival.state==='boarding'&&distance(p,rival)<1.7)return{kind:'grab',label:'Pull rival down'};
-  if(round.combatActive&&!round.practice&&distance(p,WINDOW)<1.4)return round.window.watching?{kind:'shove',label:'Shove mate'}:{kind:'vault',label:'Vault window'};
+  if(round.combatActive&&!round.practice&&distance(p,WINDOW)<1.4)return round.window.watching?{kind:'shove',label:'Shove mate'}:{kind:'vault',label:round.encounterComplete?'Vault window':'Try window'};
   if(round.combatActive&&round.encounterComplete&&round.nearDoor)return{kind:'board',label:'Hold to board'};
   if(round.street.nearby)return{kind:'pickup',label:'Street trick'};
   if(round.pickups.some(i=>!i.used&&distance(i,p)<1.65))return{kind:'pickup',label:'Pick up'};

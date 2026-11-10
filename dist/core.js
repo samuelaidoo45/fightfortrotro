@@ -2,6 +2,7 @@ import {DOOR,WINDOW,PAVEMENT,BUS_BOUNDS,GUARD_POSTS} from './layout.js';
 import {CHARACTERS,characterById} from './characters.js';
 import {CombatSystem} from './combat.js';
 import {StreetPlay} from './street.js';
+import {crowdTarget,hurtRival} from './crowd.js';
 import {WindowBoarding} from './boarding.js';
 import {CONDITIONS,CAPTAINS,UPGRADES,shuffled,upgradeEffects,seededRandom} from './journey.js';
 export {DOOR} from './layout.js';
@@ -98,7 +99,7 @@ export class Round {
   busChanged(change){
     this.combat.reset();if(change.to==='arriving')this.street?.resetProps();this.raceClock=this.config.raceDelay;this.board=0;this.combo=0;this.lastCall=false;this.doorCalled=false;this.gapWasOpen=false;if(this.player.action==='boarding')this.player.action='idle';
     if(change.to==='departing'&&!change.full)this.missedBuses++;
-    if(['departing','arriving','boarding'].includes(change.to))for(const e of this.enemies){if(e.state==='boarded'&&change.to==='departing')continue;if(e.state==='boarded'){Object.assign(e,this.waitingPost(e));e.hp=e.maxHp;}if(e.hp<=0){e.state='down';e.y=0;e.vy=0;continue;}e.state='guard';e.hurt=0;e.timer=.5+this.random();e.y=0;e.vy=0;e.knockX=0;e.knockZ=0;e.boardProgress=0;e.guard=100;e.guardBroken=0;e.tripTime=0;e.defending=false;}
+    if(['departing','arriving','boarding'].includes(change.to))for(const e of this.enemies){if(e.state==='boarded'&&change.to==='departing')continue;if(e.state==='boarded'){Object.assign(e,this.waitingPost(e));e.hp=e.maxHp;}if(e.hp<=0){e.state='down';e.y=0;e.vy=0;continue;}e.state='guard';e.hurt=0;e.timer=.5+this.random();e.y=0;e.vy=0;e.knockX=0;e.knockZ=0;e.boardProgress=0;e.attackTargetId=undefined;e.grudgeUntil=0;e.guard=100;e.guardBroken=0;e.tripTime=0;e.defending=false;}
     this.emit('bus-state',{phase:change.to,full:change.full,number:change.number});
     if(change.to==='departing')this.emit('message',{text:change.full?'This trotro is full. It is leaving. Wait for the next one.':'That trotro has left. Another one is on the way.'});
     else if(change.to==='arriving')this.emit('message',{text:'Another trotro is pulling in. Check for a free seat.'});
@@ -132,18 +133,20 @@ export class Round {
     this.stats.interrupts++;this.addBusTime(2+this.bonuses.interruptTime);this.player.hp=Math.min(100,this.player.hp+(this.condition?.interruptHeal||0));this.score+=100;this.gainMomentum(15);this.stylish('interrupt');this.lastInterrupt=this.elapsed;
   }
   burst(){return this.combat.special();}
-  down(enemy){
-    this.defeated.add(enemy.id);this.stopped.add(enemy.id);enemy.hp=0;enemy.state='down';enemy.downAge=0;enemy.timer=this.practice?2.5:Infinity;this.kos++;
+  down(enemy,credited=true){
+    if(enemy.hp<=0&&enemy.state==='down')return;
+    this.defeated.add(enemy.id);this.stopped.add(enemy.id);enemy.hp=0;enemy.state='down';enemy.downAge=0;enemy.timer=this.practice?2.5:Infinity;
+    if(!credited){this.emit('crowd-down',{x:enemy.x,z:enemy.z});return;}this.kos++;
     this.score+=(enemy.role==='keeper'?500:150)*this.multiplier;this.gainMomentum(12);this.player.stamina=Math.min(100,this.player.stamina+12);
-    if(enemy.captain){this.stats.captains++;this.score+=350;this.momentum=100;this.emit('captain-down',{text:'CAPTAIN DOWN · Special ready · Take your seat!'});}
+    if(enemy.captain){this.stats.captains++;this.score+=350;this.momentum=100;this.emit('captain-down',{text:'CAPTAIN DOWN · Special ready · Finish the remaining rivals!'});}
     this.emit('down',{x:enemy.x,z:enemy.z,keeper:enemy.role==='keeper'});
     if(enemy.role==='keeper'&&!enemy.captain){
-      this.emit('message',{text:'Heavy blocker down! Take the gap before the others regroup.'});
+      this.emit('message',{text:'Heavy blocker down! Defeat the remaining rivals to claim the seat.'});
     }
   }
   strikeEnemy(enemy,damage,push,stun,hit={}){
     if(enemy.state==='rushing'||enemy.state==='boarding'){this.raceClock=3.2;enemy.boardProgress=0;this.stopped.add(enemy.id);this.interruptReward();this.emit('boarding-stopped',{x:enemy.x,z:enemy.z});}
-    enemy.defending=false;if(enemy.boardRoute==='window'){enemy.y=0;enemy.vy=0;}
+    enemy.grudgeId='player';enemy.grudgeUntil=this.elapsed+3;enemy.defending=false;if(enemy.boardRoute==='window'){enemy.y=0;enemy.vy=0;}
     const p=this.player;damage=Math.round(damage*(this.rushTime>0?1.25:1));enemy.hp-=damage;enemy.hurt=.26;
     let dx=enemy.x-p.x,dz=enemy.z-p.z,len=Math.hypot(dx,dz);if(len<.01){dx=Math.sin(p.face);dz=Math.cos(p.face);len=1;}
     if(hit.smooth){enemy.knockX=dx/len*push*6;enemy.knockZ=dz/len*push*6;}else{enemy.x+=dx/len*push;enemy.z+=dz/len*push;}this.constrainActor(enemy);enemy.state='recover';enemy.timer=stun;enemy.tripTime=hit.trip?stun:0;
@@ -227,7 +230,7 @@ export class Round {
     else if(len){const factor=p.action==='hitstun'?0:['shove','attack'].includes(p.action)?.3:1;p.x+=mx/Math.max(1,len)*speed*factor*dt;p.z+=mz/Math.max(1,len)*speed*factor*dt;if(p.action!=='attack')p.face=Math.atan2(mx,mz);p.walk+=dt*10;}
     this.constrainActor(p);if(!this.practice&&p.hp>0&&p.hp<70&&this.elapsed-this.lastDamage>4&&(!this.combatActive||distance(p,DOOR)>5.2))p.hp=Math.min(70,p.hp+dt*3);
     }
-    let attacking=this.enemies.filter(e=>e.state==='windup'||e.state==='swing').length;
+    let attacking=this.enemies.filter(e=>(e.state==='windup'||e.state==='swing')&&(e.attackTargetId===undefined||e.attackTargetId==='player')).length;
     for(const e of this.enemies){
       e.hurt=Math.max(0,e.hurt-dt);e.timer-=dt;e.moving=false;e.guardBroken=Math.max(0,(e.guardBroken||0)-dt);e.tripTime=Math.max(0,(e.tripTime||0)-dt);e.downAge=(e.downAge||0)+dt;
       if(e.state==='boarded')continue;
@@ -248,17 +251,21 @@ export class Round {
       const weapon=weaponStats(e.weapon),reach=e.heavy?2.8:e.attackKind==='low'?2.5:e.role==='keeper'?1.9:weapon.reach*.78;
       if(!e.guardBroken&&this.elapsed-(e.lastGuardHit||0)>1.5)e.guard=Math.min(100,(e.guard??100)+dt*18);
       if(e.state==='windup'){
-        if(e.timer<=0){const canHit=!this.window.active&&distance(p,e)<reach+.3&&distance(p,DOOR)<5.2;const result=canHit?this.hurtPlayer(this.config.damage*(e.heavy?1.6:e.role==='keeper'?1.15:weapon.enemyDamage),e):'miss';if(result!=='parried'){e.state='swing';e.timer=.23;}}
+        if(e.timer<=0){const victim=e.attackTargetId===undefined||e.attackTargetId==='player'?p:this.enemies.find(t=>t.id===e.attackTargetId);const canHit=victim&&victim.hp>0&&victim.state!=='boarded'&&(victim.y||0)<1.5&&distance(victim,e)<reach+.3&&(victim!==p||(!this.window.active&&distance(p,DOOR)<5.2));const damage=this.config.damage*(e.heavy?1.6:e.role==='keeper'?1.15:weapon.enemyDamage);const result=canHit?(victim===p?this.hurtPlayer(damage,e):hurtRival(this,e,victim,damage)):'miss';if(result!=='parried'){e.state='swing';e.timer=.23;}}
         continue;
       }
       if(e.state==='swing'){if(e.timer<=0){if(e.followUp){e.followUp=false;e.state='windup';e.timer=.42;}else{e.state='recover';e.timer=e.captain?this.captain.recovery:.85+this.random()*.5;}}continue;}
-      // Hold the entrance until a boarding opportunity. Never pursue into the street.
-      if(distance(e,post)>.12)this.moveEnemy(e,post,dt,this.config.speed);
-      const d=distance(p,e),nearEntrance=distance(p,DOOR)<5.2;
+      // Fight whoever is closest at the stop, retaliate, and challenge seat thieves.
+      const opponent=crowdTarget(this,e),nearEntrance=!!opponent,d=opponent?distance(opponent,e):Infinity;
+      const chasing=opponent&&distance(e,DOOR)<6&&d>reach*.85;
+      if(chasing)this.moveEnemy(e,opponent,dt,this.config.speed*.8);
+      else if(!opponent&&distance(e,post)>.12)this.moveEnemy(e,post,dt,this.config.speed);
       e.defending=this.mode!=='easy'&&(['keeper','bruiser'].includes(e.role)||(e.readUntil||0)>this.elapsed)&&e.guardBroken<=0&&e.state==='guard'&&!e.moving&&nearEntrance&&d<3.5&&((this.elapsed+e.id*.65)%4<1.25||(e.readUntil||0)>this.elapsed);
-      if(nearEntrance&&distance(e,post)<1.35&&d<reach+.1&&e.timer<=0&&attacking<this.config.attackers){
-        e.face=Math.atan2(p.x-e.x,p.z-e.z);e.state='windup';e.attacks=(e.attacks||0)+1;e.heavy=e.role==='keeper'&&e.attacks%3===0;e.attackKind=e.heavy?'heavy':e.role==='swinger'&&e.attacks%3===2?'low':e.attacks%2?'jab':'kick';if(e.captain){e.attackKind=this.captain.pattern[(e.attacks-1)%this.captain.pattern.length];e.heavy=e.attackKind==='heavy';}e.defending=false;e.followUp=!e.captain&&this.mode==='hard'&&e.role==='bruiser'&&e.attacks%2===0;e.timer=this.config.windup*weapon.windup*(e.heavy?1.65:e.attackKind==='low'?1.2:1);if(e.captain)e.timer=Math.max(e.timer,e.heavy?1.15:.8);e.windupDuration=e.timer;attacking++;
-      }else if(nearEntrance&&!e.moving)e.face=Math.atan2(p.x-e.x,p.z-e.z);
+      const targetId=opponent===p?'player':opponent?.id;
+      const pressure=opponent===p?attacking:this.enemies.filter(a=>['windup','swing'].includes(a.state)&&a.attackTargetId===targetId).length;
+      if(nearEntrance&&d<reach+.1&&e.timer<=0&&pressure<(opponent===p?this.config.attackers:2)){
+        e.attackTargetId=targetId;e.face=Math.atan2(opponent.x-e.x,opponent.z-e.z);e.state='windup';e.attacks=(e.attacks||0)+1;e.heavy=e.role==='keeper'&&e.attacks%3===0;e.attackKind=e.heavy?'heavy':e.role==='swinger'&&e.attacks%3===2?'low':e.attacks%2?'jab':'kick';if(e.captain){e.attackKind=this.captain.pattern[(e.attacks-1)%this.captain.pattern.length];e.heavy=e.attackKind==='heavy';}e.defending=false;e.followUp=!e.captain&&this.mode==='hard'&&e.role==='bruiser'&&e.attacks%2===0;e.timer=this.config.windup*weapon.windup*(e.heavy?1.65:e.attackKind==='low'?1.2:1);if(e.captain)e.timer=Math.max(e.timer,e.heavy?1.15:.8);e.windupDuration=e.timer;if(opponent===p)attacking++;
+      }else if(nearEntrance&&!e.moving)e.face=Math.atan2(opponent.x-e.x,opponent.z-e.z);
     }
     for(let i=0;i<this.enemies.length;i++){
       const a=this.enemies[i];if(['down','boarded','boarding','airborne'].includes(a.state))continue;

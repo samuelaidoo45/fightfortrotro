@@ -23,8 +23,8 @@ test('a cleared doorway permits boarding without an arbitrary waiting timer',()=
 test('taking a hit interrupts a boarding attempt',()=>{
   const r=keeperOnly();r.down(r.keeper);Object.assign(r.player,DOOR);step(r,.55,{board:true});assert.ok(r.board>.4);r.hurtPlayer(12,{x:6,z:-2});assert.equal(r.board,0);
 });
-test('guards stay at the doorway when the player moves away',()=>{
-  const r=new Round('normal',()=>.5);r.raceClock=100;r.player.x=-8;r.player.z=7;step(r,12);assert.equal(r.player.hp,100);assert.equal(r.status,'playing');for(const enemy of r.enemies){assert.ok(distance(enemy,{x:enemy.spawnX,z:enemy.spawnZ})<.2);assert.equal(enemy.state,'guard');}
+test('rivals fight at the stop without chasing a retreating player',()=>{
+  const r=new Round('normal',()=>.5);r.raceClock=100;r.player.x=-8;r.player.z=7;step(r,12);assert.equal(r.player.hp,100);assert.equal(r.status,'playing');for(const enemy of r.enemies){assert.ok(distance(enemy,DOOR)<6.5);assert.ok(distance(enemy,r.player)>5);}
 });
 test('remaining guards block entry even after the doorway rival is down',()=>{
   const r=new Round('easy',()=>.5);r.enemies=r.enemies.slice(0,3);r.down(r.keeper);r.enemies.forEach(e=>{if(e.state!=='down')e.timer=100;});Object.assign(r.player,DOOR);step(r,3,{board:true});assert.equal(r.gateCleared,false);assert.equal(r.doorBlocked,true);assert.equal(r.board,0);assert.equal(r.status,'playing');
@@ -33,7 +33,7 @@ test('shoving opens physical space but boarding still requires every rival defea
   const r=new Round('easy',()=>.5);r.enemies=r.enemies.slice(0,3);r.down(r.keeper);Object.assign(r.player,DOOR);assert.equal(r.doorBlocked,true);r.shove();assert.equal(r.doorBlocked,false);step(r,1.9,{board:true});assert.equal(r.status,'playing');for(const e of r.enemies)if(e.hp>0)r.down(e);step(r,1.1,{board:true});assert.equal(r.status,'won');
 });
 test('remaining rivals compete to board after the leader is defeated',()=>{
-  const r=new Round('normal',()=>.5);r.down(r.keeper);r.player.x=-8;r.player.z=7;step(r,11);assert.equal(r.status,'playing');assert.equal(r.player.hp,100);assert.equal(r.seatsLost,1);assert.equal(r.bus.full,true);assert.ok(r.enemies.some(e=>e.state==='boarded'));
+  const r=new Round('normal',()=>.5);r.down(r.keeper);r.enemies=[r.keeper,r.enemies[1]];r.player.x=-8;r.player.z=7;step(r,11);assert.equal(r.status,'playing');assert.equal(r.player.hp,100);assert.equal(r.seatsLost,1);assert.equal(r.bus.full,true);assert.ok(r.enemies.some(e=>e.state==='boarded'));
 });
 test('a bus-pinned staggered blocker must still be defeated before entry',()=>{
   for(const mode of ['normal','hard']){const r=new Round(mode,()=>.5),blocker=r.enemies[2];r.enemies=[r.keeper,blocker];r.down(r.keeper);Object.assign(blocker,{x:DOOR.x,z:DOOR.z+.35,spawnX:DOOR.x,spawnZ:DOOR.z+.35,state:'guard',timer:100});Object.assign(r.player,{x:DOOR.x,z:DOOR.z+1.05});r.shove();assert.ok(distance(blocker,DOOR)<1.85,'bus collision leaves the defender physically close');step(r,r.config.boardTime+.55,{board:true});assert.equal(r.status,'playing');r.down(blocker);step(r,1.3,{board:true});assert.equal(r.status,'won');}
@@ -47,8 +47,8 @@ test('a timed block counters an attack; a held guard still reduces damage',()=>{
 test('dodging grants brief invulnerability and spends stamina',()=>{
   const r=new Round(),enemy=r.enemies[1];assert.equal(r.dodge(1,0),true);const stamina=r.player.stamina;r.hurtPlayer(20,enemy);assert.equal(r.player.hp,100);assert.ok(stamina<100);assert.ok(r.score>0);
 });
-test('only a bounded number of doorway guards can wind up at once',()=>{
-  const r=new Round('normal',()=>.5);Object.assign(r.player,DOOR);r.enemies.forEach((e,i)=>{Object.assign(e,{x:DOOR.x+Math.cos(i)*1.4,z:DOOR.z+Math.sin(i)*1.4,state:'guard',timer:0});constrain(e);e.spawnX=e.x;e.spawnZ=e.z;});r.tick(.02);const attacks=r.enemies.filter(e=>e.state==='windup').length;assert.ok(attacks>0&&attacks<=r.config.attackers);
+test('only a bounded number of rivals can attack the player at once',()=>{
+  const r=new Round('normal',()=>.5);Object.assign(r.player,DOOR);r.enemies.forEach((e,i)=>{Object.assign(e,{x:DOOR.x+Math.cos(i)*1.4,z:DOOR.z+Math.sin(i)*1.4,state:'guard',timer:0,grudgeId:'player',grudgeUntil:10});constrain(e);e.spawnX=e.x;e.spawnZ=e.z;});r.tick(.02);const attacks=r.enemies.filter(e=>e.state==='windup'&&e.attackTargetId==='player').length;assert.ok(attacks>0&&attacks<=r.config.attackers);
 });
 test('pickups require proximity and cannot be consumed twice',()=>{
   const r=new Round();r.player.hp=40;Object.assign(r.player,r.pickups[2]);r.pickup();assert.equal(r.player.hp,70);r.pickup();assert.equal(r.player.hp,70);r.player.x=r.pickups[0].x;r.player.z=r.pickups[0].z;r.pickup();assert.equal(r.player.weapon,'bag');

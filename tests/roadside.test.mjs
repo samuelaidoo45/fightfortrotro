@@ -21,11 +21,11 @@ test('a clean shove cannot bypass living rivals on any difficulty',()=>{
   }
 });
 
-test('a missed opening closes when defenders recover, without them chasing the player',()=>{
+test('recovering rivals contest the stop without chasing a retreating player',()=>{
   const r=new Round('normal',()=>.5);Object.assign(r.player,{x:DOOR.x,z:DOOR.z+1});r.shove();
   assert.equal(r.doorBlocked,false);Object.assign(r.player,{x:8,z:7});step(r,6);
-  assert.equal(r.doorBlocked,true);assert.equal(r.player.hp,100);
-  assert.ok(r.enemies.every(e=>distance(e,{x:e.spawnX,z:e.spawnZ})<.2));
+  assert.equal(r.encounterComplete,false);assert.equal(r.player.hp,100);
+  assert.ok(r.enemies.every(e=>distance(e,DOOR)<6.5));assert.ok(r.events.some(e=>e.type==='crowd-hit'));
 });
 
 test('full arrivals keep passengers waiting and cannot consume a boarding attempt',()=>{

@@ -37,6 +37,7 @@ export class WindowBoarding {
     if(puller){this.cancel();p.invulnerable=0;r.hurtPlayer(5,puller);r.emit('window-pulled',{id:puller.id,text:'Pulled down! Stagger nearby rivals, or hold Fight to kick free.'});return false;}
     a.time+=dt;const t=Math.min(1,a.time/1.65),ease=t*t*(3-2*t);
     p.x=a.x+(WINDOW.x-a.x)*ease;p.z=a.z+(WINDOW.z-1.15-a.z)*ease;p.y=Math.sin(t*Math.PI)*1.6+t*.75;p.face=Math.PI;p.action='vault';p.vaultPhase=t;
+    if(t===1&&!r.encounterComplete){this.cancel();r.emit('combat-note',{text:'Win the fight first! Rivals still contest this seat.'});return false;}
     if(t===1){this.active=null;r.board=1;r.boardedVia='window';r.finish('won');}
     return true;
   }
