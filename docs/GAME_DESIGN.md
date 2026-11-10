@@ -1,4 +1,4 @@
-# Fight for Trotro — version 1.4.1 — New Trotro, New Crowd
+# Fight for Trotro — version 1.4.2 — Missed Rides
 
 Play an 18-encounter City Journey, an Endless Commute, or a three-stop Quick ride. The same crowd that blocks your entry now competes to board before you. Combat is non-graphic and uses original moves inspired by fighting-game fundamentals: startup, active contact, recovery, confirmed combo branches, guard breaks, low attacks, throws, launchers and air juggles. This is a browser prototype, not a finished AAA production.
 
@@ -24,7 +24,7 @@ Every third campaign encounter has a captain, rotating through three fixed repea
 
 Four different connected moves or successful defensive actions within a fixed six-second window trigger a six-second Rush: 25% extra damage, full stamina on activation and half-cost dodges. Repeating jab/cross counts as one style. A ten-second cooldown from activation prevents immediate loops. Whiffs grant no style. Throws and finishers can crash a moving rival into up to two passengers for 14 damage and a stagger; each collision target can be rewarded once per launch.
 
-A real boarding interruption grants 100 points, 15 special charge and two extra boarding seconds (five with Door specialist), capped at the base window plus eight seconds. Market scramble adds 12 health. Hit confirmations, not button presses, grant finisher recovery. Counter healing is once per confirmed move. Player health, weapon, score and special charge carry over when a bus leaves. When a different vehicle starts arriving, every old passenger is replaced by a fresh, full-health rival.
+A real boarding interruption grants 100 points, 15 special charge and two extra boarding seconds (five with Door specialist), capped at the base window plus eight seconds. Market scramble adds 12 health. Hit confirmations, not button presses, grant finisher recovery. Counter healing is once per confirmed move. An available trotro leaving without the player costs five health, once per vehicle, including seats taken by rivals. Already-full arrivals, completed rounds and practice are exempt. This fixed penalty bypasses combat armour and dodge protection, resets the four-second recovery delay, cancels window climbing and ends the round if health reaches zero. A brief message, health flash and sound confirm the loss. Remaining health, weapon, score and special charge carry over when a bus leaves. When a different vehicle starts arriving, every old passenger is replaced by a fresh, full-health rival.
 
 ### Career and daily challenge
 

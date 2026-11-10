@@ -40,6 +40,7 @@ export function constrain(a,busPresent=true){
 }
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 
+export const MISSED_RIDE_DAMAGE=5;
 export const BUS_TIMING={full:2.4,departing:3.2,waiting:4.2,arriving:3.6};
 export class BusCycle {
   constructor({firstFull=false,startWaiting=false,window=25,fullChance=.4,random=Math.random,pace=1}={}){
@@ -76,7 +77,7 @@ export class Round {
     this.crowdNumber=this.bus.number;this.enemies=this.createCrowd(this.crowdNumber);
     this.pickups=[{type:'bag',x:2.4,z:3.7,used:options.weapon===true||options.weapon==='bag'},{type:'drink',x:-7,z:0,used:false},{type:'drink',x:7.5,z:1,used:false},...([{type:'umbrella',x:-1,z:4},{type:'baton',x:5,z:1.5},{type:'stool',x:-7,z:5.7},{type:'suitcase',x:7.2,z:5.9}].map(item=>({...item,used:item.type===options.weapon})))];
     for(const item of this.pickups)if(item.type===this.player.weapon)item.used=true;
-    this.gapWasOpen=false;this.missedBuses=0;this.seatsLost=0;this.raceClock=this.config.raceDelay;this.comboDamage=0;this.combat=new CombatSystem(this);
+    this.gapWasOpen=false;this.missedBuses=0;this.seatsLost=0;this.lastMissedRide=0;this.stolenRide=0;this.missedRideUntil=0;this.missedRideDamage=0;this.raceClock=this.config.raceDelay;this.comboDamage=0;this.combat=new CombatSystem(this);
     this.momentum=Math.min(100,this.momentum+this.bonuses.charge);
     if(options.quickArrival){this.bus.initialApproach=false;this.bus.phase='arriving';this.bus.full=false;this.bus.duration=BUS_TIMING.arriving;this.bus.remaining=BUS_TIMING.arriving;}
     if(options.closeStart)Object.assign(this.player,{x:1.7,z:1.4});
@@ -116,6 +117,14 @@ export class Round {
     else if(change.to==='arriving')this.emit('message',{text:'New trotro, fresh crowd! Win this fight for the seat.'});
     else if(change.to==='full')this.emit('message',{text:'This trotro is full. Save your strength for the next arrival.'});
     else if(change.to==='boarding')this.emit('message',{text:'One free seat! Clear the doorway and fight your way in.'});
+    if(change.to==='departing'&&(!change.full||this.stolenRide===change.number))this.missRide(change.number);
+  }
+  missRide(number){
+    if(this.practice||this.status!=='playing'||number<=this.lastMissedRide)return false;
+    this.lastMissedRide=number;this.window.cancel();this.missedRideDamage=Math.min(MISSED_RIDE_DAMAGE,this.player.hp);
+    this.player.hp=Math.max(0,this.player.hp-MISSED_RIDE_DAMAGE);this.player.hurt=.3;this.lastDamage=this.elapsed;this.missedRideUntil=this.elapsed+3;
+    this.emit('missed-ride',{number,damage:this.missedRideDamage,text:`Missed the trotro! −${this.missedRideDamage} health. Catch the next one.`});
+    if(this.player.hp<=0)this.finish('knocked-out');return true;
   }
   get keeper(){return this.enemies.find(e=>e.role==='keeper');}
   get encounterProgress(){return this.enemies.filter(e=>e.hp<=0).length;}
@@ -216,7 +225,7 @@ export class Round {
     }
   }
   tick(dt,input={}){
-    if(this.status!=='playing')return;dt=clamp(dt,0,.05);this.elapsed+=dt;const change=this.practice?null:this.bus.tick(dt);if(change)this.busChanged(change);
+    if(this.status!=='playing')return;dt=clamp(dt,0,.05);this.elapsed+=dt;const change=this.practice?null:this.bus.tick(dt);if(change)this.busChanged(change);if(this.status!=='playing')return;
     this.rushTime=Math.max(0,this.rushTime-dt);this.surgeCooldown=Math.max(0,this.surgeCooldown-dt);this.styleTime=Math.max(0,this.styleTime-dt);if(!this.styleTime)this.styleMoves.clear();this.chainTime=Math.max(0,this.chainTime-dt);if(!this.chainTime){this.chain=0;this.comboDamage=0;}
     if(this.combatActive){
       if(this.challenge.status==='active'){this.challenge.time=Math.max(0,this.challenge.time-dt);if(!this.challenge.time)this.challenge.status='expired';}
@@ -295,7 +304,7 @@ export class Round {
     if(p.hp<=0)this.finish('knocked-out');else if(this.board>=1)this.finish('won');
   }
   rivalTakesSeat(enemy){
-    this.window.cancel();enemy.state='boarded';enemy.boardProgress=1;this.seatsLost++;this.board=0;this.combat.reset();
+    this.stolenRide=this.bus.number;this.window.cancel();enemy.state='boarded';enemy.boardProgress=1;this.seatsLost++;this.board=0;this.combat.reset();
     this.bus.full=true;this.bus.phase='full';this.bus.duration=1.6/this.bus.pace;this.bus.remaining=this.bus.duration;this.bus.lastWasFull=true;
     for(const e of this.enemies)if(e!==enemy){e.state=e.hp>0?'guard':'down';e.timer=e.hp<=0?Infinity:.5;e.y=0;e.vy=0;e.knockX=0;e.knockZ=0;e.defending=false;}
     this.emit('seat-stolen',{id:enemy.id});this.emit('message',{text:'A rival took the last seat! Keep your gear — stop them on the next trotro.'});

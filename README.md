@@ -2,6 +2,8 @@
 
 A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro, with ten fighters, Easy/Normal/Hard, contested boarding and six Accra-inspired districts.
 
+Version 1.4.2 adds a five-health cost when an available trotro leaves without you, including when a rival takes the seat. Buses that arrive already full are exempt. The penalty occurs once per vehicle, with a brief message, health flash and sound. Missing a ride at five health or less ends the round.
+
 Version 1.4.1 simplifies the main menu to one Play/Continue action, compact Fighter and Game Setup rows, and secondary Practice, Daily Challenge and Career actions. Game Setup contains mode, difficulty, starting stop and expandable route progress. Saved-journey settings are explained separately from new-run selections. The 3D scene remains visible across the rest of the screen.
 
 Version 1.4, **New Trotro, New Crowd**, replaces the entire crowd whenever a new vehicle starts arriving. Old passengers, including defeated bodies, are removed from the scene. Fresh passengers have new identities, rotated appearances and equipment, and full health. Fight progress resets for that vehicle; player health, equipment, score, special charge and journey progress carry over. Full arrivals bring a waiting crowd, with combat starting only when a bus has a free seat. Captain encounters bring a fresh captain with the new crowd.
@@ -118,7 +120,7 @@ There is no backend, player tracking, paid API, or Google Maps key. The Maps lin
 
 ## Verified in this build
 
-`npm run check` and 140 Node tests cover combat, journeys, saves, traffic, knockdowns lasting until the next arrival, fresh-crowd resets, bounded scene replacement, the all-rival door gate, last-standing window gating, rival target selection and retaliation, NPC damage and reward isolation, conductor rebuffs, rival grabs, kick escapes, window-rival interruptions, seat theft during a vault, safer health tuning, joystick math and assisted combos. The 1.4.1 menu passes syntax and markup checks; browser visual verification was unavailable because browser access is disabled. Version 1.2 browser QA checked the compact menu, pause/move list, joystick and held Fight control, window-climb rendering and contextual rival-window interruption at 390 × 844, 360 × 740 and 844 × 390, with no logged errors or warnings. Real-device audio, touch ergonomics across devices and long-term retention still need player testing.
+`npm run check` and 148 Node tests cover combat, journeys, saves, traffic, knockdowns lasting until the next arrival, fresh-crowd resets, bounded scene replacement, the all-rival door gate, last-standing window gating, rival target selection and retaliation, NPC damage and reward isolation, conductor rebuffs, rival grabs, kick escapes, window-rival interruptions, seat theft during a vault, safer health tuning, missed-ride penalties and exemptions, joystick math and assisted combos. The 1.4.1 menu passes syntax and markup checks; browser visual verification was unavailable because browser access is disabled. Version 1.2 browser QA checked the compact menu, pause/move list, joystick and held Fight control, window-climb rendering and contextual rival-window interruption at 390 × 844, 360 × 740 and 844 × 390, with no logged errors or warnings. Real-device audio, touch ergonomics across devices and long-term retention still need player testing.
 
 ## Design tokens
 
