@@ -1,4 +1,4 @@
-# Fight for Trotro — version 1.4.3 — Clearer Between-Fight Screen
+# Fight for Trotro — version 1.4.4 — Rivals Challenge the Player
 
 Play an 18-encounter City Journey, an Endless Commute, or a three-stop Quick ride. The same crowd that blocks your entry now competes to board before you. Combat is non-graphic and uses original moves inspired by fighting-game fundamentals: startup, active contact, recovery, confirmed combo branches, guard breaks, low attacks, throws, launchers and air juggles. This is a browser prototype, not a finished AAA production.
 
@@ -105,7 +105,7 @@ At the start of each new vehicle’s arrival, replace all passenger state and sc
 
 ## Crowd free-for-all
 
-Rivals select the nearest living opponent at the stop, including the player. A nearby attacker becomes their retaliation target for three seconds. Seat thieves get targeting priority. Targets are locked during attack wind-up so a dodging or displaced target causes a miss. Rival-to-rival strikes apply damage, guard reduction, knockback and recovery, and interrupt door or window boarding. At most two attackers commit to each NPC target; the existing difficulty cap remains for attacks on the player. Rivals stay near the stop rather than pursuing a retreating player into the street.
+Within 7.2 metres of the door, the nearest eligible rivals prioritise the player, even if an NPC is closer or hits them. Reserve up to one/two/three challengers on Easy/Normal/Hard, limited to half the available fighters (at least one). A small preference for an existing player target reduces target switching. Other rivals choose nearby opponents, retaliate for three seconds and prioritise seat thieves. Boarding, airborne and pulling rivals are not assigned to player pressure. Targets are locked during attack wind-up so a dodging or displaced target causes a miss. Rival-to-rival strikes apply damage, guard reduction, knockback and recovery, and interrupt door or window boarding. At most two attackers commit to each NPC target; the existing difficulty cap remains for attacks on the player. Rivals stay near the stop rather than pursuing a retreating player into the street.
 
 An NPC knockout removes that rival from the current vehicle’s fight but awards no player kill, hit points, interruption bonus, special charge or captain bonus. The remaining fighter must still be beaten: waiting for the crowd cannot produce a win on its own. Both player boarding routes require all rivals down. Practice retains its single sparring partner and full buses pause crowd combat.
 
@@ -113,7 +113,7 @@ An NPC knockout removes that rival from the current vehicle’s fight but awards
 
 The centre of the arena stays clear. Health, stamina, a timer and one status line sit above play. A thumb joystick sits bottom-left; Fight, Guard, Dodge, Special and a contextual action sit bottom-right. Hold Fight chains original combo routes and sweeps guarded opponents. The context action changes to nearby props, throws, boarding, mate shoves, vaulting, kick-free or pulling a window rival down. Pause contains detailed objectives and moves; Game Setup opens a modal for mode, difficulty, starting stop and expandable route progress. The main menu presents one Play/Continue action, Fighter and Game Setup rows, and smaller Practice, Daily Challenge and Career actions.
 
-Incoming enemy damage is 65% of the previous values. Unblocked damage grants 0.65 seconds of protection. After four damage-free seconds, being more than 5.2 metres from the door or between buses restores 3 health/second up to 70. Conductor rebuffs deal 6 damage with a repeat cooldown. Full buses cannot be boarded by either route. Engine sounds, impact effects, optional vibration and device-speech mate calls provide feedback; sound and camera effects can be disabled.
+Incoming enemy damage is 65% of the previous values. Unblocked damage grants 0.65 seconds of protection. After four damage-free seconds, being more than 7.2 metres from the door or between buses restores 3 health/second up to 70. Conductor rebuffs deal 6 damage with a repeat cooldown. Full buses cannot be boarded by either route. Engine sounds, impact effects, optional vibration and device-speech mate calls provide feedback; sound and camera effects can be disabled.
 
 ## Practice and scoring
 

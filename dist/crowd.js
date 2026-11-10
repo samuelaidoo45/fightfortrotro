@@ -2,13 +2,26 @@ import {DOOR} from './layout.js';
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const alive=e=>e&&e.hp>0&&!['down','boarded'].includes(e.state);
 
+// Cover the approach and both entrances, while keeping a retreat area on the pavement.
+export const SCRAMBLE_RADIUS=7.2;
+export const playerInScramble=round=>round.player.hp>0&&!round.window.active&&distance(round.player,DOOR)<SCRAMBLE_RADIUS;
+
 // Targets are locked during wind-up, so dodging and interrupting remain meaningful.
 export function crowdTarget(round,enemy){
   const p=round.player;
-  const valid=actor=>actor===p?p.hp>0&&!round.window.active&&distance(p,DOOR)<5.2:alive(actor)&&actor!==enemy&&distance(actor,DOOR)<6;
+  const valid=actor=>actor===p?playerInScramble(round):alive(actor)&&actor!==enemy&&distance(actor,DOOR)<SCRAMBLE_RADIUS+.6;
+  if(round.practice)return valid(p)?p:null;
+  // Reserve nearby challengers so a dense NPC brawl cannot make the player invisible.
+  // Others can still retaliate and interrupt boarding; simultaneous swings stay capped.
+  if(valid(p)){
+    const fighters=round.enemies.filter(e=>alive(e)&&!['rushing','boarding','pulling','airborne'].includes(e.state)&&distance(e,DOOR)<SCRAMBLE_RADIUS+.6);
+    const limit=Math.min(round.config.attackers,Math.max(1,Math.floor(fighters.length/2)));
+    const cost=e=>distance(e,p)-(e.attackTargetId==='player'?.8:0);
+    const challengers=fighters.sort((a,b)=>cost(a)-cost(b)||a.id-b.id).slice(0,limit);
+    if(challengers.includes(enemy))return p;
+  }
   const revenge=enemy.grudgeUntil>round.elapsed?(enemy.grudgeId==='player'?p:round.enemies.find(e=>e.id===enemy.grudgeId)):null;
   if(valid(revenge)&&distance(enemy,revenge)<3.8)return revenge;
-  if(round.practice)return valid(p)?p:null;
   const candidates=[p,...round.enemies].filter(valid);
   return candidates.sort((a,b)=>{
     const cost=t=>distance(enemy,t)-(['rushing','boarding'].includes(t.state)?1.7:0);

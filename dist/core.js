@@ -2,7 +2,7 @@ import {DOOR,WINDOW,PAVEMENT,BUS_BOUNDS,GUARD_POSTS} from './layout.js';
 import {CHARACTERS,characterById} from './characters.js';
 import {CombatSystem} from './combat.js';
 import {StreetPlay} from './street.js';
-import {crowdTarget,hurtRival} from './crowd.js';
+import {crowdTarget,hurtRival,playerInScramble,SCRAMBLE_RADIUS} from './crowd.js';
 import {WindowBoarding} from './boarding.js';
 import {CONDITIONS,CAPTAINS,UPGRADES,shuffled,upgradeEffects,seededRandom} from './journey.js';
 export {DOOR} from './layout.js';
@@ -248,7 +248,7 @@ export class Round {
     p.moving=len>.01;p.moveX=mx;p.moveZ=mz;
     if(p.action==='dodge'){p.x+=p.dx*12*dt;p.z+=p.dz*12*dt;}
     else if(len){const factor=p.action==='hitstun'?0:['shove','attack'].includes(p.action)?.3:1;p.x+=mx/Math.max(1,len)*speed*factor*dt;p.z+=mz/Math.max(1,len)*speed*factor*dt;if(p.action!=='attack')p.face=Math.atan2(mx,mz);p.walk+=dt*10;}
-    this.constrainActor(p);if(!this.practice&&p.hp>0&&p.hp<70&&this.elapsed-this.lastDamage>4&&(!this.combatActive||distance(p,DOOR)>5.2))p.hp=Math.min(70,p.hp+dt*3);
+    this.constrainActor(p);if(!this.practice&&p.hp>0&&p.hp<70&&this.elapsed-this.lastDamage>4&&(!this.combatActive||distance(p,DOOR)>SCRAMBLE_RADIUS))p.hp=Math.min(70,p.hp+dt*3);
     }
     let attacking=this.enemies.filter(e=>(e.state==='windup'||e.state==='swing')&&(e.attackTargetId===undefined||e.attackTargetId==='player')).length;
     for(const e of this.enemies){
@@ -271,13 +271,13 @@ export class Round {
       const weapon=weaponStats(e.weapon),reach=e.heavy?2.8:e.attackKind==='low'?2.5:e.role==='keeper'?1.9:weapon.reach*.78;
       if(!e.guardBroken&&this.elapsed-(e.lastGuardHit||0)>1.5)e.guard=Math.min(100,(e.guard??100)+dt*18);
       if(e.state==='windup'){
-        if(e.timer<=0){const victim=e.attackTargetId===undefined||e.attackTargetId==='player'?p:this.enemies.find(t=>t.id===e.attackTargetId);const canHit=victim&&victim.hp>0&&victim.state!=='boarded'&&(victim.y||0)<1.5&&distance(victim,e)<reach+.3&&(victim!==p||(!this.window.active&&distance(p,DOOR)<5.2));const damage=this.config.damage*(e.heavy?1.6:e.role==='keeper'?1.15:weapon.enemyDamage);const result=canHit?(victim===p?this.hurtPlayer(damage,e):hurtRival(this,e,victim,damage)):'miss';if(result!=='parried'){e.state='swing';e.timer=.23;}}
+        if(e.timer<=0){const victim=e.attackTargetId===undefined||e.attackTargetId==='player'?p:this.enemies.find(t=>t.id===e.attackTargetId);const canHit=victim&&victim.hp>0&&victim.state!=='boarded'&&(victim.y||0)<1.5&&distance(victim,e)<reach+.3&&(victim!==p||playerInScramble(this));const damage=this.config.damage*(e.heavy?1.6:e.role==='keeper'?1.15:weapon.enemyDamage);const result=canHit?(victim===p?this.hurtPlayer(damage,e):hurtRival(this,e,victim,damage)):'miss';if(result!=='parried'){e.state='swing';e.timer=.23;}}
         continue;
       }
       if(e.state==='swing'){if(e.timer<=0){if(e.followUp){e.followUp=false;e.state='windup';e.timer=.42;}else{e.state='recover';e.timer=e.captain?this.captain.recovery:.85+this.random()*.5;}}continue;}
-      // Fight whoever is closest at the stop, retaliate, and challenge seat thieves.
+      // Nearby challengers engage the player; the rest brawl and challenge seat thieves.
       const opponent=crowdTarget(this,e),nearEntrance=!!opponent,d=opponent?distance(opponent,e):Infinity;
-      const chasing=opponent&&distance(e,DOOR)<6&&d>reach*.85;
+      const chasing=opponent&&distance(e,DOOR)<SCRAMBLE_RADIUS+.6&&d>reach*.85;
       if(chasing)this.moveEnemy(e,opponent,dt,this.config.speed*.8);
       else if(!opponent&&distance(e,post)>.12)this.moveEnemy(e,post,dt,this.config.speed);
       e.defending=this.mode!=='easy'&&(['keeper','bruiser'].includes(e.role)||(e.readUntil||0)>this.elapsed)&&e.guardBroken<=0&&e.state==='guard'&&!e.moving&&nearEntrance&&d<3.5&&((this.elapsed+e.id*.65)%4<1.25||(e.readUntil||0)>this.elapsed);
