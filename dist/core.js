@@ -73,21 +73,31 @@ export class Round {
     this.elapsed=0;this.status='playing';this.kos=0;this.score=0;this.board=0;this.combo=0;this.lastCombo=-10;this.events=[];this.doorCalled=false;this.hitsTaken=0;
     this.bus=new BusCycle({firstFull:!!options.firstBusFull,startWaiting:!!options.startWaiting||!!options.quickArrival,window:this.config.busWindow,fullChance:base.fullChance,random,pace:options.streetPace||1});
     this.player={x:3.6,z:5.2,hp:options.health??100,stamina:100,face:Math.PI,action:'idle',actionTime:0,cooldown:0,shoveCooldown:0,invulnerable:0,hurt:0,character:this.character?.id,weapon:options.weapon===true?'bag':options.weapon!==undefined?options.weapon:this.character?.item||null,rest:0,dx:0,dz:-1,walk:0,blockTime:0};
-    const posts=GUARD_POSTS;
-    this.enemies=Array.from({length:this.config.count},(_,i)=>{
-      const role=i===0?'keeper':i%3===1?'bruiser':i%3===2?'swinger':'jabber',post=posts[i%posts.length];
-      const enemy={id:i,character:CHARACTERS[(i+this.stage*3)%CHARACTERS.length].id,role,x:post.x,z:post.z,hp:i===0?this.config.gateHp:this.config.hp,maxHp:i===0?this.config.gateHp:this.config.hp,face:Math.PI*.2,guard:100,guardBroken:0,y:0,vy:0,knockX:0,knockZ:0,state:'guard',timer:.5+random(),hurt:0,walk:random()*5,weapon:i===0?'suitcase':['umbrella','stool','bag','baton','suitcase'][(i-1)%5],spawnX:post.x,spawnZ:post.z};
-      if(!this.combatActive)Object.assign(enemy,this.waitingPost(enemy));this.constrainActor(enemy);return enemy;
-    });
+    this.crowdNumber=this.bus.number;this.enemies=this.createCrowd(this.crowdNumber);
     this.pickups=[{type:'bag',x:2.4,z:3.7,used:options.weapon===true||options.weapon==='bag'},{type:'drink',x:-7,z:0,used:false},{type:'drink',x:7.5,z:1,used:false},...([{type:'umbrella',x:-1,z:4},{type:'baton',x:5,z:1.5},{type:'stool',x:-7,z:5.7},{type:'suitcase',x:7.2,z:5.9}].map(item=>({...item,used:item.type===options.weapon})))];
     for(const item of this.pickups)if(item.type===this.player.weapon)item.used=true;
     this.gapWasOpen=false;this.missedBuses=0;this.seatsLost=0;this.raceClock=this.config.raceDelay;this.comboDamage=0;this.combat=new CombatSystem(this);
     this.momentum=Math.min(100,this.momentum+this.bonuses.charge);
     if(options.quickArrival){this.bus.initialApproach=false;this.bus.phase='arriving';this.bus.full=false;this.bus.duration=BUS_TIMING.arriving;this.bus.remaining=BUS_TIMING.arriving;}
-    if(this.captain){Object.assign(this.keeper,{captain:this.captain.id,character:this.captain.character,hp:this.config.gateHp+35,maxHp:this.config.gateHp+35});}
     if(options.closeStart)Object.assign(this.player,{x:1.7,z:1.4});
     if(this.practice){this.bus.phase='boarding';this.bus.full=false;this.bus.remaining=base.busWindow;this.enemies=this.enemies.slice(0,1);Object.assign(this.keeper,{hp:350,maxHp:350});Object.assign(this.player,{x:DOOR.x,z:DOOR.z+2.5});this.momentum=100;}
     this.street=new StreetPlay(this);this.window=new WindowBoarding(this);this.assistIndex=0;this.boardingAttempts=0;this.lastDamage=-10;this.config.damage*=.65;
+  }
+  createCrowd(number){
+    const posts=GUARD_POSTS;
+    return Array.from({length:this.config.count},(_,i)=>{
+      const role=i===0?'keeper':i%3===1?'bruiser':i%3===2?'swinger':'jabber',post=posts[i%posts.length];
+      const enemy={id:(number-1)*this.config.count+i,slot:i,character:CHARACTERS[(i+this.stage*3+(number-1)*3)%CHARACTERS.length].id,role,x:post.x,z:post.z,hp:i===0?this.config.gateHp:this.config.hp,maxHp:i===0?this.config.gateHp:this.config.hp,face:Math.PI*.2,guard:100,guardBroken:0,y:0,vy:0,knockX:0,knockZ:0,state:'guard',timer:.5+this.random(),hurt:0,walk:this.random()*5,weapon:i===0?'suitcase':['umbrella','stool','bag','baton','suitcase'][(i-1+number-1)%5],spawnX:post.x,spawnZ:post.z};
+      if(i===0&&this.captain)Object.assign(enemy,{captain:this.captain.id,character:this.captain.character,hp:this.config.gateHp+35,maxHp:this.config.gateHp+35});
+      if(!this.combatActive)Object.assign(enemy,this.waitingPost(enemy));this.constrainActor(enemy);return enemy;
+    });
+  }
+  replaceCrowd(number){
+    if(this.practice||number===this.crowdNumber)return false;
+    this.window.cancel();this.combat.reset();this.combat.targetId=null;this.combat.manualUntil=0;
+    this.crowdNumber=number;this.enemies=this.createCrowd(number);this.defeated.clear();this.stopped.clear();this.encounterAnnounced=false;
+    this.board=0;this.chain=0;this.chainTime=0;this.comboDamage=0;this.assistIndex=0;this.window.distracted=0;this.window.rebuff=0;
+    this.emit('crowd-arrived',{number,count:this.enemies.length});return true;
   }
   get weapon(){return weaponStats(this.player.weapon);}
   get boardingRival(){return this.enemies.find(e=>e.state==='rushing'||e.state==='boarding')||null;}
@@ -95,14 +105,15 @@ export class Round {
   get busBlocksGround(){return this.bus.phase==='full'||this.bus.phase==='boarding'||(this.bus.phase==='arriving'&&this.bus.progress>.94)||(this.bus.phase==='departing'&&this.bus.progress<.12);}
   constrainActor(actor){constrain(actor,this.busBlocksGround);}
   get gathering(){return this.combatActive||(this.bus.phase==='arriving'&&!this.bus.full&&this.bus.progress>.12);}
-  waitingPost(enemy){return{x:-5.7+(enemy.id%5)*1.2,z:1.4+Math.floor(enemy.id/5)*1.35};}
+  waitingPost(enemy){const slot=enemy.slot??enemy.id;return{x:-5.7+(slot%5)*1.2,z:1.4+Math.floor(slot/5)*1.35};}
   busChanged(change){
+    if(change.to==='arriving')this.replaceCrowd(change.number);
     this.combat.reset();if(change.to==='arriving')this.street?.resetProps();this.raceClock=this.config.raceDelay;this.board=0;this.combo=0;this.lastCall=false;this.doorCalled=false;this.gapWasOpen=false;if(this.player.action==='boarding')this.player.action='idle';
     if(change.to==='departing'&&!change.full)this.missedBuses++;
     if(['departing','arriving','boarding'].includes(change.to))for(const e of this.enemies){if(e.state==='boarded'&&change.to==='departing')continue;if(e.state==='boarded'){Object.assign(e,this.waitingPost(e));e.hp=e.maxHp;}if(e.hp<=0){e.state='down';e.y=0;e.vy=0;continue;}e.state='guard';e.hurt=0;e.timer=.5+this.random();e.y=0;e.vy=0;e.knockX=0;e.knockZ=0;e.boardProgress=0;e.attackTargetId=undefined;e.grudgeUntil=0;e.guard=100;e.guardBroken=0;e.tripTime=0;e.defending=false;}
     this.emit('bus-state',{phase:change.to,full:change.full,number:change.number});
     if(change.to==='departing')this.emit('message',{text:change.full?'This trotro is full. It is leaving. Wait for the next one.':'That trotro has left. Another one is on the way.'});
-    else if(change.to==='arriving')this.emit('message',{text:'Another trotro is pulling in. Check for a free seat.'});
+    else if(change.to==='arriving')this.emit('message',{text:'New trotro, fresh crowd! Win this fight for the seat.'});
     else if(change.to==='full')this.emit('message',{text:'This trotro is full. Save your strength for the next arrival.'});
     else if(change.to==='boarding')this.emit('message',{text:'One free seat! Clear the doorway and fight your way in.'});
   }

@@ -224,15 +224,7 @@ export class Stage {
   }
   begin(round){
     this.menuHero.group.visible=false;this.camera.fov=50;this.camera.updateProjectionMatrix();this.clear(this.dynamic);this.effects=[];this.actors=[];this.player=this.character(0xe4b74f,true,null,null,round.player.character);this.dynamic.add(this.player.group);
-    this.actors=round.enemies.map(e=>{
-      const a=this.character([0xb87359,0x6e8c94,0x87995d,0xbca278,0x7a7596,0x558c80][e.id%6],false,e.weapon,null,e.character);this.dynamic.add(a.group);
-      if(e.role==='keeper'){
-        const material=this.label(e.captain?round.captain.name.toUpperCase():'HEAVY BLOCKER',512,64,'#18252c','#f4c66a');material.depthTest=false;material.fog=false;
-        a.roleLabel=new T.Mesh(new T.PlaneGeometry(1.15,.145),material);a.roleLabel.position.y=.15;a.hpGroup.add(a.roleLabel);
-      }
-      if(e.role==='keeper'){a.group.scale.multiplyScalar(1.04);a.hpGroup.scale.setScalar(1.25);}
-      return a;
-    });
+    this.replaceCrowd(round);
     this.pickupMeshes=round.pickups.map(p=>{
       const mesh=new T.Group();mesh.position.set(p.x,0,p.z);this.dynamic.add(mesh);
       const color=WEAPONS[p.type]?.color||0x94ddb7,ring=new T.Mesh(new T.RingGeometry(.35,.42,24),new T.MeshBasicMaterial({color,side:T.DoubleSide,transparent:true,opacity:.8}));ring.rotation.x=-Math.PI/2;ring.position.y=.02;mesh.add(ring);
@@ -242,6 +234,19 @@ export class Stage {
       mesh.userData.display=display;return mesh;
     });
     this.buildStreetProps(round);
+  }
+  replaceCrowd(round){
+    for(const actor of this.actors){this.dynamic.remove(actor.group);this.clear(actor.group);}
+    this.crowdNumber=round.crowdNumber;
+    this.actors=round.enemies.map(e=>{
+      const a=this.character([0xb87359,0x6e8c94,0x87995d,0xbca278,0x7a7596,0x558c80][e.id%6],false,e.weapon,null,e.character);this.dynamic.add(a.group);
+      if(e.role==='keeper'){
+        const material=this.label(e.captain?round.captain.name.toUpperCase():'HEAVY BLOCKER',512,64,'#18252c','#f4c66a');material.depthTest=false;material.fog=false;
+        a.roleLabel=new T.Mesh(new T.PlaneGeometry(1.15,.145),material);a.roleLabel.position.y=.15;a.hpGroup.add(a.roleLabel);
+      }
+      if(e.role==='keeper'){a.group.scale.multiplyScalar(1.04);a.hpGroup.scale.setScalar(1.25);}
+      return a;
+    });
   }
   buildStreetProps(round){
     this.streetMeshes=round.street.props.map(prop=>{
@@ -302,6 +307,7 @@ export class Stage {
     this.clock+=dt;this.updateStreet(dt,round);const narrow=innerWidth<760;for(const actor of this.extras||[])this.humans.update(actor,{state:'idle'},dt,this.clock);
     if(lobby){const target=new T.Vector3(narrow?10:10,narrow?4.4:3.6,narrow?13:10);this.camera.position.lerp(target,Math.min(1,dt*2));this.look.lerp(new T.Vector3(narrow?2:1.2,1,-4),dt*2);}
     else if(round&&this.player){
+      if(this.crowdNumber!==round.crowdNumber)this.replaceCrowd(round);
       round.player.moving=!!round.player.moving;round.player.rushing=round.rushTime>0;round.player.combat=round.combatActive;this.pose(this.player,round.player,dt);const focused=round.combat.target;round.enemies.forEach((e,i)=>{e.combat=round.combatActive;e.focused=e.id===focused?.id;this.pose(this.actors[i],e,dt);});
       this.updateStreetProps(round);
       round.pickups.forEach((p,i)=>{const mesh=this.pickupMeshes[i];mesh.visible=!p.used;mesh.userData.display.position.y=.8+Math.sin(this.clock*3+i)*.04;if(mesh.userData.label){mesh.userData.label.quaternion.copy(this.camera.quaternion);mesh.userData.label.visible=!narrow||Math.hypot(p.x-round.player.x,p.z-round.player.z)<1.8;}});

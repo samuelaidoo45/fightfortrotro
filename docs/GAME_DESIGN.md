@@ -1,4 +1,4 @@
-# Fight for Trotro — version 1.3 — Every Commuter for Themselves
+# Fight for Trotro — version 1.4 — New Trotro, New Crowd
 
 Play an 18-encounter City Journey, an Endless Commute, or a three-stop Quick ride. The same crowd that blocks your entry now competes to board before you. Combat is non-graphic and uses original moves inspired by fighting-game fundamentals: startup, active contact, recovery, confirmed combo branches, guard breaks, low attacks, throws, launchers and air juggles. This is a browser prototype, not a finished AAA production.
 
@@ -9,7 +9,7 @@ Play an 18-encounter City Journey, an Endless Commute, or a three-stop Quick rid
 3. If the bus is full, wait. The next bus is guaranteed to have space. When an available bus approaches, passengers gather at the door.
 4. Fight for the opening. Rivals guard the doorway and return to their posts after being displaced; they do not chase you across the arena. No knockout is mandatory to board.
 5. A rival eventually rushes for the last seat. An orange marker, warning and boarding meter identify the threat. Hit, throw, launch or shove them to cancel their attempt. A stopped attempt delays the next rush by 3.2 seconds.
-6. Clear every rival to unlock the door, then hold E. Defeated rivals stay down across replacement buses. Both entrances require winning the fight. Early window attempts cannot finish while a rival is alive; nearby rivals can still pull you down. Attempt the marked window with G: shove the watching mate with F or wait for his look-away phase. Nearby rivals reach for you with a 0.55-second warning and pull you down for 5 damage. Hold Fight/J during the 1.65-second climb to kick them away (12 stamina per kick, 0.5-second cooldown). Starting a climb costs 20 stamina. Rival AI and the seat race continue during your climb. Rivals alternate door/window routes; a window attempt takes 0.45 seconds longer. Hit, throw or shove them to interrupt either entrance. A rival taking the seat cancels your vault, fills the bus and forces you to wait for its replacement.
+6. Clear every rival to unlock the door, then hold E. Defeated rivals stay down for the current vehicle; the next arrival removes every old passenger and spawns a fresh crowd. Both entrances require winning the fight. Early window attempts cannot finish while a rival is alive; nearby rivals can still pull you down. Attempt the marked window with G: shove the watching mate with F or wait for his look-away phase. Nearby rivals reach for you with a 0.55-second warning and pull you down for 5 damage. Hold Fight/J during the 1.65-second climb to kick them away (12 stamina per kick, 0.5-second cooldown). Starting a climb costs 20 stamina. Rival AI and the seat race continue during your climb. Rivals alternate door/window routes; a window attempt takes 0.45 seconds longer. Hit, throw or shove them to interrupt either entrance. A rival taking the seat cancels your vault, fills the bus and forces you to wait for its replacement.
 7. Each successful campaign ride banks progress and opens travel choices. Choose an upgrade plus recovery (+40 health), readiness (+15 health and full special), or risk (+25 health, +30% next encounter score, enemies deal +20% damage). The nurse receives 15 extra recovery. Losing retries the current encounter with a 70-health floor and preserves banked progress. There is no service-expiry timer. Quick rides retain their three-stop end and fixed between-stop healing.
 
 Before condition and upgrade modifiers, available boarding windows are 38 / 32 / 26 seconds on Easy / Normal / Hard. The first rival rush begins after 9 / 7 / 5.5 seconds, followed by a 3.4 / 2.9 / 2.5-second boarding attempt. The player boards in 1 / 1.1 / 1.2 seconds. A departing full bus guarantees an available replacement. In player runs, a stolen seat uses a 0.8-second notice, 1.6-second departure, 2.1-second wait and 1.8-second arrival.
@@ -24,7 +24,7 @@ Every third campaign encounter has a captain, rotating through three fixed repea
 
 Four different connected moves or successful defensive actions within a fixed six-second window trigger a six-second Rush: 25% extra damage, full stamina on activation and half-cost dodges. Repeating jab/cross counts as one style. A ten-second cooldown from activation prevents immediate loops. Whiffs grant no style. Throws and finishers can crash a moving rival into up to two passengers for 14 damage and a stagger; each collision target can be rewarded once per launch.
 
-A real boarding interruption grants 100 points, 15 special charge and two extra boarding seconds (five with Door specialist), capped at the base window plus eight seconds. Market scramble adds 12 health. Hit confirmations, not button presses, grant finisher recovery. Counter healing is once per confirmed move. Existing rivals keep their remaining health when a bus leaves; a departed passenger is replaced at full health.
+A real boarding interruption grants 100 points, 15 special charge and two extra boarding seconds (five with Door specialist), capped at the base window plus eight seconds. Market scramble adds 12 health. Hit confirmations, not button presses, grant finisher recovery. Counter healing is once per confirmed move. Player health, weapon, score and special charge carry over when a bus leaves. When a different vehicle starts arriving, every old passenger is replaced by a fresh, full-health rival.
 
 ### Career and daily challenge
 
@@ -46,7 +46,7 @@ Player-run bus transit is twice as fast after the first arrival. The initial pre
 
 ## Saved journeys and pacing
 
-The default 18-encounter journey replaces the forced three-stop finish. Each district follows queue clash → seat defence → captain, with a new condition per encounter. Door progress counts every defeated rival, and defeated rivals stay down across bus changes. A defeated captain stays defeated even when another passenger steals the seat. Completing an objective restores 12 health and adds boarding time once, making the final push achievable.
+The default 18-encounter journey replaces the forced three-stop finish. Each district follows queue clash → seat defence → captain, with a new condition per encounter. Door progress counts defeated rivals in the current vehicle’s crowd. Each new arrival clears that progress, removes defeated bodies and replaces every passenger, including the captain in captain encounters. Completing a vehicle’s crowd restores 12 health and adds boarding time once for that vehicle.
 
 City and Endless use separate local-storage slots. Checkpoints store the encounter boundary, fighter, difficulty, starting district, seed, banked score, health, weapon and three-slot build. Intermissions also save upgrade, replacement and travel selections. Resume starts the current encounter again; it does not restore mid-swing positions. Losing keeps earlier progress and offers a retry. Starting over requires an explicit new-journey confirmation. Storage failure is reported as session-only progress. Clearing browser data removes saves; no cloud sync is implied.
 
@@ -99,11 +99,15 @@ An uppercut gives time to follow with J or U. Airborne hits scale down in damage
 
 Normal and Hard rivals use timed high guards. Cyan marks guarding; sweeps and throws bypass it, heavies break it. Orange windups warn of regular strikes, yellow of low sweeps, and large red rings of heavy attacks. Hard bruisers can follow up an attack. The focused rival's health, guard and counter opportunity appear in the HUD.
 
+## New-vehicle crowds
+
+At the start of each new vehicle’s arrival, replace all passenger state and scene actors. Rotate ordinary character appearances and weapons, assign fresh IDs, restore rival health and clear defeated/interrupted sets, target locks, boarding progress and the once-per-crowd clear reward. The player and pickup scene objects remain; player health, equipment, scores, charge and banked journey progress carry over. Defeated bodies disappear with the old crowd. New passengers gather from the waiting area; a full bus never activates their combat. Initial arrival and repeated phase notifications for the same vehicle do not duplicate crowds. Practice keeps its existing sparring partner.
+
 ## Crowd free-for-all
 
 Rivals select the nearest living opponent at the stop, including the player. A nearby attacker becomes their retaliation target for three seconds. Seat thieves get targeting priority. Targets are locked during attack wind-up so a dodging or displaced target causes a miss. Rival-to-rival strikes apply damage, guard reduction, knockback and recovery, and interrupt door or window boarding. At most two attackers commit to each NPC target; the existing difficulty cap remains for attacks on the player. Rivals stay near the stop rather than pursuing a retreating player into the street.
 
-An NPC knockout permanently removes that rival from the fight but awards no player kill, hit points, interruption bonus, special charge or captain bonus. The remaining fighter must still be beaten: waiting for the crowd cannot produce a win on its own. Both player boarding routes require all rivals down. Practice retains its single sparring partner and full buses pause crowd combat.
+An NPC knockout removes that rival from the current vehicle’s fight but awards no player kill, hit points, interruption bonus, special charge or captain bonus. The remaining fighter must still be beaten: waiting for the crowd cannot produce a win on its own. Both player boarding routes require all rivals down. Practice retains its single sparring partner and full buses pause crowd combat.
 
 ## Mobile readability and recovery
 

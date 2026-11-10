@@ -17,9 +17,9 @@ test('a shove-and-board shortcut cannot skip a campaign objective',()=>{
  for(const encounter of ENCOUNTERS.slice(0,2)){const r=new Round('easy',()=>.5,{encounter});Object.assign(r.player,{x:DOOR.x,z:DOOR.z+1});r.shove();tick(r,1.8,{board:true});assert.equal(r.board,0);assert.equal(r.status,'playing');assert.equal(r.encounterComplete,false);}
 });
 
-test('every rival must be defeated, and progress persists through bus changes',()=>{
+test('every rival must be defeated again when a new vehicle brings a fresh crowd',()=>{
  const r=new Round('easy',()=>.5,{encounter:ENCOUNTERS[0]});r.down(r.enemies[1]);r.enemies[1].hp=10;r.down(r.enemies[1]);assert.equal(r.encounterProgress,1);r.down(r.enemies[2]);assert.equal(r.encounterComplete,false);
- r.busChanged({to:'boarding',full:false,number:2});assert.equal(r.encounterProgress,2);for(const e of r.enemies)if(e.hp>0)r.down(e);Object.assign(r.player,DOOR);tick(r,1.2,{board:true});assert.equal(r.status,'won');assert.equal(r.events.filter(e=>e.type==='encounter-cleared').length,1);
+ r.busChanged({to:'arriving',full:false,number:2});r.busChanged({to:'boarding',full:false,number:2});assert.equal(r.encounterProgress,0);for(const e of r.enemies)if(e.hp>0)r.down(e);Object.assign(r.player,DOOR);tick(r,1.2,{board:true});assert.equal(r.status,'won');assert.equal(r.events.filter(e=>e.type==='encounter-cleared').length,1);
 });
 
 test('boarding interruptions buy time but every rival still needs defeating',()=>{
@@ -27,9 +27,9 @@ test('boarding interruptions buy time but every rival still needs defeating',()=
  const [a,b,c]=r.enemies;a.state='boarding';r.strikeEnemy(a,1,0,.3);a.state='boarding';r.strikeEnemy(a,1,0,.3);assert.equal(r.encounterProgress,0);r.down(b);r.down(c);assert.equal(r.encounterComplete,false);r.down(a);assert.equal(r.encounterComplete,true);
 });
 
-test('captain showdowns cannot be bypassed while the captain is alive, and defeated captains stay defeated after a stolen seat',()=>{
+test('captain showdowns cannot be bypassed while the captain is alive, and the next vehicle brings a fresh captain',()=>{
  const j=new CityJourney({seed:'boss'});j.index=2;const r=j.createRound();assert.equal(r.encounterComplete,false);Object.assign(r.player,DOOR);for(const e of r.enemies){e.state='recover';e.timer=10;}tick(r,1.8,{board:true});assert.equal(r.status,'playing');r.down(r.keeper);assert.equal(r.encounterComplete,false);
- r.rivalTakesSeat(r.enemies[1]);assert.equal(r.keeper.timer,Infinity);tick(r,15);assert.equal(r.keeper.hp,0);assert.equal(r.encounterComplete,false);for(const e of r.enemies)if(e.hp>0)r.down(e);assert.equal(r.encounterComplete,true);
+ r.rivalTakesSeat(r.enemies[1]);assert.equal(r.keeper.timer,Infinity);const oldCaptain=r.keeper;tick(r,15);assert.notEqual(r.keeper,oldCaptain);assert.ok(r.keeper.hp>0);assert.equal(oldCaptain.hp,0);assert.equal(r.encounterComplete,false);for(const e of r.enemies)if(e.hp>0)r.down(e);assert.equal(r.encounterComplete,true);
 });
 
 test('full three-slot builds require an explicit replacement, never accumulate all upgrades',()=>{

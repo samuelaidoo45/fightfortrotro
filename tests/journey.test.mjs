@@ -69,10 +69,9 @@ test('captains telegraph their stated patterns and stay at the doorway instead o
   }
 });
 
-test('damage dealt survives missed buses; only a passenger replacement returns at full health',()=>{
-  const r=new Round();r.keeper.hp=24;r.busChanged({to:'departing',full:false,number:1});r.busChanged({to:'arriving',full:false,number:2});r.busChanged({to:'boarding',full:false,number:2});assert.equal(r.keeper.hp,24);
-  r.down(r.keeper);r.busChanged({to:'departing',full:false,number:2});assert.equal(r.keeper.state,'down');assert.equal(r.keeper.hp,0);
-  const replacement=r.enemies[1];replacement.hp=1;replacement.state='boarded';r.busChanged({to:'arriving',full:false,number:3});assert.equal(replacement.hp,replacement.maxHp);
+test('new arrivals replace all passengers rather than healing the old crowd',()=>{
+  const r=new Round(),original=r.enemies;r.keeper.hp=24;r.busChanged({to:'departing',full:false,number:1});assert.equal(r.keeper.hp,24);r.busChanged({to:'arriving',full:false,number:2});assert.ok(r.enemies.every(e=>e.hp===e.maxHp));assert.ok(r.enemies.every(e=>!original.includes(e)));assert.equal(original[0].hp,24);
+  const defeated=r.keeper;r.down(defeated);r.busChanged({to:'departing',full:false,number:2});assert.equal(defeated.state,'down');r.busChanged({to:'arriving',full:false,number:3});assert.ok(!r.enemies.includes(defeated));assert.equal(defeated.hp,0);assert.equal(r.encounterProgress,0);
 });
 
 test('career awards real rounds once, preserves badges and grants no practice XP',()=>{

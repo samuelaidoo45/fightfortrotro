@@ -2,17 +2,19 @@
 
 A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro, with ten fighters, Easy/Normal/Hard, contested boarding and six Accra-inspired districts.
 
-Version 1.3, **Every Commuter for Themselves**, adds a free-for-all crowd fight. Rivals choose nearby opponents, retaliate against attackers and challenge passengers trying to board. They damage and defeat one another with visible wind-ups, blocks, knockback and impact effects. Their knockouts count toward clearing the fight but do not award the player kills, points, special charge or captain rewards. Attacks stay locked onto their chosen target through wind-up, and the difficulty limit still caps attackers targeting the player. Combat stays near the stop.
+Version 1.4, **New Trotro, New Crowd**, replaces the entire crowd whenever a new vehicle starts arriving. Old passengers, including defeated bodies, are removed from the scene. Fresh passengers have new identities, rotated appearances and equipment, and full health. Fight progress resets for that vehicle; player health, equipment, score, special charge and journey progress carry over. Full arrivals bring a waiting crowd, with combat starting only when a bus has a free seat. Captain encounters bring a fresh captain with the new crowd.
+
+The free-for-all crowd fight continues. Rivals choose nearby opponents, retaliate against attackers and challenge passengers trying to board. They damage and defeat one another with visible wind-ups, blocks, knockback and impact effects. Their knockouts count toward clearing the fight but do not award the player kills, points, special charge or captain rewards. Attacks stay locked onto their chosen target through wind-up, and the difficulty limit still caps attackers targeting the player. Combat stays near the stop.
 
 The mobile arena remains clear: a small health/timer strip, thumb joystick, four combat buttons and one contextual action replace the stacked overlays. Game options expand from the menu, and objectives/move details live in Pause.
 
-Be the last fighter standing to board through either the door or window; defeated rivals stay down for that encounter. Early window attempts can be pulled down and cannot finish boarding while any rival is alive. Shove the watching conductor or wait for him to look away, then vault for 20 stamina. Nearby rivals telegraph a grab and can pull you down for 5 damage. Hold Fight (J) while climbing to kick them away for 12 stamina. Rivals alternate between door and window attempts; hit, throw or shove them before they claim the seat. The contextual button offers Pull rival down when within throwing range of a window climber. A stolen seat or departing bus cancels your climb.
+Be the last fighter standing to board through either the door or window; defeated rivals stay down until the next vehicle arrives. Early window attempts can be pulled down and cannot finish boarding while any rival is alive. Shove the watching conductor or wait for him to look away, then vault for 20 stamina. Nearby rivals telegraph a grab and can pull you down for 5 damage. Hold Fight (J) while climbing to kick them away for 12 stamina. Rivals alternate between door and window attempts; hit, throw or shove them before they claim the seat. The contextual button offers Pull rival down when within throwing range of a window climber. A stolen seat or departing bus cancels your climb.
 
-Enemy damage is reduced by 35%, with 0.65 seconds of protection after an unblocked hit. Four seconds without damage, away from the doorway or between buses, restores 3 health per second up to 70. Clearing the crowd adds 12 health and eight boarding seconds once. The mate calls the destination on arrival using available device speech, alongside engine/brake and combat effects.
+Enemy damage is reduced by 35%, with 0.65 seconds of protection after an unblocked hit. Four seconds without damage, away from the doorway or between buses, restores 3 health per second up to 70. Clearing a vehicle’s crowd adds 12 health and eight boarding seconds once for that vehicle. The mate calls the destination on arrival using available device speech, alongside engine/brake and combat effects.
 
 Street tricks and crowd dares remain: R kicks a luggage trolley or tips a cooler into a trip zone. Props reset for the next bus. Dares reward health, stamina, score and special charge; they no longer unlock the door. Dodge cancels attack recovery after contact. Repeated jabs provoke guards on Normal/Hard, and one critical-health comeback fills special and stamina. Replacement buses return faster. Existing saved journeys continue to work.
 
-City Journey has 18 encounters across six districts, alternating queue fights, boarding scrambles and captain encounters. Missed buses preserve damage and defeated rivals.
+City Journey has 18 encounters across six districts, alternating queue fights, boarding scrambles and captain encounters. Every new vehicle resets its crowd and boarding objective while preserving the player’s earned progress.
 
 Every successful ride banks progress. Defeat retries only the current encounter with at least 70 health, keeping completed encounters and the build. Between rides, choose from eight upgrades with three active slots, replacing one when full. Recover health, arrive with a full special, or accept harder hits for a score bonus. Conditions change each encounter. Endless Commute continues beyond the campaign with capped enemy counts and difficulty scaling; Quick ride preserves the original three-stop arcade run.
 
@@ -77,7 +79,7 @@ Press R near a labelled pickup. Equipping a new weapon replaces the current one.
 | Market stool | Heavy sweep hits three rivals | Slow recovery, high stamina cost |
 | Suitcase | Strong knockback, hits two rivals | Slower than bag or baton |
 
-Full buses close their doors and leave. In player runs, transit is accelerated: a full-bus notice to the next available bus takes 6.7 seconds (1.2 full, 1.6 departing, 2.1 waiting, 1.8 arriving). A stolen seat uses a shorter 0.8-second notice, for 6.3 seconds total. Preparation and transit do not spend the boarding window or challenge timer. Before stop-rule modifiers, an available bus stays 38/32/26 seconds on Easy/Normal/Hard. Rivals begin rushing to board after 9/7/5.5 seconds. Their boarding attempts take 3.4/2.9/2.5 seconds; interrupting resets the race delay. Every replacement reforms the doorway crowd, keeping damage dealt to existing rivals. A passenger who boarded is replaced by a fresh rival. Stay alive and keep trying if a bus leaves.
+Full buses close their doors and leave. In player runs, transit is accelerated: a full-bus notice to the next available bus takes 6.7 seconds (1.2 full, 1.6 departing, 2.1 waiting, 1.8 arriving). A stolen seat uses a shorter 0.8-second notice, for 6.3 seconds total. Preparation and transit do not spend the boarding window or challenge timer. Before stop-rule modifiers, an available bus stays 38/32/26 seconds on Easy/Normal/Hard. Rivals begin rushing to board after 9/7/5.5 seconds. Their boarding attempts take 3.4/2.9/2.5 seconds; interrupting resets the race delay. Every replacement removes the old crowd and creates fresh passengers. The old fight’s knockdowns do not unlock the new vehicle. Stay alive and keep trying if a bus leaves.
 
 ## Source
 
@@ -88,6 +90,7 @@ Full buses close their doors and leave. In player runs, transit is accelerated: 
 - `dist/campaign-ui.css`: campaign menu, district map, travel decisions and responsive layouts.
 - `tests/campaign.test.mjs`: campaign completion, objective gates, retries, three-slot builds, checkpoint validation, reward deduplication and 40-encounter endless progression.
 - `dist/layout.js`: shared curb, door, guard posts, traffic lanes and bus movement paths.
+- `tests/crowd-arrivals.test.mjs`: new identities, state resets, full-bus waiting, repeated arrivals and removal of old scene objects.
 - `dist/crowd.js` and `tests/crowd.test.mjs`: rival targeting, retaliation, crowd damage, interruption and knockout attribution.
 - `dist/boarding.js` and `dist/mobile.js`: contested window climbing and compact touch controls.
 - `tests/mobile-boarding.test.mjs`: window/door competition, interruption, health and touch helpers.
@@ -113,7 +116,7 @@ There is no backend, player tracking, paid API, or Google Maps key. The Maps lin
 
 ## Verified in this build
 
-`npm run check` and 134 Node tests cover combat, journeys, saves, traffic, persistent knockdowns, the all-rival door gate, last-standing window gating, rival target selection and retaliation, NPC damage and reward isolation, conductor rebuffs, rival grabs, kick escapes, window-rival interruptions, seat theft during a vault, safer health tuning, joystick math and assisted combos. Version 1.2 browser QA checked the compact menu, pause/move list, joystick and held Fight control, window-climb rendering and contextual rival-window interruption at 390 × 844, 360 × 740 and 844 × 390, with no logged errors or warnings. Real-device audio, touch ergonomics across devices and long-term retention still need player testing.
+`npm run check` and 140 Node tests cover combat, journeys, saves, traffic, knockdowns lasting until the next arrival, fresh-crowd resets, bounded scene replacement, the all-rival door gate, last-standing window gating, rival target selection and retaliation, NPC damage and reward isolation, conductor rebuffs, rival grabs, kick escapes, window-rival interruptions, seat theft during a vault, safer health tuning, joystick math and assisted combos. Version 1.2 browser QA checked the compact menu, pause/move list, joystick and held Fight control, window-climb rendering and contextual rival-window interruption at 390 × 844, 360 × 740 and 844 × 390, with no logged errors or warnings. Real-device audio, touch ergonomics across devices and long-term retention still need player testing.
 
 ## Design tokens
 

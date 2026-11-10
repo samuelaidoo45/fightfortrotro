@@ -14,7 +14,7 @@ test('full buses cannot be boarded, and the waiting crowd does not attack or pur
   const r=new Round('normal',()=>.5,{firstBusFull:true});Object.assign(r.player,DOOR);const stamina=r.player.stamina;assert.equal(r.attack(),false);assert.equal(r.shove(),false);step(r,2,{board:true,attack:true});assert.equal(r.board,0);assert.equal(r.player.hp,100);assert.equal(r.player.stamina,stamina);assert.ok(r.enemies.every(e=>e.state==='guard'&&distance(e,r.waitingPost(e))<5));
 });
 test('missing one bus keeps the same stop, supplies, health and score alive',()=>{
-  const r=new Round('easy',()=>.5,{health:63,weapon:'umbrella'});r.raceClock=100;r.score=230;step(r,r.bus.window+BUS_TIMING.departing+BUS_TIMING.waiting+BUS_TIMING.arriving+.2);assert.equal(r.status,'playing');assert.equal(r.bus.number,2);assert.equal(r.bus.canBoard,true);assert.equal(r.player.hp,70);assert.equal(r.player.weapon,'umbrella');assert.equal(r.score,230);assert.equal(r.stage,1);assert.ok(r.enemies.every(e=>e.hp<=e.maxHp&&e.state!=='boarding'));assert.ok(r.enemies.some(e=>e.hp<e.maxHp));
+  const r=new Round('easy',()=>.5,{health:63,weapon:'umbrella'});r.raceClock=100;r.score=230;step(r,r.bus.window+BUS_TIMING.departing+BUS_TIMING.waiting+BUS_TIMING.arriving+.2);assert.equal(r.status,'playing');assert.equal(r.bus.number,2);assert.equal(r.bus.canBoard,true);assert.equal(r.player.hp,70);assert.equal(r.player.weapon,'umbrella');assert.equal(r.score,230);assert.equal(r.stage,1);assert.ok(r.enemies.every(e=>e.hp<=e.maxHp&&e.state!=='boarding'));assert.ok(r.enemies.every(e=>e.hp===e.maxHp));assert.equal(r.crowdNumber,2);
 });
 test('the road stays outside the playable pavement during an empty bay and arrival',()=>{
   const r=new Round('easy',()=>.5,{firstBusFull:true});step(r,BUS_TIMING.full+BUS_TIMING.departing+.1);assert.equal(r.bus.phase,'waiting');Object.assign(r.player,{x:0,z:-6.2});r.tick(.02);assert.equal(r.player.z,-4.15);step(r,BUS_TIMING.waiting+BUS_TIMING.arriving);assert.equal(r.bus.canBoard,true);assert.ok(r.player.z>=-4.15);
@@ -23,7 +23,7 @@ test('waiting for a full bus never banks a ride or advances the home run',()=>{
   const run=new HomeRun('easy','circle',()=>0),r=new Round('easy',()=>0,{firstBusFull:true,startWaiting:true});step(r,BUS_TIMING.waiting+BUS_TIMING.arriving+Object.values(BUS_TIMING).reduce((a,b)=>a+b,0)+.2);run.record(r);assert.equal(run.index,0);assert.equal(run.history.length,0);assert.equal(run.canContinue,false);assert.equal(r.bus.canBoard,true);
 });
 test('missing several arrivals never ends a healthy run on an unrelated service timer',()=>{
-  const r=new Round('hard',()=>0,{firstBusFull:true});r.enemies=[];step(r,r.config.time*3);assert.equal(r.status,'playing');assert.equal(r.player.hp,100);assert.ok(r.bus.number>3);assert.ok(r.missedBuses>1);
+  const r=new Round('hard',()=>0,{firstBusFull:true});r.enemies=[];step(r,r.config.time*3);assert.equal(r.status,'playing');assert.equal(r.player.hp,100);assert.ok(r.bus.number>3);assert.ok(r.missedBuses+r.seatsLost>1);
 });
 test('all five weapons can be equipped, replaced, and carried to the next stop',()=>{
   const run=new HomeRun('easy','circle',()=>.9),r=run.createRound();const kinds=Object.keys(WEAPONS).filter(k=>k!=='hands');

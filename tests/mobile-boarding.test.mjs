@@ -6,9 +6,10 @@ import {contextAction,stickVector,arrivalCall} from '../dist/mobile.js';
 const tick=(r,t,input={})=>{for(let i=0;i<Math.ceil(t/.02);i++)r.tick(.02,input);};
 const cleared=()=>{const r=new Round('easy',()=>.5);for(const e of r.enemies)r.down(e);Object.assign(r.player,WINDOW);return r;};
 
-test('all defeated rivals stay down through recovery timers and replacement buses',()=>{
- const r=cleared();Object.assign(r.player,{x:8,z:7});tick(r,75);assert.ok(r.enemies.every(e=>e.hp===0&&e.state==='down'));assert.equal(r.encounterComplete,true);assert.equal(r.encounterProgress,r.enemies.length);assert.equal(r.seatsLost,0);
+test('defeated rivals stay down until the next vehicle replaces the crowd',()=>{
+ const r=cleared(),old=r.enemies;Object.assign(r.player,{x:8,z:7});tick(r,12);assert.ok(r.enemies.every(e=>e.hp===0&&e.state==='down'));assert.equal(r.encounterComplete,true);while(r.bus.number===1)r.tick(.02);assert.equal(r.crowdNumber,2);assert.ok(r.enemies.every(e=>e.hp===e.maxHp&&!old.includes(e)));assert.equal(r.encounterComplete,false);assert.equal(r.encounterProgress,0);assert.equal(r.seatsLost,0);
 });
+
 test('the door is locked and an early window attempt cannot win',()=>{
  const r=new Round('easy',()=>.5);r.street.wins=2;for(const e of r.enemies.slice(1))r.down(e);r.keeper.state='recover';r.keeper.timer=100;Object.assign(r.player,DOOR);tick(r,2,{board:true});assert.equal(r.status,'playing');assert.equal(r.board,0);Object.assign(r.player,WINDOW);r.window.distracted=10;assert.equal(r.window.jump(),true);tick(r,1.7);assert.equal(r.status,'playing');assert.equal(r.window.active,null);
 });
