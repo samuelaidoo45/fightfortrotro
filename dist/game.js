@@ -2,7 +2,10 @@ import {HomeRun,Round,MODES,ARENAS,DOOR,distance,WEAPONS,weaponStats} from './co
 import {CHARACTERS,characterById} from './characters.js';
 import {COMBO_ROUTES} from './combat.js';
 import {Stage} from './stage.js';
+import {CityJourney,TRAVEL_CHOICES} from './campaign.js';
 import {UPGRADES,BADGES,cleanProfile,rankFor,masteryFor,awardRound,dailyRoute,seededRandom} from './journey.js';
+let playMode='campaign',checkpointSaved=true,cityReward='';const savedJourneys={};
+for(const kind of ['campaign','endless']){try{const saved=CityJourney.restore(JSON.parse(localStorage.getItem('trotro-'+kind+'-v1')||'null'));if(saved)savedJourneys[kind]=saved.snapshot();}catch{}}
 const $=selector=>document.querySelector(selector),keys=new Set();
 let mode='normal',arena=ARENAS[0],run=null,round=null,paused=false,stage,lastTime=performance.now(),messageTimeout,comboTimeout,impactPause=0,audio,noiseBuffer,lastCountdown=-1;
 let records={},sound=true,characterId='office',profile=cleanProfile(null),dailyRun=null,saveAvailable=true;
@@ -42,26 +45,59 @@ function action(type){if(!round||paused||round.status!=='playing')return;if(['at
 function selectArena(next){
   arena=next;stage.build(arena);$('#scene-caption').textContent=`${arena.name}, Accra`;$('#arena-detail').textContent=arena.description;$('#maps-link').href=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(arena.query)}`;
   document.querySelectorAll('.arena-choice').forEach(el=>{const on=el.dataset.arena===arena.id;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',on);});
-  const route=new HomeRun(mode,arena.id).route;$('#route-preview').textContent=route.map(a=>a.name).join('  ›  ')+'  ›  Home';
+  refreshJourneyMenu();
+}
+function saveJourney(){
+  if(!run?.kind)return;const snapshot=run.snapshot();savedJourneys[run.kind]=snapshot;try{localStorage.setItem('trotro-'+run.kind+'-v1',JSON.stringify(snapshot));checkpointSaved=true;}catch{checkpointSaved=false;}
+}
+function mapMarkup(journey){
+  const lap=journey.kind==='endless'?Math.floor(journey.district/6)*6:0;
+  return Array.from({length:6},(_,i)=>{const district=i+lap,first=district*3,done=Math.max(0,Math.min(3,journey.index-first+(journey.canContinue||journey.complete?1:0))),current=journey.district===district;return `<div class="district ${current?'current':''} ${done===3?'cleared':''}"><b>${journey.arenaAt(first).name}</b><span>${Array.from({length:3},(_,n)=>`<i class="${n<done?'won':''}">${n<done?'✓':n+1}</i>`).join('')}</span><small>${done}/3 cleared</small></div>`;}).join('');
+}
+function refreshJourneyMenu(){
+  document.querySelectorAll('[data-journey]').forEach(el=>{el.classList.toggle('selected',el.dataset.journey===playMode);el.setAttribute('aria-pressed',el.dataset.journey===playMode);});
+  const city=playMode!=='quick',saved=city?CityJourney.restore(savedJourneys[playMode]):null,ongoing=saved&&!saved.complete;
+  $('#journey-description').textContent=playMode==='campaign'?'18 encounters · 6 districts · Saved checkpoints':playMode==='endless'?'Keep riding · Evolving builds · Chase your longest journey':'Three stops · The original short arcade run';
+  $('#start>span:first-child').textContent=ongoing?'Continue '+(playMode==='campaign'?'City Journey':'Endless Commute'):playMode==='campaign'?'Start City Journey':playMode==='endless'?'Start Endless Commute':'Start a quick ride';
+  $('#fresh-journey').hidden=!ongoing;$('#checkpoint-note').textContent=ongoing?`${saved.character.name} · ${saved.mode} · ${saved.arena.name} · Encounter ${saved.index+1}${playMode==='campaign'?'/18':''}. ${saved.phase==='travel'?'Your travel choices are saved.':'Resume from this encounter’s start.'}`:city?'Progress saves after every encounter. Leave and return when you want.':'';
+  $('#arena-count').textContent=playMode==='campaign'?'6 districts · 18 encounters':playMode==='endless'?'As far as you can go':'3 stops to win';
+  const preview=saved||new CityJourney({kind:playMode==='endless'?'endless':'campaign',startId:arena.id,seed:'preview'});$('#city-route').innerHTML=mapMarkup(preview);$('#city-ticket-title').textContent=playMode==='endless'?'How far can you go?':'Make the city yours.';$('#city-ticket-detail').textContent=playMode==='quick'?'A short run. Try City Journey when you want a longer adventure.':'Queue clash. Seat defence. Captain showdown. Three battles in every district.';
+  $('#route-preview').textContent=city?'Queue clash  ›  Seat defence  ›  Captain  ›  Next district':new HomeRun(mode,arena.id).route.map(a=>a.name).join(' › ')+' › Home';
 }
 function refreshJourney(){
-  $('#journey-progress').innerHTML=run.route.map((a,i)=>`<span class="${i<run.index?'complete':i===run.index?'current':''}">${i<run.index?'✓':i+1} <b>${a.name}</b></span>`).join('<i>›</i>');
+  $('#journey-progress').innerHTML=run.kind?`<span class="current"><b>${run.kind==='campaign'?'City Journey':'Endless Commute'}</b> ${run.index+1}${run.kind==='campaign'?'/18':''}</span><i>›</i><span>${run.arena.name}</span>`:run.route.map((a,i)=>`<span class="${i<run.index?'complete':i===run.index?'current':''}">${i<run.index?'✓':i+1} <b>${a.name}</b></span>`).join('<i>›</i>');
+}
+function renderCityTravel(){
+  const won=run.phase!=='retry',complete=run.complete;$('#city-build').hidden=!run.canContinue;$('#travel-eyebrow').textContent=run.kind==='campaign'?`City Journey · Encounter ${run.index+1}/18`:`Endless Commute · Encounter ${run.index+1}`;
+  $('#travel-title').textContent=complete?'You conquered Accra.':!won?'Get back in the fight.':run.index%3===2?run.arena.name+' is yours.':'Seat secured. Journey continues.';
+  $('#travel-detail').textContent=complete?`${run.score.toLocaleString()} points across 18 encounters. Your completed journey is saved. Keep going in Endless Commute.`:!won?'This encounter got you. Retry with at least 70 health. Your completed encounters, score and build stay intact.':`Next: ${run.arenaAt(run.index+1).name} · ${run.index%3===1?'Captain showdown':run.index%3===2?'Break the queue':'Hold your place'}. ${run.score.toLocaleString()} points banked.`;
+  $('#travel-map').innerHTML=mapMarkup(run);$('#travel-reward').textContent=cityReward||`${run.upgrades.length}/3 build slots · ${Math.ceil(run.health)} health at the checkpoint`;$('#build-help').textContent=run.upgrades.length===3?'Your build is full. Pick a new upgrade, then choose one to replace.':'Choose an upgrade to carry through the journey. You have three build slots.';
+  $('#city-offers').replaceChildren(...run.offers.map(u=>{const b=document.createElement('button');b.className='upgrade-choice';b.dataset.cityUpgrade=u.id;b.setAttribute('aria-pressed',run.selectedUpgrade===u.id);b.innerHTML=`<small>${u.tag}</small><b>${u.name}</b><span>${u.detail}</span>`;b.addEventListener('click',()=>{run.chooseUpgrade(u.id);saveJourney();renderCityTravel();document.querySelector(`[data-city-upgrade="${u.id}"]`).focus();});return b;}));
+  $('#replace-section').hidden=!run.canContinue||run.upgrades.length<3;$('#replace-options').replaceChildren(...run.upgrades.map(id=>{const b=document.createElement('button');b.dataset.replace=id;b.textContent=UPGRADES.find(u=>u.id===id).name;b.setAttribute('aria-pressed',run.replaceUpgrade===id);b.addEventListener('click',()=>{run.chooseReplacement(id);saveJourney();renderCityTravel();document.querySelector(`[data-replace="${id}"]`).focus();});return b;}));
+  $('#travel-options').replaceChildren(...TRAVEL_CHOICES.map(t=>{const b=document.createElement('button');b.dataset.travel=t.id;b.setAttribute('aria-pressed',run.travel===t.id);b.innerHTML=`<b>${t.name}</b><span>${t.detail}</span>`;b.addEventListener('click',()=>{run.chooseTravel(t.id);saveJourney();renderCityTravel();document.querySelector(`[data-travel="${t.id}"]`).focus();});return b;}));
+  $('#city-save-status').textContent=checkpointSaved?'Checkpoint saved on this device. Your current travel choices are saved too.':'Browser storage unavailable. This journey is kept for this session only.';$('#city-continue').disabled=run.canContinue&&!run.ready;$('#city-continue').textContent=complete?'Keep riding in Endless':won?(!run.selectedUpgrade?'Choose your upgrade':!run.ready?'Choose an upgrade to replace':'Travel to the next encounter'):'Retry this encounter';$('#city-leave').textContent=checkpointSaved?'Save and return to menu':'Return to menu (session only)';
+}
+function showCityTravel(){keys.clear();paused=true;renderCityTravel();$('#city-travel').showModal();}
+function startCity(fresh=false){
+  dailyRun=null;cityReward='';const saved=!fresh?CityJourney.restore(savedJourneys[playMode]):null;run=saved&&!saved.complete?saved:new CityJourney({kind:playMode,mode,startId:arena.id,character:characterId});saveJourney();
+  if(run.phase==='fight')playRound(run.createRound());else showCityTravel();
 }
 function playRound(next){
   for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();keys.clear();paused=false;impactPause=0;round=next;lastCountdown=-1;
-  stage.build(run.arena);stage.begin(round);document.body.classList.add('playing');$('#hud').hidden=false;$('#round-location').textContent=round.practice?'Combat practice / '+run.arena.name:`Stop ${run.index+1} of 3 / ${run.arena.name} · ${round.condition.name}`;$('#combo').textContent='';$('#start').blur();refreshJourney();soundEffect('start');
-  announce(round.practice?'Practice safely. J J I launches. Press M for every move.':`${run.index===2?run.captain.name+' guards the last stop. ':''}${round.condition.name}. ${round.condition.detail}`,3300);updateHUD();
+  stage.build(run.arena);stage.begin(round);document.body.classList.add('playing');document.body.classList.toggle('campaign-playing',!!run.kind);$('#hud').hidden=false;$('#round-location').textContent=round.practice?'Combat practice / '+run.arena.name:`${run.kind?'Encounter':'Stop'} ${run.index+1}${run.kind==='endless'?'':run.kind?'/18':'/3'} / ${run.arena.name} · ${round.condition.name}`;$('#combo').textContent='';$('#start').blur();refreshJourney();soundEffect('start');if(run.kind)saveJourney();
+  announce(round.practice?'Practice safely. J J I launches. Press M for every move.':`${round.captain?round.captain.name+' guards this stop. ':''}${round.condition.name}. ${round.condition.detail}`,3300);updateHUD();
 }
-function start(){dailyRun=null;run=new HomeRun(mode,arena.id,Math.random,characterId);playRound(run.createRound());}
+function start(){if(playMode!=='quick'){startCity();return;}dailyRun=null;run=new HomeRun(mode,arena.id,Math.random,characterId);playRound(run.createRound());}
 function startDaily(repeat=false){const d=repeat&&dailyRun?dailyRun:dailyRoute();dailyRun=d;run=new HomeRun('normal',ARENAS[d.start].id,seededRandom(d.seed),d.fighter,{daily:d.day});playRound(run.createRound());}
 function refreshCareer(){
   const rank=rankFor(profile.xp),d=dailyRoute(),record=profile.daily[d.day];
   $('#career-rank').textContent=rank.name;$('#career-summary').textContent=`Level ${rank.level} · ${profile.seats} ${profile.seats===1?'seat':'seats'} secured · ${profile.xp.toLocaleString()} XP`;$('#career-fill').style.width=`${Math.round(rank.progress*100)}%`;
   $('#daily-route').textContent=ARENAS[d.start].name+' rush';$('#daily-detail').textContent=`${characterById(d.fighter).name} · Normal · ${d.day}`;$('#daily-best').textContent=record?`Your best: ${record.best.toLocaleString()} · ${record.seats}/3 seats${record.won?' · Home!':''}`:'A fixed route. A fresh challenge every day.';
   $('#career-title').textContent=rank.name;$('#career-progress').textContent=rank.next?`Level ${rank.level} · ${profile.xp.toLocaleString()} XP · ${rank.next-profile.xp} XP to ${rankFor(rank.next).name}`:`Level ${rank.level} · ${profile.xp.toLocaleString()} XP · Keep setting new personal bests.`;
-  $('#career-totals').innerHTML=`<span><b>${profile.wins}</b>Home runs</span><span><b>${profile.seats}</b>Seats won</span><span><b>${profile.badges.length}/6</b>Badges</span>`;
+  $('#career-totals').innerHTML=`<span><b>${profile.wins}</b>Routes completed</span><span><b>${profile.seats}</b>Seats won</span><span><b>${profile.badges.length}/${BADGES.length}</b>Badges</span>`;
   $('#career-badges').innerHTML=BADGES.map(b=>`<article class="${profile.badges.includes(b.id)?'earned':''}"><span>${profile.badges.includes(b.id)?'✓':'◇'}</span><div><b>${b.name}</b><p>${b.detail}</p></div></article>`).join('');
   $('#mastery-list').innerHTML=CHARACTERS.map(c=>{const f=profile.fighters[c.id]||{xp:0,seats:0};return `<div><span>${c.name}<small>${c.role}</small></span><b>${masteryFor(f.xp)}<small>${f.xp} XP · ${f.seats} ${f.seats===1?'seat':'seats'}</small></b></div>`;}).join('');
+  $('#career-city').textContent=`City Journey: ${profile.journeyBest}/18 best · ${profile.campaignClears} completed · Endless best: ${profile.endlessBest} encounters`;
   $('#save-note').textContent=saveAvailable?'Progress and daily records are saved in this browser on this device.':'Browser storage is unavailable. Progress lasts for this session only.';
 }
 function renderUpgrades(){
@@ -75,12 +111,12 @@ function moves(){if(!round||round.status!=='playing')return;paused=true;keys.cle
 function selectCharacter(id){characterId=characterById(id).id;const c=characterById(id);stage.selectCharacter(id);$('#character-summary').textContent=`${c.name} · ${c.role}`;$('#character-name').textContent=c.name;$('#character-role').textContent=c.role;$('#character-perk').textContent=c.perk;$('#character-detail').textContent=c.detail;document.querySelectorAll('[data-character]').forEach(b=>{const selected=b.dataset.character===id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',selected);});try{localStorage.setItem('trotro-character',id);}catch{}}
 function characterMenu(){selectCharacter(characterId);$('#character-dialog').showModal();}
 function retry(){if(run?.canContinue){if(run.selectedUpgrade)playRound(run.advance());}else if(dailyRun)startDaily(true);else start();}
-function pause(){if(!round||round.status!=='playing'||paused)return;paused=true;window.speechSynthesis?.cancel();keys.clear();round.combat.queue=[];$('#pause-detail').textContent=round.practice?'Practice is paused. Try different moves to fill the Rush meter.':`${round.condition.name}: ${round.condition.detail}${round.captain?' '+round.captain.name+': '+round.captain.detail:''}`;$('#pause-dialog').showModal();}
+function pause(){if(!round||round.status!=='playing'||paused)return;paused=true;window.speechSynthesis?.cancel();keys.clear();round.combat.queue=[];$('#pause-detail').textContent=round.practice?'Practice is paused. Try different moves to fill the Rush meter.':`${round.condition.name}: ${round.condition.detail}${round.captain?' '+round.captain.name+': '+round.captain.detail:''}`;$('#quit').textContent=run.kind?'Save journey and leave':'Back to stops';if(run.kind)$('#pause-detail').textContent+=' Your completed encounters and build are saved. Continuing later restarts this encounter.';$('#pause-dialog').showModal();}
 function resume(){paused=false;keys.clear();$('#pause-dialog').close();$('#moves-dialog').close();lastTime=performance.now();}
-function lobby(){window.speechSynthesis?.cancel();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();round=null;run=null;paused=false;keys.clear();$('#hud').hidden=true;document.body.classList.remove('playing');selectArena(arena);refreshCareer();$('#start').focus({preventScroll:true});}
+function lobby(){if(run?.kind)saveJourney();window.speechSynthesis?.cancel();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();round=null;run=null;paused=false;keys.clear();$('#hud').hidden=true;document.body.classList.remove('playing','campaign-playing');selectArena(arena);refreshCareer();$('#start').focus({preventScroll:true});}
 function finish(result){
   keys.clear();window.speechSynthesis?.cancel();$('#announcement').classList.remove('show');run.record(round);const won=result==='won';
-  const reward=awardRound(profile,run,round);if(reward){profile=reward.profile;try{localStorage.setItem('trotro-career-v1',JSON.stringify(profile));saveAvailable=true;}catch{saveAvailable=false;}$('#career-reward').textContent=`+${reward.xp} XP · ${reward.mastery} ${round.character?.name||'fighter'}${reward.earned.length?' · New badge: '+reward.earned.join(', '):''}${saveAvailable?'':' · Session only'}`;}renderUpgrades();refreshCareer();
+  const reward=awardRound(profile,run,round);if(reward){profile=reward.profile;try{localStorage.setItem('trotro-career-v1',JSON.stringify(profile));saveAvailable=true;}catch{saveAvailable=false;}$('#career-reward').textContent=`+${reward.xp} XP · ${reward.mastery} ${round.character?.name||'fighter'}${reward.earned.length?' · New badge: '+reward.earned.join(', '):''}${saveAvailable?'':' · Session only'}`;}if(run.kind){cityReward=reward?`+${reward.xp} XP · ${reward.mastery}${reward.earned.length?' · '+reward.earned.join(', '):''}`:result==='won'?'Encounter saved. Career reward already collected.':'Keep your build. Come back stronger.';saveJourney();refreshCareer();soundEffect(won?'won':result);showCityTravel();return;}renderUpgrades();refreshCareer();
   $('#result-eyebrow').textContent=run.complete?'Home run complete':won?`Stop ${run.index+1} secured`:`Run ended at stop ${run.index+1}`;
   $('#result-title').textContent=run.complete?'You made it home.':won?'That seat is yours.':result==='missed'?'The last trotro left.':'The crowd got you.';
   $('#result-description').textContent=run.complete?'Three rushes beaten. Three rides secured. Accra could not stop you.':won?`Next: ${run.route[run.index+1].name}. Recover ${run.character?.heal||25} health, choose an upgrade for the next fight.`:result==='missed'?'Service has ended at this stop. Grab a weapon and break through when a free seat arrives.':`You cleared ${run.history.filter(h=>h.result==='won').length} of 3 stops. Block their swings and use F to open a gap at the doorway.`;
@@ -94,19 +130,22 @@ function finish(result){
 }
 function updateHUD(){
   if(!round)return;
-  $('#rule-label').textContent=run.daily?'Today’s rush · '+run.daily:round.practice?'Practice':'Stop '+(run.index+1)+' / 3';$('#rule-name').textContent=round.captain?round.captain.name:round.condition?.name||'Find your rhythm';$('#rule-detail').textContent=round.captain?round.captain.detail:round.condition?.detail||'Mix moves. Watch the Rush meter.';$('#run-upgrades').textContent=round.upgrades.map(id=>UPGRADES.find(u=>u.id===id).name).join(' + ');
+  $('#rule-label').textContent=run.daily?'Today’s rush · '+run.daily:round.practice?'Practice':(run.kind?'Encounter ':'Stop ')+(run.index+1)+(run.kind==='endless'?'':run.kind?' / 18':' / 3');$('#rule-name').textContent=round.captain?round.captain.name:round.condition?.name||'Find your rhythm';$('#rule-detail').textContent=round.captain?round.captain.detail:round.condition?.detail||'Mix moves. Watch the Rush meter.';$('#run-upgrades').textContent=round.upgrades.map(id=>UPGRADES.find(u=>u.id===id).name).join(' + ');
   $('#style-label').textContent=round.rushTime>0?`RUSH · ${round.rushTime.toFixed(1)}s`:round.surgeCooldown>0?'Catch your breath':'Win over the crowd';$('#style-panel').classList.toggle('active',round.rushTime>0);$('#style-help').textContent=round.rushTime>0?'+25% damage · Half-cost dodges':`Mix moves + defence · ${round.styleMoves.size}/4`;$('#style-pips').querySelectorAll('i').forEach((el,i)=>el.classList.toggle('lit',round.rushTime>0||i<round.styleMoves.size));
   $('#player-name').textContent=round.character?.name||'You';const p=round.player,cleared=round.gateCleared,blocked=round.doorBlocked;
   $('#health-fill').style.width=`${p.hp}%`;$('#health-fill').style.background=p.hp<30?'#e68e75':'#b9c99c';$('#stamina-fill').style.width=`${p.stamina}%`;$('#health-text').textContent=`${Math.ceil(p.hp)} health`;
   const bus=round.bus,active=round.combatActive;
   $('#timer-label').textContent=round.practice?'Practice time':active?'Boarding closes in':'Next trotro in';$('#timer').innerHTML=round.practice?'∞':`${Math.ceil(active?bus.remaining:bus.arrivalIn)}<span>s</span>`;$('#timer').style.color=active&&bus.remaining<10?'#ffba84':'';
-  $('#service-time').textContent=round.practice?'Unlimited health · refill special':round.seatsLost?`${round.seatsLost} ${round.seatsLost===1?"seat":"seats"} taken by rivals · Keep fighting`:round.missedBuses?`${round.missedBuses} ${round.missedBuses===1?'bus missed':'buses missed'} · Keep the run alive`:'Three seats to win · Get home';
+  $('#service-time').textContent=round.practice?'Unlimited health · refill special':round.seatsLost?`${round.seatsLost} ${round.seatsLost===1?"seat":"seats"} taken by rivals · Keep fighting`:round.missedBuses?`${round.missedBuses} ${round.missedBuses===1?'bus missed':'buses missed'} · Keep the run alive`:run.kind?`${run.index} ${run.index===1?'encounter':'encounters'} cleared · ${checkpointSaved?'Checkpoint saved':'Session only'}`:'Three seats to win · Get home';
   $('#bus-capacity').textContent=round.practice?'SPARRING':active?'1 FREE SEAT':bus.phase==='full'?'FULL · 0 SEATS':bus.phase==='arriving'?'PULLING IN':bus.phase==='departing'?'LEAVING':'WAITING FOR NEXT';
   $('#bus-number').textContent=`Trotro ${bus.number}`;$('#bus-status').classList.toggle('available',active);$('#bus-status').classList.toggle('full',bus.phase==='full');
   const countdown=Math.ceil(bus.remaining);if(active&&countdown<=5&&countdown!==lastCountdown){lastCountdown=countdown;soundEffect('tick');}
   $('#weapon-label').textContent=weaponStats(p.weapon).name;$('#weapon-trait').textContent=weaponStats(p.weapon).trait;const unbanked=round.status==='playing';$('#knockdowns').textContent=run.kos+(unbanked?round.kos:0);$('#live-score').textContent=(run.score+(unbanked?round.score:0)).toLocaleString();$('#hit-flash').style.opacity=p.hurt>0?.55:0;
   const boarder=round.boardingRival;$('#hud').classList.toggle('has-boarder',!!boarder);$('#objective-title').textContent=round.practice?'Learn your combos.':boarder?'Stop them taking your seat!':!active?(bus.phase==='full'?'Full. Save your strength.':bus.phase==='arriving'?'Trotro pulling in!':'Choose your opening.') : blocked?'Break through the doorway.':'The gap is open. Get in!';
   $('#objective-detail').textContent=round.practice?'Connect J J I, then juggle with J / U':boarder?'Hit or shove the orange-marked rival to interrupt.':!active?(round.gathering?'The crowd is gathering. Get into position.':'R picks up a weapon or water. Watch the road.'):blocked?'J J I launches · J U U clears a crowd · F shoves':'Hold E at the door before the blockers recover.';
+  const encounterLocked=round.encounter&&!round.encounterComplete;
+  $('#encounter-status').hidden=!round.encounter;$('#encounter-status').textContent=round.encounter?(round.encounterComplete?'Objective complete · Take your seat':`${round.encounter.name} · ${Math.min(round.encounter.goal,round.encounterProgress)}/${round.encounter.goal}`):'';
+  if(encounterLocked&&active){$('#objective-title').textContent=boarder?'Stop them taking your seat!':round.encounter.name;$('#objective-detail').textContent=round.encounter.kind==='captain'?'Defeat the captain before you can board.':round.encounter.kind==='crew'?'Knock down different rivals. J J I launches; Q clears crowds.':'Interrupt boarding or knock down different rivals.';}
   $('#blocker-panel').hidden=!active||!blocked;$('#blocker-count').textContent=`${round.blockers.length} ${round.blockers.length===1?'passenger blocks':'passengers block'} the entrance`;
   const phase=active?(round.board>0?'board':'fight'):bus.phase==='arriving'?'arrival':'wait';
   document.querySelectorAll('[data-phase]').forEach(el=>{el.classList.toggle('current',el.dataset.phase===phase);});
@@ -128,6 +167,7 @@ function updateHUD(){
   const item=round.pickups.find(a=>!a.used&&distance(p,a)<1.65);let content='';
   if(item)content=`<kbd>R</kbd> ${WEAPONS[item.type]?`Equip ${WEAPONS[item.type].name}<small>${WEAPONS[item.type].trait}</small>`:'Drink · +30 health'}`;
   else if(!active)content=bus.phase==='full'?'No space on this trotro. Let it leave.':`Next arrival · ${Math.ceil(bus.arrivalIn)}s`;
+  else if(round.nearDoor&&encounterLocked)content=`${round.encounter.name}<small>${round.encounterProgress}/${round.encounter.goal} · Finish the fight to claim your seat</small>`;
   else if(round.nearDoor){content=blocked?'<kbd>F</kbd> Shove the blockers out of the doorway':`<kbd>E</kbd> Hold to enter<div class="board-meter"><div style="width:${Math.min(100,round.board*100)}%"></div></div>`;}
   else if(cleared&&distance(p,DOOR)<3.8)content=`Move closer to the glowing door · ${Math.ceil(distance(p,DOOR))} m`;
   $('#context-action').innerHTML=round.practice?'S + U low sweep · W + U flying knee':content;
@@ -135,13 +175,14 @@ function updateHUD(){
   if(foe){$('#rival-name').textContent=round.practice?'Sparring partner':foe.captain?round.captain.name:foe.character?characterById(foe.character).name+' · '+characterById(foe.character).role:foe.role==='keeper'?'Heavy blocker':foe.role==='bruiser'?'Bag brawler':foe.role==='swinger'?'Street swinger':'Quick striker';$('#rival-health').style.width=`${Math.max(0,foe.hp/foe.maxHp)*100}%`;$('#rival-guard').style.width=`${foe.guard}%`;$('#rival-state').textContent=foe.state==='airborne'?'AIRBORNE':foe.guardBroken>0?'GUARD BROKEN':foe.defending?'HIGH GUARD':foe.state==='boarding'?'BOARDING':'FOCUSED';$('#rival-tip').textContent=p.counterTime>0?'COUNTER WINDOW · I launches':foe.defending?'S + U sweeps · O throws':'O throws · Tab switches rival';}
   $('#boarding-alert').hidden=!boarder;$('#boarding-warning').textContent=boarder?.state==='boarding'?'Interrupt now — hit or shove!':'Rival rushing to the door!';$('#rival-board-fill').style.width=`${(boarder?.boardProgress||0)*100}%`;
   const inputs=round.combat.trail.map(i=>i.key);$('#input-trail').textContent=inputs.length?inputs.join(' › '):'J › J › I';$('#move-name').textContent=round.elapsed<round.combat.moveUntil?round.combat.moveName:'Circle Uppercut';$('#move-hint').textContent=round.chain>1?`${round.chain} hits · ${round.comboDamage} damage · ×${round.multiplier} score`:!round.coach.hit?'Get close, then J → J → I to launch.':!round.coach.shove?'F shoves a crowd. Use the gap to reach the door.':'Hold E at the glowing doorway to take the seat.';$('#cinema-bars').classList.toggle('active',round.combat.active?.move.id==='special');
-  const target=round.practice?null:round.target;if(target){const position=stage.project(target.x,2.45,target.z);$('#objective-marker').hidden=distance(p,target)<3;$('#objective-marker').style.left=`${Math.max(55,Math.min(innerWidth-65,position.x))}px`;$('#objective-marker').style.top=`${Math.max(innerWidth<760?350:160,Math.min(innerHeight-230,position.y))}px`;$('#marker-label').textContent=boarder?'Stop this rival':cleared?'Last seat':'Board here';$('#marker-distance').textContent=`${Math.ceil(distance(p,target))} m`;$('#objective-marker').classList.toggle('door-ready',cleared);}else $('#objective-marker').hidden=true;
+  const target=round.practice?null:round.target;if(target){const position=stage.project(target.x,2.45,target.z);$('#objective-marker').hidden=distance(p,target)<3;$('#objective-marker').style.left=`${Math.max(55,Math.min(innerWidth-65,position.x))}px`;$('#objective-marker').style.top=`${Math.max(innerWidth<760?350:160,Math.min(innerHeight-230,position.y))}px`;$('#marker-label').textContent=boarder?'Stop this rival':encounterLocked?'Fight this rival':cleared?'Last seat':'Board here';$('#marker-distance').textContent=`${Math.ceil(distance(p,target))} m`;$('#objective-marker').classList.toggle('door-ready',cleared);}else $('#objective-marker').hidden=true;
 }
 function processEvents(){
   for(const event of round.events.splice(0)){
     if(event.type==='message')announce(event.text);
     else if(event.type==='rush'){feedback('RUSH · KEEP IT GOING');soundEffect('won');stage.shoveWave(round.player.x,round.player.z);}
     else if(event.type==='captain-down'){announce(event.text,3000);soundEffect('won');}
+    else if(event.type==='encounter-cleared'){announce('OPENING EARNED · +12 health · Board the trotro!',3200);soundEffect('won');}
     else if(event.type==='challenge'){announce(event.text,3200);soundEffect('won');}
     else if(event.type==='special'){feedback('LAST SEAT SPECIAL');soundEffect('shove');}
     else if(event.type==='combat-note')announce(event.text,1600);
@@ -169,6 +210,9 @@ function processEvents(){
   }
 }
 for(const button of document.querySelectorAll('[data-mode]')){button.setAttribute('aria-pressed',button.dataset.mode===mode);button.addEventListener('click',()=>{mode=button.dataset.mode;document.querySelectorAll('[data-mode]').forEach(b=>{const selected=b.dataset.mode===mode;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',selected);});$('#mode-description').textContent=MODES[mode].description;});}
+for(const b of document.querySelectorAll('[data-journey]'))b.addEventListener('click',()=>{playMode=b.dataset.journey;document.querySelectorAll('[data-journey]').forEach(el=>{el.classList.toggle('selected',el===b);el.setAttribute('aria-pressed',el===b);});refreshJourneyMenu();});
+$('#fresh-journey').addEventListener('click',()=>$('#new-journey-dialog').showModal());$('#cancel-fresh').addEventListener('click',()=>$('#new-journey-dialog').close());$('#confirm-fresh').addEventListener('click',()=>{$('#new-journey-dialog').close();startCity(true);});
+$('#city-continue').addEventListener('click',()=>{if(run.complete){playMode='endless';$('#city-travel').close();startCity();return;}const next=run.phase==='retry'?run.retry():run.advance();if(next){cityReward='';playRound(next);}});$('#city-leave').addEventListener('click',lobby);$('#city-travel').addEventListener('cancel',e=>{e.preventDefault();lobby();});
 $('#mode-description').textContent=MODES[mode].description;
 for(const button of document.querySelectorAll('[data-dialog]'))button.addEventListener('click',()=>$('#'+button.dataset.dialog).showModal());
 for(const button of document.querySelectorAll('.close-dialog'))button.addEventListener('click',()=>button.closest('dialog').close());

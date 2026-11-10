@@ -20,7 +20,7 @@ export const UPGRADES = [
   {id:'counter',name:'Read the room',tag:'Defence',detail:'Perfect-block window is 50% wider. Counters restore 10 health.',parry:1.5,counterHeal:10},
   {id:'flow',name:'Second wind',tag:'Combos',detail:'Finishers restore 8 health and 18 stamina.',finisherHeal:8,finisherStamina:18},
   {id:'seat',name:'Door specialist',tag:'Boarding',detail:'Board 25% faster. Interruptions buy 3 extra seconds.',board:.75,interruptTime:3},
-  {id:'tough',name:'Thick skin',tag:'Survival',detail:'Take 20% less damage for the rest of this run.',armor:.8}
+  {id:'tough',name:'Thick skin',tag:'Survival',detail:'Take 20% less damage while this upgrade is equipped.',armor:.8}
 ];
 export function shuffled(list,random){const result=[...list];for(let i=result.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[result[i],result[j]]=[result[j],result[i]];}return result;}
 export function seededRandom(seed){let value=2166136261;for(const c of String(seed))value=Math.imul(value^c.charCodeAt(0),16777619);return()=>{value+=0x6D2B79F5;let t=value;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
@@ -30,7 +30,9 @@ export function dailyRoute(date=new Date()){
 }
 export function upgradeEffects(ids=[]){const effects={damage:1,speed:1,dodge:1,shove:1,push:1,meter:1,parry:1,board:1,armor:1,charge:0,counterHeal:0,finisherHeal:0,finisherStamina:0,interruptTime:0};for(const id of new Set(ids)){const item=UPGRADES.find(u=>u.id===id);if(!item)continue;for(const key of Object.keys(effects))if(item[key]!==undefined)effects[key]=['charge','counterHeal','finisherHeal','finisherStamina','interruptTime'].includes(key)?effects[key]+item[key]:effects[key]*item[key];}return effects;}
 export const BADGES = [
-  {id:'home',name:'Home at last',detail:'Complete a three-stop run.',test:p=>p.wins>=1},
+  {id:'city',name:'Across Accra',detail:'Complete all 18 City Journey encounters.',test:p=>p.campaignClears>=1},
+  {id:'endless',name:'The night bus',detail:'Clear 12 encounters in Endless Commute.',test:p=>p.endlessBest>=12},
+  {id:'home',name:'Home at last',detail:'Complete a quick ride, daily route or City Journey.',test:p=>p.wins>=1},
   {id:'defender',name:'That seat is mine',detail:'Interrupt 10 boarding rivals.',test:p=>p.interrupts>=10},
   {id:'style',name:'Crowd favourite',detail:'Trigger Rush 5 times.',test:p=>p.surges>=5},
   {id:'captain',name:'Captain breaker',detail:'Knock down 3 captains.',test:p=>p.captains>=3},
@@ -39,11 +41,12 @@ export const BADGES = [
 ];
 const number=n=>Number.isFinite(n)?Math.max(0,Math.min(1e9,Math.floor(n))):0;
 export function cleanProfile(raw){
-  const p={version:1,xp:0,wins:0,seats:0,interrupts:0,surges:0,captains:0,clean:0,fighters:{},daily:{},badges:[]};
+  const p={version:1,xp:0,wins:0,seats:0,interrupts:0,surges:0,captains:0,clean:0,campaignClears:0,journeyBest:0,endlessBest:0,settled:[],fighters:{},daily:{},badges:[]};
   if(!raw||typeof raw!=='object')return p;
-  for(const k of ['xp','wins','seats','interrupts','surges','captains','clean'])p[k]=number(raw[k]);
+  for(const k of ['xp','wins','seats','interrupts','surges','captains','clean','campaignClears','journeyBest','endlessBest'])p[k]=number(raw[k]);
   if(raw.fighters&&typeof raw.fighters==='object')for(const [id,f] of Object.entries(raw.fighters).slice(0,20))if(/^[a-z]+$/.test(id)&&f&&typeof f==='object')Object.defineProperty(p.fighters,id,{value:{xp:number(f.xp),seats:number(f.seats),best:number(f.best)},enumerable:true,writable:true});
   if(raw.daily&&typeof raw.daily==='object')for(const [day,d] of Object.entries(raw.daily).sort().slice(-30))if(/^\d{4}-\d{2}-\d{2}$/.test(day)&&d&&typeof d==='object')p.daily[day]={best:number(d.best),seats:Math.min(3,number(d.seats)),won:!!d.won};
+  p.settled=(Array.isArray(raw.settled)?raw.settled:[]).filter(id=>typeof id==='string'&&id.length<150).slice(-300);
   p.badges=BADGES.filter(b=>b.test(p)).map(b=>b.id);return p;
 }
 export function rankFor(xp){const levels=[0,300,900,1800,3200,5200,8000],names=['New arrival','Regular','Street smart','Seat hunter','Rush-hour ace','Stop champion','Accra legend'];let level=0;while(level<levels.length-1&&xp>=levels[level+1])level++;return{level:level+1,name:names[level],progress:level===6?1:(xp-levels[level])/(levels[level+1]-levels[level]),next:levels[level+1]??null};}
@@ -51,11 +54,13 @@ export function masteryFor(xp){return xp>=2400?'Legend':xp>=1200?'Expert':xp>=45
 export function awardRound(profile,run,round){
   // The round object is a transaction boundary. Reopening a result never grants XP twice.
   if(round.practice||round.status==='playing'||round.careerAward)return null;
-  const won=round.status==='won',p=cleanProfile(profile),id=round.character?.id||'office';
+  const won=round.status==='won';const checkpoint=run.kind?`${run.id}:${run.index}`:null;if(run.kind&&(!won||profile.settled?.includes(checkpoint)))return null;
+  const p=cleanProfile(profile),id=round.character?.id||'office';
   const xp=(won?120:20)+Math.min(80,round.kos*12)+Math.min(60,round.stats.interrupts*15)+(round.challenge.status==='won'?40:0)+(run.complete?160:0);
   const f=p.fighters[id]||{xp:0,seats:0,best:0};f.xp+=xp;f.seats+=won?1:0;f.best=Math.max(f.best,run.score);p.fighters[id]=f;
+  if(checkpoint){p.settled.push(checkpoint);if(run.kind==='campaign'){p.journeyBest=Math.max(p.journeyBest,run.index+1);if(run.complete)p.campaignClears++;}else p.endlessBest=Math.max(p.endlessBest,run.index+1);}
   p.xp+=xp;p.seats+=won?1:0;p.wins+=run.complete?1:0;p.interrupts+=round.stats.interrupts;p.surges+=round.stats.surges;p.captains+=round.stats.captains;p.clean+=won&&round.hitsTaken===0?1:0;
   if(run.daily){const d=p.daily[run.daily]||{best:0,seats:0,won:false};d.best=Math.max(d.best,run.score);d.seats=Math.max(d.seats,run.history.filter(h=>h.result==='won').length);d.won||=run.complete;p.daily[run.daily]=d;}
-  const earned=BADGES.filter(b=>!p.badges.includes(b.id)&&b.test(p));p.badges.push(...earned.map(b=>b.id));
+  const earned=BADGES.filter(b=>!p.badges.includes(b.id)&&b.test(p));p.badges=BADGES.filter(b=>b.test(p)).map(b=>b.id);
   round.careerAward={profile:p,xp,earned:earned.map(b=>b.name),mastery:masteryFor(f.xp)};return round.careerAward;
 }

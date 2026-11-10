@@ -60,10 +60,11 @@ export class BusCycle {
 export class Round {
   constructor(mode='normal',random=Math.random,options={}){
     this.character=options.character?characterById(options.character):null;this.mode=mode;this.random=random;this.stage=options.stage||1;this.practice=!!options.practice;
-    const level=this.stage-1,base=MODES[mode];
-    this.config={...base,count:base.count+level,hp:Math.round(base.hp*(1+level*.1)),gateHp:Math.round(base.gateHp*(1+level*.12)),speed:base.speed*(1+level*.06)};
+    const level=options.difficultyLevel??this.stage-1,base=MODES[mode];
+    this.config={...base,count:Math.min(10,base.count+level),hp:Math.round(base.hp*(1+level*.1)),gateHp:Math.round(base.gateHp*(1+level*.12)),speed:base.speed*(1+level*.06)};
     this.condition=options.condition||null;this.upgrades=[...(options.upgrades||[])];this.bonuses=upgradeEffects(this.upgrades);this.captain=options.captain||null;
-    const rule=this.condition||{};this.config.count=Math.max(2,this.config.count+(rule.count||0));this.config.busWindow=Math.max(18,base.busWindow+(rule.window||0));this.config.raceDelay*=rule.race||1;this.config.damage*=rule.damage||1;this.config.hp=Math.round(this.config.hp*(rule.hp||1));this.config.gateHp=Math.round(this.config.gateHp*(rule.hp||1));this.config.boardTime*=this.bonuses.board;
+    const rule=this.condition||{};this.config.count=Math.min(10,Math.max(2,this.config.count+(rule.count||0)));this.config.busWindow=Math.max(18,base.busWindow+(rule.window||0));this.config.raceDelay*=rule.race||1;this.config.damage*=rule.damage||1;this.config.hp=Math.round(this.config.hp*(rule.hp||1));this.config.gateHp=Math.round(this.config.gateHp*(rule.hp||1));this.config.boardTime*=this.bonuses.board;
+    this.encounter=options.encounter||null;if(this.encounter)this.config.count=Math.max(this.config.count,this.encounter.goal);this.defeated=new Set();this.stopped=new Set();this.encounterAnnounced=false;this.scoreBonus=1;
     this.stats={interrupts:0,surges:0,captains:0,finishers:0};this.styleMoves=new Set();this.styleTime=0;this.surgeCooldown=0;this.lastInterrupt=-10;this.coach={hit:false,shove:false};
     this.momentum=35;this.rushTime=0;this.chain=0;this.chainTime=0;this.bestChain=0;this.lastCall=false;this.challenge={kind:['finisher','shove','defend'][(this.stage-1)%3],progress:0,goal:this.stage===1?2:1,time:30,status:'active'};
     this.elapsed=0;this.status='playing';this.kos=0;this.score=0;this.board=0;this.combo=0;this.lastCombo=-10;this.events=[];this.doorCalled=false;this.hitsTaken=0;
@@ -102,8 +103,10 @@ export class Round {
     else if(change.to==='boarding')this.emit('message',{text:'One free seat! Clear the doorway and fight your way in.'});
   }
   get keeper(){return this.enemies.find(e=>e.role==='keeper');}
-  get gateCleared(){return !this.doorBlocked;}
-  get target(){return this.combatActive?(this.boardingRival||DOOR):null;}
+  get encounterProgress(){return !this.encounter?0:this.encounter.kind==='captain'?(this.keeper?.hp<=0?1:0):this.encounter.kind==='defence'?this.stopped.size:this.defeated.size;}
+  get encounterComplete(){return !this.encounter||this.encounterProgress>=this.encounter.goal;}
+  get gateCleared(){return !this.doorBlocked&&this.encounterComplete;}
+  get target(){return this.combatActive?(this.boardingRival||(!this.encounterComplete?this.encounter.kind==='captain'?this.keeper:this.combat.target:DOOR)):null;}
   get blockers(){return this.enemies.filter(e=>e.hp>0&&['guard','windup','swing','rushing','boarding'].includes(e.state)&&distance(e,DOOR)<1.65);}
   get doorBlocked(){return this.blockers.length>0;}
   emit(type,data={}){this.events.push({type,...data});}
@@ -126,7 +129,7 @@ export class Round {
   }
   burst(){return this.combat.special();}
   down(enemy){
-    enemy.hp=0;enemy.state='down';enemy.downAge=0;enemy.timer=this.practice?2.5:enemy.role==='keeper'?Infinity:8;this.kos++;
+    this.defeated.add(enemy.id);this.stopped.add(enemy.id);enemy.hp=0;enemy.state='down';enemy.downAge=0;enemy.timer=this.practice?2.5:enemy.role==='keeper'?Infinity:8;this.kos++;
     this.score+=(enemy.role==='keeper'?500:150)*this.multiplier;this.gainMomentum(12);this.player.stamina=Math.min(100,this.player.stamina+12);
     if(enemy.captain){this.stats.captains++;this.score+=350;this.momentum=100;this.emit('captain-down',{text:'CAPTAIN DOWN · Special ready · Take your seat!'});}
     this.emit('down',{x:enemy.x,z:enemy.z,keeper:enemy.role==='keeper'});
@@ -135,7 +138,7 @@ export class Round {
     }
   }
   strikeEnemy(enemy,damage,push,stun,hit={}){
-    if(enemy.state==='rushing'||enemy.state==='boarding'){this.raceClock=3.2;enemy.boardProgress=0;this.interruptReward();this.emit('boarding-stopped',{x:enemy.x,z:enemy.z});}
+    if(enemy.state==='rushing'||enemy.state==='boarding'){this.raceClock=3.2;enemy.boardProgress=0;this.stopped.add(enemy.id);this.interruptReward();this.emit('boarding-stopped',{x:enemy.x,z:enemy.z});}
     enemy.defending=false;
     const p=this.player;damage=Math.round(damage*(this.rushTime>0?1.25:1));enemy.hp-=damage;enemy.hurt=.26;
     let dx=enemy.x-p.x,dz=enemy.z-p.z,len=Math.hypot(dx,dz);if(len<.01){dx=Math.sin(p.face);dz=Math.cos(p.face);len=1;}
@@ -249,7 +252,8 @@ export class Round {
     }
     if(this.combatActive&&!this.practice){this.raceClock=Math.max(0,this.raceClock-dt);if(!this.boardingRival&&this.raceClock===0){const rival=this.enemies.filter(e=>e.hp>0&&!e.captain&&e.state==='guard'&&e.guardBroken<1).sort((a,b)=>distance(a,DOOR)-distance(b,DOOR))[0];if(rival){rival.state='rushing';rival.defending=false;rival.boardProgress=0;this.emit('rival-boarding',{id:rival.id});}}}
     this.nearDoor=distance(p,DOOR)<1.3;
-    const gapOpen=this.combatActive&&!this.doorBlocked;this.doorCalled=gapOpen;
+    if(this.encounter&&this.encounterComplete&&!this.encounterAnnounced){this.encounterAnnounced=true;this.emit('encounter-cleared');this.addBusTime(8);this.player.hp=Math.min(100,this.player.hp+12);}
+    const gapOpen=this.combatActive&&!this.doorBlocked&&this.encounterComplete;this.doorCalled=gapOpen;
     if(gapOpen&&!this.gapWasOpen&&distance(p,DOOR)<4.5)this.emit('door-open');this.gapWasOpen=gapOpen;
     if(!this.practice&&input.board&&this.nearDoor&&gapOpen&&!['dodge','attack','shove','hitstun'].includes(p.action)){this.board+=dt/this.config.boardTime;if(p.action!=='block')p.action='boarding';}
     else this.board=Math.max(0,this.board-dt*2);
@@ -258,13 +262,13 @@ export class Round {
   rivalTakesSeat(enemy){
     enemy.state='boarded';enemy.boardProgress=1;this.seatsLost++;this.board=0;this.combat.reset();
     this.bus.full=true;this.bus.phase='full';this.bus.duration=1.6;this.bus.remaining=1.6;this.bus.lastWasFull=true;
-    for(const e of this.enemies)if(e!==enemy){e.state=e.hp>0?'guard':'down';e.timer=.5;e.y=0;e.vy=0;e.knockX=0;e.knockZ=0;e.defending=false;}
+    for(const e of this.enemies)if(e!==enemy){e.state=e.hp>0?'guard':'down';e.timer=e.hp<=0&&e.role==='keeper'?Infinity:e.hp<=0?8:.5;e.y=0;e.vy=0;e.knockX=0;e.knockZ=0;e.defending=false;}
     this.emit('seat-stolen',{id:enemy.id});this.emit('message',{text:'A rival took the last seat! Keep your gear — stop them on the next trotro.'});
   }
   finish(result){
     if(this.status!=='playing')return;this.status=result;
     if(result==='won')this.score+=400+Math.ceil(Math.max(0,this.config.time-this.elapsed))*5+Math.ceil(this.player.hp)*4;
-    this.stars=result==='won'?(this.player.hp>=70?3:this.player.hp>=35?2:1):0;this.emit('end',{result});
+    this.score=Math.round(this.score*this.scoreBonus);this.stars=result==='won'?(this.player.hp>=70?3:this.player.hp>=35?2:1):0;this.emit('end',{result});
   }
 }
 

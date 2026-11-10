@@ -1,14 +1,16 @@
 # Fight for Trotro
 
-A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro. A three-stop home run across six Accra-inspired environments, Easy/Normal/Hard, doorway rivals, defenders who hold their entrance posts, crowd combat, stamina, pickups, and contested boarding.
+A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro, with ten fighters, Easy/Normal/Hard, contested boarding and six Accra-inspired districts.
 
-Version 0.9, **Rush Hour**, adds a replayable run structure: three different stop conditions, eight possible upgrades (choose one after each of the first two rides), and one of three final captains. Mix four moves or defensive actions within six seconds to trigger Rush. Throws and heavy finishers can crash rivals into nearby passengers. Interrupting a boarding rival buys time and earns points. Damage dealt persists across missed buses.
+Version 1.0, **The Accra Circuit**, makes City Journey the default: 18 encounters across six districts. Every district has a queue clash (knock down two different rivals), seat defence (interrupt or knock down three different rivals), and a captain showdown. Complete the objective before boarding; a single shove cannot skip the encounter. Missed buses preserve objective progress and enemy damage.
 
-The daily route fixes the fighter, difficulty, conditions and random seeds for that UTC day, with personal bests on this device. Career XP, seven ranks, four fighter-mastery titles and six achievement badges persist in local storage. Practice awards no XP. Every fighter and run upgrade is available immediately; there are no paid upgrades or login rewards. The first trotro at each stop arrives with space in 3.6 seconds.
+Every successful ride banks progress. Defeat retries only the current encounter with at least 70 health, keeping completed encounters and the build. Between rides, choose from eight upgrades with three active slots, replacing one when full. Recover health, arrive with a full special, or accept harder hits for a score bonus. Conditions change each encounter. Endless Commute continues beyond the campaign with capped enemy counts and difficulty scaling; Quick ride preserves the original three-stop arcade run.
+
+City Journey and Endless each have an independent device-local checkpoint. Leaving mid-fight resumes from the **start of that encounter**, not the exact combat frame. Travel choices save immediately. Career XP, seven ranks, fighter mastery, eight badges and personal daily records also persist. A completed-encounter ledger prevents duplicate XP on reload; campaign losses and practice award no XP. All fighters and upgrades are available immediately, with no paid upgrades or login rewards.
 
 Ten selectable commuters have distinct human models, starting gear and modest play-style bonuses. Three confirmed combo routes lead to launchers, spinning kicks and shoulder drives. Heavy attacks, low sweeps, throws, counters, air juggles and a three-hit cinematic special provide the combat vocabulary. A practice mode and paused move list help learn timing.
 
-Rivals now compete for the last seat: they hold the doorway, then rush to board. Interrupt the highlighted rival with an attack or shove. If they board first, the bus leaves full and you fight for the next arrival, keeping health, gear and score. Passing traffic, curbside bus movement, three-stop runs and six Accra-inspired arenas remain part of the game.
+Rivals now compete for the last seat: they hold the doorway, then rush to board. Interrupt the highlighted rival with an attack or shove. If they board first, the bus leaves full and you fight for the next arrival, keeping health, gear and score. Passing traffic, curbside bus movement and six Accra-inspired arenas remain part of the game.
 
 The camera follows from behind the player and keeps the entrance in view. Subtitled mate calls, engine/brake effects, a last-call countdown and a sliding door signal each phase. Spoken calls use a local English device voice when one is available. Textured, rigged Microsoft Rocketbox models supply natural human proportions and skeletal movement. The environment remains an original Accra-inspired interpretation, not a surveyed or fully photorealistic reconstruction. See [the game design](docs/GAME_DESIGN.md).
 
@@ -68,6 +70,10 @@ Full buses close their doors and leave. From the full-bus notice, the next avail
 
 ## Source
 
+- `dist/campaign.js`: saved City Journey and Endless progression, encounter objectives, travel choices and validated checkpoints.
+- `dist/journey.js`: conditions, upgrades, captains, seeded daily routes and career rewards.
+- `dist/campaign-ui.css`: campaign menu, district map, travel decisions and responsive layouts.
+- `tests/campaign.test.mjs`: campaign completion, objective gates, retries, three-slot builds, checkpoint validation, reward deduplication and 40-encounter endless progression.
 - `dist/layout.js`: shared curb, door, guard posts, traffic lanes and bus movement paths.
 - `dist/core.js`: rendering-independent AI, boarding competition, collision, pickups and round outcomes.
 - `dist/combat.js`: move timing, buffered input, confirmed branches, guards, counters and air juggles.
@@ -91,14 +97,8 @@ There is no backend, player tracking, paid API, or Google Maps key. The Maps lin
 
 ## Verified in this build
 
-JavaScript syntax checks and 66 behavioural/rig tests cover combat timing, boarding races, character perks, bus cycles, weapons, route progression and traffic. Rig checks load every character, verify animation targets and exercise kick/launch/guard poses. Browser verification covers all ten roster portraits, selected fighter, a confirmed J J I launcher, practice, special, move list and responsive controls. A live run also verified a rival taking the first seat, a guaranteed available replacement, interrupting another boarding attempt, claiming the seat without a knockout, and character/gear/score carry-over to Madina. No current browser console errors or warnings were observed. Broad device compatibility, sustained performance and combat balance still need playtesting.
+`npm run check` and 96 Node tests cover combat, rigs, traffic, bus cycles, the complete 18-encounter campaign, 40 endless encounters, objective gates, captain defeat, upgrades, recovery, save validation and reward deduplication. Browser QA verified two distinct knockdowns, an encounter retry, missed buses preserving objective progress, winning a seat, upgrade/travel selection and restoring those choices after reload. The travel dialog was checked at 390 × 844. Long-term retention, broad device compatibility and combat balance still need real-player testing.
 
 ## Design tokens
 
 Route-board gold `#f3b942`, night blue `#12191d`, light stone `#ece8de`, steel blue `#315563`, and muted grey `#a5aaa9`. Barlow Condensed carries the game title and timers; Barlow carries instructions and controls. The full-window arena and a human commuter form the menu background. A compact left menu opens the rush; stops form a route strip at the foot of the screen. Combat uses readable wind-ups, a small player ring, damage feedback, and a persistent door marker.
-
-# fightfortrotro
-
-## Rush Hour validation
-
-`npm run check` and 83 Node tests cover the original combat, rigs and traffic plus upgrades, fixed daily seeds, captain patterns, crowd crashes, reward idempotency, malformed saves and persistence of enemy damage. Browser QA completed a three-stop run, selected and carried upgrades, used a special to board the last stop, reloaded career progress, and exercised the daily challenge and upgrade selection at 390 × 844. Fun and long-term retention still need observation with real players; these checks establish correct behaviour.
