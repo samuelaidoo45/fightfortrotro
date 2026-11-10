@@ -2,7 +2,11 @@
 
 A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro, with ten fighters, Easy/Normal/Hard, contested boarding and six Accra-inspired districts.
 
-Version 1.0, **The Accra Circuit**, makes City Journey the default: 18 encounters across six districts. Every district has a queue clash (knock down two different rivals), seat defence (interrupt or knock down three different rivals), and a captain showdown. Complete the objective before boarding; a single shove cannot skip the encounter. Missed buses preserve objective progress and enemy damage.
+Version 1.1, **Street Tricks**, changes the fight itself. R kicks a luggage trolley through multiple rivals or tips a cooler into a seven-second trip zone. Props reset for the next bus. Five rotating crowd dares reward connected throws, varied attacks, finishers, timed defence and successful environmental tricks; completing two offers an alternative boarding opening in queue and defence encounters. Captains still require defeat.
+
+Dodge can cancel attack recovery after contact, and connected strings/counters have a short approach assist. Normal/Hard rivals guard after repeated jabs, encouraging sweeps, throws and heavy guard breaks. One critical-health comeback per encounter fills special and stamina with brief protection. Replacement bus transit takes roughly half as long, preserving the first preparation period and boarding window. Existing saves continue to work.
+
+Version 1.0, **The Accra Circuit**, makes City Journey the default: 18 encounters across six districts. Every district has a queue clash (knock down two different rivals), seat defence (interrupt or knock down three different rivals), and a captain showdown. Earn the opening through the combat objective or two crowd dares before boarding; a single shove cannot skip the encounter. Missed buses preserve objective progress and enemy damage.
 
 Every successful ride banks progress. Defeat retries only the current encounter with at least 70 health, keeping completed encounters and the build. Between rides, choose from eight upgrades with three active slots, replacing one when full. Recover health, arrive with a full special, or accept harder hits for a score bonus. Conditions change each encounter. Endless Commute continues beyond the campaign with capped enemy counts and difficulty scaling; Quick ride preserves the original three-stop arcade run.
 
@@ -22,7 +26,7 @@ Requires Node 18 or newer. No installation or build step is needed; runtime depe
 npm start
 ```
 
-Open http://127.0.0.1:4173. The `dist/` directory can also be served by any static web server. ES modules require HTTP rather than opening index.html directly.
+Open http://127.0.0.1:4173. Set `TROTRO_PORT` to use a separate preview origin when testing cached assets. The `dist/` directory can also be served by any static web server. ES modules require HTTP rather than opening index.html directly.
 
 ```sh
 npm run check
@@ -43,7 +47,7 @@ npm test
 | High / low block | K / S + K |
 | Dodge | L or Space |
 | Board at the glowing door | Hold E |
-| Equip a weapon or drink | R |
+| Street trick / equip a weapon / drink | R |
 | Pause | Esc or P |
 
 Touch controls appear on narrow screens and devices with a coarse pointer. Audio can be muted. Pausing freezes the simulation; switching tabs pauses automatically. Escape closes the result screen and returns to the lobby. Personal best home-run scores are stored only in the browser, per starting stop, difficulty and character. Career and daily records are also device-local; clearing browser data removes them. Daily records retain the most recent 30 dates. No global leaderboard or cloud save is implied. Sound starts enabled and can be muted in the menu or pause screen.
@@ -66,10 +70,12 @@ Press R near a labelled pickup. Equipping a new weapon replaces the current one.
 | Market stool | Heavy sweep hits three rivals | Slow recovery, high stamina cost |
 | Suitcase | Strong knockback, hits two rivals | Slower than bag or baton |
 
-Full buses close their doors and leave. From the full-bus notice, the next available bus parks after 13.4 seconds: 2.4 seconds full, 3.2 departing, 4.2 waiting and 3.6 arriving. Preparation and transit do not spend the boarding window or challenge timer. Before stop-rule modifiers, an available bus stays 38/32/26 seconds on Easy/Normal/Hard. Rivals begin rushing to board after 9/7/5.5 seconds. Their boarding attempts take 3.4/2.9/2.5 seconds; interrupting resets the race delay. Every replacement reforms the doorway crowd, keeping damage dealt to existing rivals. A passenger who boarded is replaced by a fresh rival. Stay alive and keep trying if a bus leaves.
+Full buses close their doors and leave. In player runs, transit is accelerated: a full-bus notice to the next available bus takes 6.7 seconds (1.2 full, 1.6 departing, 2.1 waiting, 1.8 arriving). A stolen seat uses a shorter 0.8-second notice, for 6.3 seconds total. Preparation and transit do not spend the boarding window or challenge timer. Before stop-rule modifiers, an available bus stays 38/32/26 seconds on Easy/Normal/Hard. Rivals begin rushing to board after 9/7/5.5 seconds. Their boarding attempts take 3.4/2.9/2.5 seconds; interrupting resets the race delay. Every replacement reforms the doorway crowd, keeping damage dealt to existing rivals. A passenger who boarded is replaced by a fresh rival. Stay alive and keep trying if a bus leaves.
 
 ## Source
 
+- `dist/street.js`: physical street tricks, rotating crowd dares, creative boarding openings and one-use comebacks.
+- `tests/street-play.test.mjs`: trick collisions, reward eligibility, varied attacks, dodge cancellation, anti-spam guards and faster bus returns.
 - `dist/campaign.js`: saved City Journey and Endless progression, encounter objectives, travel choices and validated checkpoints.
 - `dist/journey.js`: conditions, upgrades, captains, seeded daily routes and career rewards.
 - `dist/campaign-ui.css`: campaign menu, district map, travel decisions and responsive layouts.
@@ -97,7 +103,7 @@ There is no backend, player tracking, paid API, or Google Maps key. The Maps lin
 
 ## Verified in this build
 
-`npm run check` and 96 Node tests cover combat, rigs, traffic, bus cycles, the complete 18-encounter campaign, 40 endless encounters, objective gates, captain defeat, upgrades, recovery, save validation and reward deduplication. Browser QA verified two distinct knockdowns, an encounter retry, missed buses preserving objective progress, winning a seat, upgrade/travel selection and restoring those choices after reload. The travel dialog was checked at 390 × 844. Long-term retention, broad device compatibility and combat balance still need real-player testing.
+`npm run check` and 107 Node tests cover combat, rigs, traffic, bus cycles, the complete 18-encounter campaign, 40 endless encounters, objective gates, captain defeat, upgrades, recovery, save validation and reward deduplication. Browser QA verified two distinct knockdowns, an encounter retry, missed buses preserving objective progress, winning a seat, upgrade/travel selection and restoring those choices after reload. The travel dialog was checked at 390 × 844. Browser playtesting also verified a trolley strike, a connected throw earning the second dare and opening with zero knockdowns, the cooler spill, and touch activation at 390 × 844 with no logged errors or warnings. Street Tricks tests additionally cover trolley multi-hits, spill zones, missed tricks, dare rotation, captain gates, counter recovery, critical health, practice isolation and replacement-bus pacing. Long-term retention, broad device compatibility and combat balance still need real-player testing.
 
 ## Design tokens
 

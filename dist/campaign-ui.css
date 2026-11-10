@@ -8,3 +8,7 @@
 @media(min-width:761px) and (min-height:541px){.challenge-panel{top:310px;width:218px;padding:10px 14px}.run-rule{max-height:146px;overflow-y:auto}}
 @media(min-width:761px) and (max-width:1000px) and (min-height:541px){.challenge-panel{right:22px;width:175px}}
 @media(max-width:760px) and (min-height:701px){.campaign-playing .run-rule{top:279px}.campaign-playing .rival-panel,.campaign-playing .boarding-alert{top:306px}}
+
+/* Dares stay readable on phones; rival health remains above the 3D fighters. */
+@media(max-width:760px){.campaign-playing .challenge-panel{display:flex;top:286px;left:18px;right:18px;width:auto;padding:9px 11px;background:#102b2cf0}.campaign-playing .challenge-panel>b{display:block;font-size:8px}.campaign-playing .challenge-panel>span{font-size:10px;line-height:1.5}.campaign-playing .run-rule{display:none}.campaign-playing .rival-panel{display:none}.campaign-playing .boarding-alert{top:375px}.campaign-playing .objective>strong{font-size:22px}.campaign-playing .encounter-status{font-size:9px}}
+@media(max-width:760px) and (max-height:700px){.campaign-playing .challenge-panel{top:260px}.campaign-playing .boarding-alert{top:344px}.campaign-playing .challenge-panel>span{font-size:9px}}

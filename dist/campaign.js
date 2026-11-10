@@ -3,8 +3,8 @@ import {characterById,CHARACTERS} from './characters.js';
 import {CONDITIONS,CAPTAINS,UPGRADES,seededRandom,shuffled} from './journey.js';
 
 export const ENCOUNTERS=[
-  {kind:'crew',name:'Break the queue',detail:'Knock down 2 different rivals, then fight your way onto the trotro.',goal:2},
-  {kind:'defence',name:'Hold your place',detail:'Stop 3 different rivals: interrupt their boarding or knock them down. Then take your seat.',goal:3},
+  {kind:'crew',name:'Break the queue',detail:'Knock down 2 different rivals OR complete 2 crowd dares, then board.',goal:2},
+  {kind:'defence',name:'Hold your place',detail:'Stop 3 different rivals OR complete 2 crowd dares. Then take your seat.',goal:3},
   {kind:'captain',name:'Captain showdown',detail:'Defeat the district captain, then board. Shoving past them is not enough.',goal:1}
 ];
 export const TRAVEL_CHOICES=[
@@ -32,7 +32,7 @@ export class CityJourney {
   get ready(){return this.canContinue&&!!this.selectedUpgrade&&(this.upgrades.length<3||this.upgrades.includes(this.replaceUpgrade));}
   createRound(){
     if(this.phase!=='fight')return null;
-    const r=new Round(this.mode,seededRandom(this.seed+':fight:'+this.index),{character:this.character.id,stage:this.index+1,difficultyLevel:Math.min(4,this.district),health:this.health,weapon:this.weapon,condition:this.conditionAt(this.index),upgrades:this.upgrades,captain:this.index%3===2?this.captain:null,quickArrival:true,closeStart:true,encounter:this.encounter});
+    const r=new Round(this.mode,seededRandom(this.seed+':fight:'+this.index),{character:this.character.id,stage:this.index+1,difficultyLevel:Math.min(4,this.district),health:this.health,weapon:this.weapon,condition:this.conditionAt(this.index),upgrades:this.upgrades,captain:this.index%3===2?this.captain:null,quickArrival:true,closeStart:true,streetPace:2,encounter:this.encounter});
     if(this.arrival==='charge')r.momentum=100;if(this.arrival==='risk'){r.config.damage*=1.2;r.scoreBonus=1.3;}
     this.round=r;return r;
   }

@@ -62,7 +62,10 @@ export class CombatSystem {
     if(weaponStrike)move.damage=Math.round(move.damage*r.bonuses.damage);if(id==='throw')move.damage=Math.round(move.damage*(r.condition?.throws||1));
     if(weaponStrike)move.cost=Math.round(move.cost*(r.character?.cost||1));if(['kick','sweep','knee','spin'].includes(id))move.damage=Math.round(move.damage*(r.character?.kick||1));
     if(p.stamina<move.cost){r.emit('combat-note',{text:'Need stamina — create some space.'});return false;}
-    const target=this.target;if(target){this.targetId=target.id;p.face=Math.atan2(target.x-p.x,target.z-p.z);}
+    const target=this.target;if(target){this.targetId=target.id;p.face=Math.atan2(target.x-p.x,target.z-p.z);
+      // A short approach makes confirmed strings connect without teleporting through crowds.
+      if((this.history.length||p.counterTime>0)&&!move.lunge&&id!=='throw'&&id!=='special'){const gap=dist(p,target)-move.reach+.15;if(gap>0&&gap<(p.counterTime>0?1.5:.8))move.lunge=Math.min(gap,p.counterTime>0?1.25:.65);}
+    }
     p.stamina-=move.cost;p.rest=.65;p.action='attack';p.actionTime=move.total;p.attackDuration=move.total;p.cooldown=move.total;p.moveId=id;p.movePhase=0;p.moveStartup=move.startup/move.total;p.counterStrike=p.counterTime>0;p.counterTime=0;
     if(p.counterStrike)move.damage=Math.round(move.damage*1.35);
     r.board=0;this.active={move,input,elapsed:0,hitIndex:0,confirmed:false,targetId:target?.id,lunge:0};
@@ -100,6 +103,8 @@ export class CombatSystem {
     }).sort((x,y)=>(x.id===a.targetId?-1:y.id===a.targetId?1:dist(p,x)-dist(p,y)));
     let connected=false,damageTotal=0;
     for(const e of candidates.slice(0,move.targets)){
+      const adapting=r.mode!=='easy'&&(e.readUntil||0)>r.elapsed&&e.state==='recover'&&(e.y||0)<.05&&e.guardBroken<=0;
+      if(adapting){e.state='guard';e.defending=true;}
       const guarding=e.defending&&e.state==='guard'&&!move.low&&!move.throw;
       let damage=move.damage;
       if(guarding){
@@ -109,6 +114,7 @@ export class CombatSystem {
       }
       const aerial=(e.y||0)>.05;if(aerial)damage=Math.round(damage*Math.max(.45,.78**(e.juggleHits||0)));
       if(!a.counterRewarded&&p.counterStrike){a.counterRewarded=true;p.hp=Math.min(100,p.hp+r.bonuses.counterHeal);r.stylish('counter');}
+      if(['jab','cross'].includes(move.id)){e.lightReads=(e.lightReads||0)+1;if(e.lightReads>=3){e.readUntil=r.elapsed+2.4;e.lightReads=0;}}else{e.lightReads=0;e.readUntil=0;}
       const before=e.hp;r.strikeEnemy(e,damage,move.push,move.stun,{smooth:true,move:move.id,finisher:!!move.finisher,air:aerial,trip:move.trip});damageTotal+=Math.min(before,before-e.hp);connected=true;
       if(move.launch||aerial){
         e.juggleHits=aerial?(e.juggleHits||0)+1:0;
@@ -121,7 +127,7 @@ export class CombatSystem {
     if(connected){
       if(!a.confirmed){
         this.history=a.move.finisher?[]:[...this.history,a.input.kind].slice(-2);
-        r.coach.hit=true;r.stylish(move.id);if(a.move.finisher){r.finisherReward();r.progressChallenge('finisher');r.emit('finisher',{name:move.name,move:move.id});}
+        r.coach.hit=true;r.stylish(move.id);r.street?.record('move',move.id);if(move.throw)r.street?.record('throw');if(a.move.finisher&&move.id!=='special')r.street?.record('finisher');if(a.move.finisher){r.finisherReward();r.progressChallenge('finisher');r.emit('finisher',{name:move.name,move:move.id});}
       }
       a.confirmed=true;this.lastContact=r.elapsed;r.lastCombo=r.elapsed;r.combo++;
       r.chain++;r.bestChain=Math.max(r.bestChain,r.chain);r.chainTime=3.5;r.comboDamage=(r.comboDamage||0)+damageTotal;r.gainMomentum(move.finisher?17:8);p.stamina=Math.min(100,p.stamina+2);

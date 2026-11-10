@@ -42,7 +42,7 @@ export class Stage {
   }
   clear(group){const geometries=new Set(),materials=new Set();group.traverse(o=>{if(o.isMesh){if(!this.humans.geometries.has(o.geometry))geometries.add(o.geometry);const list=Array.isArray(o.material)?o.material:[o.material];for(const m of list)if(!Object.values(this.materials).includes(m)&&!this.humans.materials.has(m))materials.add(m);if(o.isSkinnedMesh)o.skeleton.dispose();if(o.isInstancedMesh)o.dispose();}});for(const g of geometries)g.dispose();for(const m of materials){if(m.map)m.map.dispose();m.dispose();}group.clear();}
   build(arena){
-    this.clear(this.environment);this.clear(this.dynamic);this.actors=[];this.effects=[];this.pickupMeshes=[];this.extras=[];this.busRiders=[];this.escapeDeparture=0;this.queue=[];this.arena=arena;
+    this.clear(this.environment);this.clear(this.dynamic);this.actors=[];this.effects=[];this.pickupMeshes=[];this.streetMeshes=[];this.extras=[];this.busRiders=[];this.escapeDeparture=0;this.queue=[];this.arena=arena;
     this.scene.background=this.sky;this.scene.fog=new T.Fog(0xb9b4a1,35,110);const g=this.environment;
     this.box(g,150,.18,150,this.texture('dirt'),0,-.17,0);this.box(g,65,.08,65,this.texture('road'),1,-.045,-1);
     for(let i=-6;i<10;i++){this.box(g,1.3,.1,.35,i%2?0xc8bda2:0x5c625c,-11,.02,i*1.8);}
@@ -239,6 +239,29 @@ export class Stage {
       else{this.cylinder(display,.11,.12,.4,0x89ac9d);this.cylinder(display,.07,.07,.1,0xf0ead6,0,.25,0);}
       mesh.userData.display=display;return mesh;
     });
+    this.buildStreetProps(round);
+  }
+  buildStreetProps(round){
+    this.streetMeshes=round.street.props.map(prop=>{
+      const group=new T.Group();group.position.set(prop.x,0,prop.z);this.dynamic.add(group);
+      const body=new T.Group();group.add(body);
+      if(prop.id==='trolley'){
+        this.box(body,1.05,.12,.75,0x596b6b,0,.3,0);
+        for(const x of [-.44,.44])for(const z of [-.27,.27]){const wheel=this.cylinder(body,.14,.14,.09,0x202a2d,x,.15,z);wheel.rotation.z=Math.PI/2;}
+        for(const x of [-.43,.43])this.cylinder(body,.035,.035,.95,0xa5b6b2,x,.8,.33);
+        const handle=this.cylinder(body,.04,.04,.86,0x33494b,0,1.26,.33);handle.rotation.z=Math.PI/2;
+        this.roundedBox(body,.7,.45,.55,mat(0xa9663c),0,.6,0);this.roundedBox(body,.55,.29,.4,mat(0x4c7b74),.08,.97,0);
+      }else{
+        this.roundedBox(body,.85,.68,.64,mat(0x438ea3),0,.38,0);this.box(body,.93,.1,.72,0xe9e8ce,0,.77,0);this.box(body,.3,.09,.08,0xf2ebc9,0,.5,.36);
+      }
+      const ring=new T.Mesh(new T.RingGeometry(.93,1.03,40),new T.MeshBasicMaterial({color:0x87ebc9,transparent:true,opacity:.75,side:T.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=.04;group.add(ring);
+      const label=new T.Mesh(new T.PlaneGeometry(1.65,.27),this.label(prop.id==='trolley'?'R · KICK TROLLEY':'R · SPILL WATER',512,96,'#123b37','#b9ffe3'));label.position.y=1.65;group.add(label);
+      const puddle=new T.Mesh(new T.CircleGeometry(2.3,48),new T.MeshStandardMaterial({color:0x69cadb,transparent:true,opacity:.56,roughness:.12,metalness:.2,depthWrite:false}));puddle.rotation.x=-Math.PI/2;puddle.position.y=.027;puddle.visible=false;group.add(puddle);
+      return{group,body,ring,label,puddle};
+    });
+  }
+  updateStreetProps(round){
+    round.street.props.forEach((prop,i)=>{const visual=this.streetMeshes[i];if(!visual)return;visual.group.position.set(prop.x,0,prop.z);visual.body.rotation.y=prop.id==='trolley'&&prop.dx!==undefined?Math.atan2(prop.dx,prop.dz):0;visual.body.rotation.z=prop.state==='spill'?.5:0;visual.ring.visible=prop.state==='ready';visual.ring.material.opacity=.55+Math.sin(this.clock*4)*.2;visual.label.visible=prop.state==='ready';visual.label.quaternion.copy(this.camera.quaternion);visual.puddle.visible=prop.state==='spill';visual.puddle.material.opacity=.3+Math.min(1,prop.time/2)*.22;});
   }
   pose(actor,data,dt){
     const isPlayer=actor.player,state=isPlayer?data.action:data.state;actor.group.visible=state!=='boarded';actor.group.position.set(data.x,data.y||0,data.z);const diff=Math.atan2(Math.sin(data.face-actor.group.rotation.y),Math.cos(data.face-actor.group.rotation.y));actor.group.rotation.y+=diff*Math.min(1,dt*15);
@@ -276,6 +299,7 @@ export class Stage {
     if(lobby){const target=new T.Vector3(narrow?10:10,narrow?4.4:3.6,narrow?13:10);this.camera.position.lerp(target,Math.min(1,dt*2));this.look.lerp(new T.Vector3(narrow?2:1.2,1,-4),dt*2);}
     else if(round&&this.player){
       round.player.moving=!!round.player.moving;round.player.rushing=round.rushTime>0;round.player.combat=round.combatActive;this.pose(this.player,round.player,dt);const focused=round.combat.target;round.enemies.forEach((e,i)=>{e.combat=round.combatActive;e.focused=e.id===focused?.id;this.pose(this.actors[i],e,dt);});
+      this.updateStreetProps(round);
       round.pickups.forEach((p,i)=>{const mesh=this.pickupMeshes[i];mesh.visible=!p.used;mesh.userData.display.position.y=.8+Math.sin(this.clock*3+i)*.04;if(mesh.userData.label)mesh.userData.label.quaternion.copy(this.camera.quaternion);});
       const p=round.player,focus=new T.Vector3(p.x*.72+DOOR.x*.28,1.05,p.z*.72+DOOR.z*.28),waiting=!round.combatActive;
       const special=round.combat.active?.move.id==='special'&&this.shakeEnabled;
