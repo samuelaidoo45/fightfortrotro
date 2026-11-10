@@ -57,3 +57,10 @@
  #hud #touch-special{top:58px;width:56px;height:56px;font-size:10px;gap:2px}#hud #touch-special svg{width:16px;height:16px}
  #thumbstick{width:96px;height:96px}
 }
+
+/* Keep the actual round difficulty visible, including resumed and daily runs. */
+#hud .player-heading{flex-wrap:wrap;gap:6px 8px;align-items:center}
+#hud #difficulty-badge{display:inline-flex;align-items:center;flex:none;padding:3px 7px;border:1px solid #e7c37988;border-radius:5px;background:#263949e8;color:#ffdb90;font:600 10px/1.2 'Barlow',sans-serif;text-shadow:none}
+#hud #difficulty-badge[data-mode=easy]{color:#bce8ce;border-color:#99c7b080}
+#hud #difficulty-badge[data-mode=hard]{color:#ffb9a5;border-color:#e3a08c80}
+#hud #weapon-label{margin-left:auto}

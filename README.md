@@ -2,6 +2,8 @@
 
 A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro, with ten fighters, Easy/Normal/Hard, contested boarding and six Accra-inspired districts.
 
+Version 1.4.6 adds an always-visible Easy, Normal or Hard badge beside the player name on desktop and mobile. The badge uses the active round’s difficulty, including saved journeys and fixed-Normal daily routes.
+
 Version 1.4.5 restyles touch controls with distinct action icons, raised press feedback, a bounded joystick and a Special charge bar. Fullscreen and Rotate buttons are available in the menu, HUD and Pause. Rotate requests native portrait/landscape locking after fullscreen where supported; unsupported or denied requests explain physical rotation and auto-rotate. Exiting fullscreen releases the orientation lock. All labels follow the actual viewport, with safe-area spacing for phone notches.
 
 Version 1.4.4 makes nearby rivals proactively challenge the player while the rest of the crowd keeps brawling. The combat area now includes the starting approach and both entrances. Easy, Normal and Hard still limit simultaneous player attacks to one, two and three respectively; telegraphed attacks, health protection and a retreat area remain.
