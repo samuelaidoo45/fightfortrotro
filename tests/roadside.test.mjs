@@ -13,11 +13,11 @@ test('a home run starts with a safe preparation period, then a crowd forms befor
   step(r,.12);assert.equal(r.bus.number,1);assert.equal(r.combatActive,true);assert.equal(r.doorBlocked,true);
 });
 
-test('a clean shove can win every difficulty with the heavy blocker alive and zero knockdowns',()=>{
+test('a clean shove cannot bypass living rivals on any difficulty',()=>{
   for(const mode of ['easy','normal','hard']){
     const r=new Round(mode,()=>.5);Object.assign(r.player,{x:DOOR.x,z:DOOR.z+1});
     assert.equal(r.doorBlocked,true);assert.equal(r.shove(),true);assert.equal(r.doorBlocked,false);
-    step(r,.35,{z:-1});step(r,1.8,{board:true});assert.equal(r.status,'won',mode);assert.equal(r.kos,0);assert.ok(r.keeper.hp>0);
+    step(r,.35,{z:-1});step(r,1.8,{board:true});assert.equal(r.status,'playing',mode);assert.equal(r.board,0);assert.equal(r.kos,0);assert.ok(r.keeper.hp>0);
   }
 });
 

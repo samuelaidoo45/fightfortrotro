@@ -3,9 +3,9 @@ import {characterById,CHARACTERS} from './characters.js';
 import {CONDITIONS,CAPTAINS,UPGRADES,seededRandom,shuffled} from './journey.js';
 
 export const ENCOUNTERS=[
-  {kind:'crew',name:'Break the queue',detail:'Knock down 2 different rivals OR complete 2 crowd dares, then board.',goal:2},
-  {kind:'defence',name:'Hold your place',detail:'Stop 3 different rivals OR complete 2 crowd dares. Then take your seat.',goal:3},
-  {kind:'captain',name:'Captain showdown',detail:'Defeat the district captain, then board. Shoving past them is not enough.',goal:1}
+  {kind:'crew',name:'Clear the queue',detail:'Clear every rival for the door, or risk the window shortcut.',goal:2},
+  {kind:'defence',name:'Win the scramble',detail:'Stop boarding attempts and defeat every rival. Nobody gets back up.',goal:3},
+  {kind:'captain',name:'Captain showdown',detail:'Clear the captain and crowd for the door, or escape through the window.',goal:1}
 ];
 export const TRAVEL_CHOICES=[
   {id:'rest',name:'Take a breather',tag:'Recovery',detail:'Recover 40 health before the next encounter.'},

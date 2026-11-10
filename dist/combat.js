@@ -31,9 +31,9 @@ export class CombatSystem {
   cycleTarget(){const list=this.round.enemies.filter(e=>e.hp>0&&e.state!=='boarded'&&dist(e,this.round.player)<6).sort((a,b)=>a.id-b.id);if(!list.length)return;const index=list.findIndex(e=>e.id===this.target?.id);this.targetId=list[(index+1)%list.length].id;this.manualUntil=this.round.elapsed+4;}
   reset(){this.active=null;this.queue=[];this.history=[];this.trail=[];this.lastContact=-10;this.round.player.moveId=null;this.round.player.cooldown=0;this.round.player.actionTime=0;this.round.player.action='idle';}
   interrupted(){this.reset();this.round.combo=0;this.round.comboDamage=0;}
-  neutral(){const p=this.round.player;return !this.active&&!['dodge','shove','hitstun'].includes(p.action)&&p.cooldown<=0;}
+  neutral(){const p=this.round.player;return !this.active&&!['dodge','shove','hitstun','vault'].includes(p.action)&&p.cooldown<=0;}
   press(kind='light',direction=0){
-    const r=this.round;if(!r.combatActive||r.status!=='playing'||!['light','heavy','kick','grab'].includes(kind))return false;
+    const r=this.round;if(!r.combatActive||r.status!=='playing'||!['light','heavy','kick','grab'].includes(kind))return false;if(r.window?.active)return r.window.kick();
     this.trail.push({key:kind==='light'?'J':kind==='heavy'?'I':kind==='grab'?'O':direction<0?'S+U':direction>0?'W+U':'U',time:r.elapsed});this.trail=this.trail.slice(-6);
     const input={kind,direction,expires:r.elapsed+1.25};
     if(this.neutral())return this.start(input);
@@ -73,7 +73,7 @@ export class CombatSystem {
     return true;
   }
   special(){
-    const r=this.round,p=r.player;if(!r.combatActive||r.status!=='playing'||r.momentum<100||this.active?.move.id==='special')return false;
+    const r=this.round,p=r.player;if(!r.combatActive||r.status!=='playing'||r.momentum<100||r.window?.active||this.active?.move.id==='special')return false;
     if(!this.target||dist(this.target,p)>3.5){r.emit('combat-note',{text:'Get closer to a rival to use your special.'});return false;}
     this.reset();r.momentum=0;p.stamina=100;p.invulnerable=1.6;r.rushTime=3;this.start({kind:'special',direction:0},true);r.emit('special',{x:p.x,z:p.z});return true;
   }

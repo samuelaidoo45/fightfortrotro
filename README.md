@@ -2,11 +2,15 @@
 
 A playable browser prototype of a 3D arena fighting game about reaching the last seat in a trotro, with ten fighters, Easy/Normal/Hard, contested boarding and six Accra-inspired districts.
 
-Version 1.1, **Street Tricks**, changes the fight itself. R kicks a luggage trolley through multiple rivals or tips a cooler into a seven-second trip zone. Props reset for the next bus. Five rotating crowd dares reward connected throws, varied attacks, finishers, timed defence and successful environmental tricks; completing two offers an alternative boarding opening in queue and defence encounters. Captains still require defeat.
+Version 1.2, **Door or Window**, clears the mobile arena: a small health/timer strip, thumb joystick, four combat buttons and one contextual action replace the stacked overlays. Game options expand from the menu, and objectives/move details live in Pause.
 
-Dodge can cancel attack recovery after contact, and connected strings/counters have a short approach assist. Normal/Hard rivals guard after repeated jabs, encouraging sweeps, throws and heavy guard breaks. One critical-health comeback per encounter fills special and stamina with brief protection. Replacement bus transit takes roughly half as long, preserving the first preparation period and boarding window. Existing saves continue to work.
+Defeat every rival to unlock the door; defeated rivals stay down for that encounter. The window is a contested shortcut that works while rivals are still standing. Shove the watching conductor or wait for him to look away, then vault for 20 stamina. Nearby rivals telegraph a grab and can pull you down for 5 damage. Hold Fight (J) while climbing to kick them away for 12 stamina. Rivals alternate between door and window attempts; hit, throw or shove them before they claim the seat. The contextual button offers Pull rival down when within throwing range of a window climber. A stolen seat or departing bus cancels your climb.
 
-Version 1.0, **The Accra Circuit**, makes City Journey the default: 18 encounters across six districts. Every district has a queue clash (knock down two different rivals), seat defence (interrupt or knock down three different rivals), and a captain showdown. Earn the opening through the combat objective or two crowd dares before boarding; a single shove cannot skip the encounter. Missed buses preserve objective progress and enemy damage.
+Enemy damage is reduced by 35%, with 0.65 seconds of protection after an unblocked hit. Four seconds without damage, away from the doorway or between buses, restores 3 health per second up to 70. Clearing the crowd adds 12 health and eight boarding seconds once. The mate calls the destination on arrival using available device speech, alongside engine/brake and combat effects.
+
+Street tricks and crowd dares remain: R kicks a luggage trolley or tips a cooler into a trip zone. Props reset for the next bus. Dares reward health, stamina, score and special charge; they no longer unlock the door. Dodge cancels attack recovery after contact. Repeated jabs provoke guards on Normal/Hard, and one critical-health comeback fills special and stamina. Replacement buses return faster. Existing saved journeys continue to work.
+
+City Journey has 18 encounters across six districts, alternating queue fights, boarding scrambles and captain encounters. Missed buses preserve damage and defeated rivals.
 
 Every successful ride banks progress. Defeat retries only the current encounter with at least 70 health, keeping completed encounters and the build. Between rides, choose from eight upgrades with three active slots, replacing one when full. Recover health, arrive with a full special, or accept harder hits for a score bonus. Conditions change each encounter. Endless Commute continues beyond the campaign with capped enemy counts and difficulty scaling; Quick ride preserves the original three-stop arcade run.
 
@@ -14,9 +18,9 @@ City Journey and Endless each have an independent device-local checkpoint. Leavi
 
 Ten selectable commuters have distinct human models, starting gear and modest play-style bonuses. Three confirmed combo routes lead to launchers, spinning kicks and shoulder drives. Heavy attacks, low sweeps, throws, counters, air juggles and a three-hit cinematic special provide the combat vocabulary. A practice mode and paused move list help learn timing.
 
-Rivals now compete for the last seat: they hold the doorway, then rush to board. Interrupt the highlighted rival with an attack or shove. If they board first, the bus leaves full and you fight for the next arrival, keeping health, gear and score. Passing traffic, curbside bus movement and six Accra-inspired arenas remain part of the game.
+Rivals now compete for the last seat: they guard the stop, then race through either the door or window. Interrupt the highlighted rival with an attack or shove. If they board first, the bus leaves full and you fight for the next arrival, keeping health, gear and score. Passing traffic, curbside bus movement and six Accra-inspired arenas remain part of the game.
 
-The camera follows from behind the player and keeps the entrance in view. Subtitled mate calls, engine/brake effects, a last-call countdown and a sliding door signal each phase. Spoken calls use a local English device voice when one is available. Textured, rigged Microsoft Rocketbox models supply natural human proportions and skeletal movement. The environment remains an original Accra-inspired interpretation, not a surveyed or fully photorealistic reconstruction. See [the game design](docs/GAME_DESIGN.md).
+The camera follows from behind the player and keeps the entrance in view. Subtitled mate calls, engine/brake effects, a last-call countdown and a sliding door signal each phase. Spoken calls prefer a Ghanaian English device voice, then another English voice; availability depends on the browser and device. Textured, rigged Microsoft Rocketbox models supply natural human proportions and skeletal movement. The environment remains an original Accra-inspired interpretation, not a surveyed or fully photorealistic reconstruction. See [the game design](docs/GAME_DESIGN.md).
 
 ## Run
 
@@ -46,11 +50,12 @@ npm test
 | Switch focus / paused move list | Tab / M |
 | High / low block | K / S + K |
 | Dodge | L or Space |
-| Board at the glowing door | Hold E |
+| Board at the glowing door after clearing all rivals | Hold E |
+| Vault through the window / kick grabbers away | G / hold J |
 | Street trick / equip a weapon / drink | R |
 | Pause | Esc or P |
 
-Touch controls appear on narrow screens and devices with a coarse pointer. Audio can be muted. Pausing freezes the simulation; switching tabs pauses automatically. Escape closes the result screen and returns to the lobby. Personal best home-run scores are stored only in the browser, per starting stop, difficulty and character. Career and daily records are also device-local; clearing browser data removes them. Daily records retain the most recent 30 dates. No global leaderboard or cloud save is implied. Sound starts enabled and can be muted in the menu or pause screen.
+Touch controls use a camera-relative joystick, hold-to-combo Fight, Guard, Dodge, Special and a contextual action. They appear on narrow screens and devices with a coarse pointer. Audio can be muted. Pausing freezes the simulation; switching tabs pauses automatically. Escape closes the result screen and returns to the lobby. Personal best home-run scores are stored only in the browser, per starting stop, difficulty and character. Career and daily records are also device-local; clearing browser data removes them. Daily records retain the most recent 30 dates. No global leaderboard or cloud save is implied. Sound starts enabled and can be muted in the menu or pause screen.
 
 ## Fight for the opening
 
@@ -74,13 +79,15 @@ Full buses close their doors and leave. In player runs, transit is accelerated: 
 
 ## Source
 
-- `dist/street.js`: physical street tricks, rotating crowd dares, creative boarding openings and one-use comebacks.
+- `dist/street.js`: physical street tricks, rotating crowd dares, bonus rewards and one-use comebacks.
 - `tests/street-play.test.mjs`: trick collisions, reward eligibility, varied attacks, dodge cancellation, anti-spam guards and faster bus returns.
 - `dist/campaign.js`: saved City Journey and Endless progression, encounter objectives, travel choices and validated checkpoints.
 - `dist/journey.js`: conditions, upgrades, captains, seeded daily routes and career rewards.
 - `dist/campaign-ui.css`: campaign menu, district map, travel decisions and responsive layouts.
 - `tests/campaign.test.mjs`: campaign completion, objective gates, retries, three-slot builds, checkpoint validation, reward deduplication and 40-encounter endless progression.
 - `dist/layout.js`: shared curb, door, guard posts, traffic lanes and bus movement paths.
+- `dist/boarding.js` and `dist/mobile.js`: contested window climbing and compact touch controls.
+- `tests/mobile-boarding.test.mjs`: window/door competition, interruption, health and touch helpers.
 - `dist/core.js`: rendering-independent AI, boarding competition, collision, pickups and round outcomes.
 - `dist/combat.js`: move timing, buffered input, confirmed branches, guards, counters and air juggles.
 - `dist/characters.js`: ten playable commuters, model mapping, starting equipment and perks.
@@ -90,7 +97,7 @@ Full buses close their doors and leave. In player runs, transit is accelerated: 
 - `dist/game.js`: input, menus, HUD, sound, pause and local records.
 - `dist/game-ui.css`: full-screen menu, responsive game HUD, dialogs and touch controls.
 - `tests/street-challenge.test.mjs`: traffic movement/spacing, charge, score streaks, timed rewards, heavy attacks and last-call cues.
-- `tests/roadside.test.mjs`: preparation, gathering, zero-knockdown boarding, regrouping, full-bus waiting and parallel-bus geometry.
+- `tests/roadside.test.mjs`: preparation, gathering, all-rival door gating, regrouping, full-bus waiting and parallel-bus geometry.
 - `tests/core.test.mjs`: behavioral tests for the game rules.
 - `tests/combat.test.mjs`: combo timing, guard interaction, counter windows, juggling, interruptions and boarding races.
 - `tests/characters.test.mjs`: roster uniqueness, equipment/appearance carry-over and working perks.
@@ -103,7 +110,7 @@ There is no backend, player tracking, paid API, or Google Maps key. The Maps lin
 
 ## Verified in this build
 
-`npm run check` and 107 Node tests cover combat, rigs, traffic, bus cycles, the complete 18-encounter campaign, 40 endless encounters, objective gates, captain defeat, upgrades, recovery, save validation and reward deduplication. Browser QA verified two distinct knockdowns, an encounter retry, missed buses preserving objective progress, winning a seat, upgrade/travel selection and restoring those choices after reload. The travel dialog was checked at 390 × 844. Browser playtesting also verified a trolley strike, a connected throw earning the second dare and opening with zero knockdowns, the cooler spill, and touch activation at 390 × 844 with no logged errors or warnings. Street Tricks tests additionally cover trolley multi-hits, spill zones, missed tricks, dare rotation, captain gates, counter recovery, critical health, practice isolation and replacement-bus pacing. Long-term retention, broad device compatibility and combat balance still need real-player testing.
+`npm run check` and 125 Node tests cover combat, journeys, saves, traffic, persistent knockdowns, the all-rival door gate, window shortcuts, conductor rebuffs, rival grabs, kick escapes, window-rival interruptions, seat theft during a vault, safer health tuning, joystick math and assisted combos. Browser QA checked the compact menu, pause/move list, joystick and held Fight control, window-climb rendering and contextual rival-window interruption at 390 × 844, 360 × 740 and 844 × 390, with no logged errors or warnings. Real-device audio, touch ergonomics across devices and long-term retention still need player testing.
 
 ## Design tokens
 

@@ -59,12 +59,15 @@ export class HumanLibrary {
     if(state==='seated'){
       for(const [side,x] of [['left',.14],['right',-.14]]){const thigh=actor.bones[side+'Thigh'],calf=actor.bones[side+'Calf'],foot=actor.bones[side+'Foot'];if(thigh&&calf&&foot){this.aim(thigh,calf,actor.group.localToWorld(v(x,.9,.44)));this.aim(calf,foot,actor.group.localToWorld(v(x,.43,.46)));}}
       this.arm(actor,'left',v(.18,.98,.36),v(.34,1.07,.12));this.arm(actor,'right',v(-.18,.98,.36),v(-.34,1.07,.12));
+    }else if(state==='vault'){
+      actor.body.rotation.x=-.65;actor.body.position.y=.1;this.arm(actor,'left',v(.25,1.65,.55),v(.45,1.3,.2));this.arm(actor,'right',v(-.25,1.65,.55),v(-.45,1.3,.2));this.leg(actor,'left',v(.25,.4,.45),v(.25,.8,.6));this.leg(actor,'right',data.vaultKick>0?v(-.25,.65,-.9):v(-.25,.25,.3),data.vaultKick>0?v(-.3,.85,-.4):v(-.3,.7,.5));
     }else if(state==='airborne'){
       actor.body.rotation.x=-.45-Math.min(1,(data.y||0))*.45;actor.body.rotation.z=data.airStyle==='throw'?Math.sin(time*13)*.55:.18;
       this.arm(actor,'left',v(.56,1.6,.1),v(.55,1.3,-.05));this.arm(actor,'right',v(-.55,1.55,.1),v(-.55,1.22,-.05));
       this.leg(actor,'right',v(-.22,.35,.42),v(-.22,.8,.65));this.leg(actor,'left',v(.25,.2,-.22),v(.25,.7,.1));
     }else if(state==='block'||data.defending){actor.body.rotation.x=.08;actor.body.position.y=data.crouch?-.35:-.06;guard();if(data.crouch){this.leg(actor,'right',v(-.22,.08,.13),v(-.25,.55,.5));this.leg(actor,'left',v(.23,.08,-.12),v(.25,.55,.3));}}
     else if(state==='shove'){const phase=1-Math.max(0,data.actionTime)/.44,extension=Math.sin(Math.min(1,phase)*Math.PI);actor.body.rotation.x=.13*extension;this.arm(actor,'left',v(.19,1.33,.3+extension*.37),v(.4,1.05,.18));this.arm(actor,'right',v(-.19,1.33,.3+extension*.37),v(-.4,1.05,.18));}
+    else if(state==='pulling'){actor.body.rotation.x=-.15;this.arm(actor,'left',v(.2,1.85,.55),v(.4,1.35,.25));this.arm(actor,'right',v(-.2,1.85,.55),v(-.4,1.35,.25));}
     else if(state==='boarding'){actor.body.rotation.x=.12;this.arm(actor,'left',v(.2,1.25,.46),v(.4,1.08,.13));this.arm(actor,'right',v(-.2,1.4,.4),v(-.4,1.15,.1));}
     else if(state==='attack'||state==='swing'){
       let phase=data.movePhase??(.35+(1-Math.max(0,data.timer)/.23)*.65),id=data.moveId||(data.attackKind==='low'?'sweep':data.attackKind)||'jab',hitAt=data.moveStartup||.38;

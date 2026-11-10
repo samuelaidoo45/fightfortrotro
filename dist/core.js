@@ -1,7 +1,8 @@
-import {DOOR,PAVEMENT,BUS_BOUNDS,GUARD_POSTS} from './layout.js';
+import {DOOR,WINDOW,PAVEMENT,BUS_BOUNDS,GUARD_POSTS} from './layout.js';
 import {CHARACTERS,characterById} from './characters.js';
 import {CombatSystem} from './combat.js';
 import {StreetPlay} from './street.js';
+import {WindowBoarding} from './boarding.js';
 import {CONDITIONS,CAPTAINS,UPGRADES,shuffled,upgradeEffects,seededRandom} from './journey.js';
 export {DOOR} from './layout.js';
 export const MODES = {
@@ -85,7 +86,7 @@ export class Round {
     if(this.captain){Object.assign(this.keeper,{captain:this.captain.id,character:this.captain.character,hp:this.config.gateHp+35,maxHp:this.config.gateHp+35});}
     if(options.closeStart)Object.assign(this.player,{x:1.7,z:1.4});
     if(this.practice){this.bus.phase='boarding';this.bus.full=false;this.bus.remaining=base.busWindow;this.enemies=this.enemies.slice(0,1);Object.assign(this.keeper,{hp:350,maxHp:350});Object.assign(this.player,{x:DOOR.x,z:DOOR.z+2.5});this.momentum=100;}
-    this.street=new StreetPlay(this);
+    this.street=new StreetPlay(this);this.window=new WindowBoarding(this);this.assistIndex=0;this.boardingAttempts=0;this.lastDamage=-10;this.config.damage*=.65;
   }
   get weapon(){return weaponStats(this.player.weapon);}
   get boardingRival(){return this.enemies.find(e=>e.state==='rushing'||e.state==='boarding')||null;}
@@ -105,10 +106,11 @@ export class Round {
     else if(change.to==='boarding')this.emit('message',{text:'One free seat! Clear the doorway and fight your way in.'});
   }
   get keeper(){return this.enemies.find(e=>e.role==='keeper');}
-  get encounterProgress(){return !this.encounter?0:this.encounter.kind==='captain'?(this.keeper?.hp<=0?1:0):this.encounter.kind==='defence'?this.stopped.size:this.defeated.size;}
-  get encounterComplete(){return !this.encounter||this.encounterProgress>=this.encounter.goal||(this.encounter.kind!=='captain'&&this.street?.opening);}
+  get encounterProgress(){return this.enemies.filter(e=>e.hp<=0).length;}
+  get encounterGoal(){return this.enemies.length;}
+  get encounterComplete(){return !this.practice&&this.encounterProgress===this.encounterGoal;}
   get gateCleared(){return !this.doorBlocked&&this.encounterComplete;}
-  get target(){if(!this.combatActive)return null;const trick=!this.encounterComplete&&this.street.dare.kind==='trick'&&!this.street.intermission?this.street.props.filter(p=>p.state==='ready').sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0]:null;return this.boardingRival||trick||(!this.encounterComplete?this.encounter.kind==='captain'?this.keeper:this.combat.target:DOOR);}
+  get target(){if(!this.combatActive)return null;const trick=!this.encounterComplete&&this.street.dare.kind==='trick'&&!this.street.intermission?this.street.props.filter(p=>p.state==='ready').sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0]:null;return this.boardingRival||trick||(!this.encounterComplete?this.encounter?.kind==='captain'?this.keeper:this.combat.target:DOOR);}
   get blockers(){return this.enemies.filter(e=>e.hp>0&&['guard','windup','swing','rushing','boarding'].includes(e.state)&&distance(e,DOOR)<1.65);}
   get doorBlocked(){return this.blockers.length>0;}
   emit(type,data={}){this.events.push({type,...data});}
@@ -131,7 +133,7 @@ export class Round {
   }
   burst(){return this.combat.special();}
   down(enemy){
-    this.defeated.add(enemy.id);this.stopped.add(enemy.id);enemy.hp=0;enemy.state='down';enemy.downAge=0;enemy.timer=this.practice?2.5:enemy.role==='keeper'?Infinity:8;this.kos++;
+    this.defeated.add(enemy.id);this.stopped.add(enemy.id);enemy.hp=0;enemy.state='down';enemy.downAge=0;enemy.timer=this.practice?2.5:Infinity;this.kos++;
     this.score+=(enemy.role==='keeper'?500:150)*this.multiplier;this.gainMomentum(12);this.player.stamina=Math.min(100,this.player.stamina+12);
     if(enemy.captain){this.stats.captains++;this.score+=350;this.momentum=100;this.emit('captain-down',{text:'CAPTAIN DOWN · Special ready · Take your seat!'});}
     this.emit('down',{x:enemy.x,z:enemy.z,keeper:enemy.role==='keeper'});
@@ -141,7 +143,7 @@ export class Round {
   }
   strikeEnemy(enemy,damage,push,stun,hit={}){
     if(enemy.state==='rushing'||enemy.state==='boarding'){this.raceClock=3.2;enemy.boardProgress=0;this.stopped.add(enemy.id);this.interruptReward();this.emit('boarding-stopped',{x:enemy.x,z:enemy.z});}
-    enemy.defending=false;
+    enemy.defending=false;if(enemy.boardRoute==='window'){enemy.y=0;enemy.vy=0;}
     const p=this.player;damage=Math.round(damage*(this.rushTime>0?1.25:1));enemy.hp-=damage;enemy.hurt=.26;
     let dx=enemy.x-p.x,dz=enemy.z-p.z,len=Math.hypot(dx,dz);if(len<.01){dx=Math.sin(p.face);dz=Math.cos(p.face);len=1;}
     if(hit.smooth){enemy.knockX=dx/len*push*6;enemy.knockZ=dz/len*push*6;}else{enemy.x+=dx/len*push;enemy.z+=dz/len*push;}this.constrainActor(enemy);enemy.state='recover';enemy.timer=stun;enemy.tripTime=hit.trip?stun:0;
@@ -153,23 +155,23 @@ export class Round {
   shove(){
     const p=this.player;if(!this.combatActive||this.status!=='playing'||p.shoveCooldown>0||p.stamina<28||!this.combat.neutral())return false;
     p.stamina-=28;p.rest=.7;p.shoveCooldown=4*this.bonuses.shove*(this.condition?.shove||1);p.action='shove';p.actionTime=.44;p.cooldown=.48;
-    const targets=this.enemies.filter(e=>e.state!=='down'&&distance(p,e)<2.65).sort((a,b)=>distance(p,a)-distance(p,b));
+    const targets=this.enemies.filter(e=>e.hp>0&&e.state!=='boarded'&&distance(p,e)<2.65).sort((a,b)=>distance(p,a)-distance(p,b));
     if(targets[0])p.face=Math.atan2(targets[0].x-p.x,targets[0].z-p.z);
     for(const enemy of targets.slice(0,4)){
       const braced=enemy.captain&&enemy.state==='guard'&&enemy.guardBroken<=0;
       this.strikeEnemy(enemy,12,2.35*(this.character?.shove||1)*this.bonuses.push*(braced?.18:1),braced?.45:2.55);
       if(braced)this.emit('combat-note',{text:'Captain braced! Bait a swing or break their guard, then shove.'});
     }
-    if(targets.length){this.stylish('shove');this.coach.shove=true;}if(targets.length>=3)this.progressChallenge('shove');this.emit('shove',{x:p.x,z:p.z});return true;
+    if(targets.length){this.stylish('shove');this.coach.shove=true;}if(targets.length>=3)this.progressChallenge('shove');this.window?.distract();this.emit('shove',{x:p.x,z:p.z});return true;
   }
   dodge(mx=0,mz=0){
-    const p=this.player;if(this.status!=='playing'||p.stamina<19*(this.character?.dodge||1)*this.bonuses.dodge*(this.rushTime>0?.5:1)||['dodge','shove','hitstun'].includes(p.action)||(this.combat.active&&(this.combat.active.move.id==='special'||this.combat.active.elapsed<this.combat.active.move.startup)))return false;
+    const p=this.player;if(this.status!=='playing'||p.stamina<19*(this.character?.dodge||1)*this.bonuses.dodge*(this.rushTime>0?.5:1)||['dodge','shove','hitstun','vault'].includes(p.action)||(this.combat.active&&(this.combat.active.move.id==='special'||this.combat.active.elapsed<this.combat.active.move.startup)))return false;
     if(this.combat.active){this.combat.active=null;this.combat.queue=[];p.moveId=null;}
     let len=Math.hypot(mx,mz);if(!len){mx=Math.sin(p.face);mz=Math.cos(p.face);len=1;}
     p.dx=mx/len;p.dz=mz/len;p.stamina-=19*(this.character?.dodge||1)*this.bonuses.dodge*(this.rushTime>0?.5:1);p.rest=.5;p.invulnerable=.46;p.action='dodge';p.actionTime=.29;p.cooldown=.35;this.emit('dodge');return true;
   }
   pickup(){
-    const p=this.player;if(this.status!=='playing')return;
+    const p=this.player;if(this.status!=='playing'||this.window.active)return;
     if(this.street?.nearby){this.street.activate();return;}
     const item=this.pickups.find(a=>!a.used&&distance(p,a)<1.65);if(!item)return;
     if(WEAPONS[item.type]){p.weapon=item.type;this.combo=0;this.emit('message',{text:weaponStats(p.weapon).name+' equipped. '+weaponStats(p.weapon).trait+'.'});}
@@ -181,8 +183,8 @@ export class Round {
     if(p.action==='block'&&p.stamina>=5&&(enemy.attackKind!=='low'||p.crouch)){
       if(p.blockTime<.2*(this.character?.parry||1)*this.bonuses.parry&&!enemy.heavy){p.stamina=Math.max(0,p.stamina-4);p.rest=.3;enemy.state='recover';enemy.timer=1.65;enemy.defending=false;p.counterTime=1.4;this.score+=75;this.gainMomentum(25);this.progressChallenge('defend');this.stylish('parry');this.street?.record('defence');this.combat.targetId=enemy.id;this.combat.manualUntil=this.elapsed+1.4;this.emit('parry',{x:enemy.x,z:enemy.z});return 'parried';}
       p.stamina=Math.max(0,p.stamina-11);p.rest=.6;damage*=enemy.heavy?.55:.12;this.emit('block');
-    }else{this.combat.interrupted();p.action='hitstun';p.actionTime=.26;p.cooldown=.26;this.emit('damage');p.invulnerable=.32;this.hitsTaken++;this.chain=0;this.chainTime=0;}
-    p.hp=this.practice?100:Math.max(0,p.hp-damage*(this.character?.armor||1)*this.bonuses.armor);p.hurt=.2;this.board=0;
+    }else{this.combat.interrupted();p.action='hitstun';p.actionTime=.26;p.cooldown=.26;this.emit('damage');p.invulnerable=.65;this.hitsTaken++;this.chain=0;this.chainTime=0;}
+    this.lastDamage=this.elapsed;p.hp=this.practice?100:Math.max(0,p.hp-damage*(this.character?.armor||1)*this.bonuses.armor);p.hurt=.2;this.board=0;
     const len=distance(p,enemy)||1;p.x+=(p.x-enemy.x)/len*.16;p.z+=(p.z-enemy.z)/len*.16;this.constrainActor(p);return 'hit';
   }
   moveEnemy(enemy,goal,dt,pace){
@@ -207,6 +209,8 @@ export class Round {
       if(this.bus.remaining<=8&&!this.lastCall){this.lastCall=true;this.emit('last-call');this.emit('message',{text:'LAST CALL! Eight seconds. Open a gap and get in!'});}
     }
     const p=this.player;p.cooldown=Math.max(0,p.cooldown-dt);p.shoveCooldown=Math.max(0,p.shoveCooldown-dt);p.invulnerable=Math.max(0,p.invulnerable-dt);p.hurt=Math.max(0,p.hurt-dt);p.rest=Math.max(0,p.rest-dt);
+    if(this.window.active&&(input.assist||input.attack))this.window.kick();
+    if(!this.window.active){
     if(p.actionTime>0){p.actionTime-=dt;if(p.actionTime<=0)p.action='idle';}
     p.crouch=!!input.crouch;
     if(!['dodge','attack','shove','hitstun'].includes(p.action)){
@@ -215,29 +219,36 @@ export class Round {
     }
     if(!p.rest&&p.action!=='block')p.stamina=Math.min(100,p.stamina+28*(this.character?.regen||1)*dt);
     if(this.combatActive&&input.attack&&p.cooldown===0&&!this.combat.active)this.attack();
+    if(this.combatActive&&input.assist&&this.combat.neutral()){const foe=this.combat.target,seq=['light','light','heavy','light','kick','kick'];const kind=p.counterTime>0?'heavy':foe?.defending?'kick':seq[this.assistIndex%seq.length];if(this.attack(kind,foe?.defending?-1:0))this.assistIndex++;}
     this.combat.tick(dt);if(this.practice)this.momentum=Math.min(100,this.momentum+dt*14);
     const crouched=p.action==='block'&&p.crouch,mx=crouched?0:input.x||0,mz=crouched?0:input.z||0,len=Math.hypot(mx,mz),speed=(p.action==='block'?1.9:4.25)*(this.character?.speed||1)*this.bonuses.speed;
     p.moving=len>.01;p.moveX=mx;p.moveZ=mz;
     if(p.action==='dodge'){p.x+=p.dx*12*dt;p.z+=p.dz*12*dt;}
     else if(len){const factor=p.action==='hitstun'?0:['shove','attack'].includes(p.action)?.3:1;p.x+=mx/Math.max(1,len)*speed*factor*dt;p.z+=mz/Math.max(1,len)*speed*factor*dt;if(p.action!=='attack')p.face=Math.atan2(mx,mz);p.walk+=dt*10;}
-    this.constrainActor(p);
+    this.constrainActor(p);if(!this.practice&&p.hp>0&&p.hp<70&&this.elapsed-this.lastDamage>4&&(!this.combatActive||distance(p,DOOR)>5.2))p.hp=Math.min(70,p.hp+dt*3);
+    }
     let attacking=this.enemies.filter(e=>e.state==='windup'||e.state==='swing').length;
     for(const e of this.enemies){
       e.hurt=Math.max(0,e.hurt-dt);e.timer-=dt;e.moving=false;e.guardBroken=Math.max(0,(e.guardBroken||0)-dt);e.tripTime=Math.max(0,(e.tripTime||0)-dt);e.downAge=(e.downAge||0)+dt;
       if(e.state==='boarded')continue;
       if(Math.abs(e.knockX||0)+Math.abs(e.knockZ||0)>.01){e.x+=(e.knockX||0)*dt;e.z+=(e.knockZ||0)*dt;e.knockX*=Math.exp(-dt*6);e.knockZ*=Math.exp(-dt*6);this.constrainActor(e);}this.crowdCrash(e,dt);
-      if((e.y||0)>0||e.vy>0){e.y=Math.max(0,(e.y||0)+e.vy*dt);e.vy-=14*dt;if(e.y===0){e.vy=0;e.juggleHits=0;if(e.hp>0){e.state='recover';e.timer=.85;}this.emit('land',{x:e.x,z:e.z});}}
+      if(e.state!=='boarding'&&((e.y||0)>0||e.vy>0)){e.y=Math.max(0,(e.y||0)+e.vy*dt);e.vy-=14*dt;if(e.y===0){e.vy=0;e.juggleHits=0;if(e.hp>0){e.state='recover';e.timer=.85;}this.emit('land',{x:e.x,z:e.z});}}
       if(!this.combatActive){if(e.hp<=0)continue;e.state='guard';e.timer=.5;this.moveEnemy(e,this.gathering?{x:e.spawnX,z:e.spawnZ}:this.waitingPost(e),dt,this.config.speed*1.65);continue;}
       const post={x:e.spawnX,z:e.spawnZ};
       if(e.state==='airborne')continue;
-      if(e.state==='rushing'){this.moveEnemy(e,DOOR,dt,this.config.speed*1.35);if(distance(e,DOOR)<.45){e.state='boarding';e.boardProgress=0;e.face=Math.PI;}continue;}
-      if(e.state==='boarding'){e.boardProgress+=dt/this.config.rivalBoardTime;if(e.boardProgress>=1)this.rivalTakesSeat(e);continue;}
+      if(e.state==='rushing'){const entrance=e.boardRoute==='window'?WINDOW:DOOR;this.moveEnemy(e,entrance,dt,this.config.speed*1.35);if(distance(e,entrance)<.45){e.state='boarding';e.boardProgress=0;e.face=Math.PI;}continue;}
+      if(e.state==='boarding'){e.boardProgress+=dt/(this.config.rivalBoardTime+(e.boardRoute==='window'?.45:0));if(e.boardRoute==='window'){e.y=Math.max(0,e.boardProgress-.35)*1.9;e.vaultPhase=e.boardProgress;}if(e.boardProgress>=1)this.rivalTakesSeat(e);continue;}
       if(e.state==='down'){if(e.timer<=0){e.hp=e.maxHp*.65;e.x=e.spawnX;e.z=e.spawnZ;e.state='recover';e.timer=.65;e.y=0;e.vy=0;this.constrainActor(e);}continue;}
       if(e.state==='recover'){if(e.timer<=0){e.state='guard';e.heavy=false;e.timer=.15;}continue;}
+      if(e.state==='pulling'){if(!this.window.active){e.state='recover';e.timer=.7;}continue;}
+      if(this.window.active&&this.window.active.time<1.25&&e.state==='guard'&&distance(e,WINDOW)<4){
+        if(distance(e,WINDOW)>2.1)this.moveEnemy(e,WINDOW,dt,this.config.speed*1.4);
+        else{e.state='pulling';e.timer=.55;e.face=Math.atan2(p.x-e.x,p.z-e.z);e.defending=false;this.emit('window-grab',{id:e.id});}continue;
+      }
       const weapon=weaponStats(e.weapon),reach=e.heavy?2.8:e.attackKind==='low'?2.5:e.role==='keeper'?1.9:weapon.reach*.78;
       if(!e.guardBroken&&this.elapsed-(e.lastGuardHit||0)>1.5)e.guard=Math.min(100,(e.guard??100)+dt*18);
       if(e.state==='windup'){
-        if(e.timer<=0){const canHit=distance(p,e)<reach+.3&&distance(p,DOOR)<5.2;const result=canHit?this.hurtPlayer(this.config.damage*(e.heavy?1.6:e.role==='keeper'?1.15:weapon.enemyDamage),e):'miss';if(result!=='parried'){e.state='swing';e.timer=.23;}}
+        if(e.timer<=0){const canHit=!this.window.active&&distance(p,e)<reach+.3&&distance(p,DOOR)<5.2;const result=canHit?this.hurtPlayer(this.config.damage*(e.heavy?1.6:e.role==='keeper'?1.15:weapon.enemyDamage),e):'miss';if(result!=='parried'){e.state='swing';e.timer=.23;}}
         continue;
       }
       if(e.state==='swing'){if(e.timer<=0){if(e.followUp){e.followUp=false;e.state='windup';e.timer=.42;}else{e.state='recover';e.timer=e.captain?this.captain.recovery:.85+this.random()*.5;}}continue;}
@@ -252,22 +263,23 @@ export class Round {
     for(let i=0;i<this.enemies.length;i++){
       const a=this.enemies[i];if(['down','boarded','boarding','airborne'].includes(a.state))continue;
       for(let j=i+1;j<this.enemies.length;j++){const b=this.enemies[j];if(['down','boarded','boarding','airborne'].includes(b.state))continue;const d=distance(a,b);if(d<.78&&d>.01){const dx=(a.x-b.x)/d,dz=(a.z-b.z)/d,q=(.78-d)*.5;a.x+=dx*q;a.z+=dz*q;b.x-=dx*q;b.z-=dz*q;this.constrainActor(a);this.constrainActor(b);}}
-      const d=distance(p,a);if(d<.64&&d>.01&&p.action!=='dodge'){p.x+=(p.x-a.x)/d*.025;p.z+=(p.z-a.z)/d*.025;this.constrainActor(p);}
+      const d=distance(p,a);if(d<.64&&d>.01&&p.action!=='dodge'&&!this.window.active){p.x+=(p.x-a.x)/d*.025;p.z+=(p.z-a.z)/d*.025;this.constrainActor(p);}
     }
-    if(this.combatActive&&!this.practice){this.raceClock=Math.max(0,this.raceClock-dt);if(!this.boardingRival&&this.raceClock===0){const rival=this.enemies.filter(e=>e.hp>0&&!e.captain&&e.state==='guard'&&e.guardBroken<1).sort((a,b)=>distance(a,DOOR)-distance(b,DOOR))[0];if(rival){rival.state='rushing';rival.defending=false;rival.boardProgress=0;this.emit('rival-boarding',{id:rival.id});}}}
+    if(this.combatActive&&!this.practice){this.raceClock=Math.max(0,this.raceClock-dt);if(!this.boardingRival&&this.raceClock===0){const rival=this.enemies.filter(e=>e.hp>0&&!e.captain&&e.state==='guard'&&e.guardBroken<1).sort((a,b)=>distance(a,DOOR)-distance(b,DOOR))[0];if(rival){rival.boardRoute=this.boardingAttempts++%2===0?'door':'window';rival.state='rushing';rival.defending=false;rival.boardProgress=0;this.emit('rival-boarding',{id:rival.id,route:rival.boardRoute});}}}
+    this.window.tick(dt);if(this.status!=='playing')return;
     this.nearDoor=distance(p,DOOR)<1.3;
-    if(this.encounter&&this.encounterComplete&&!this.encounterAnnounced){this.encounterAnnounced=true;this.emit('encounter-cleared');this.addBusTime(8);this.player.hp=Math.min(100,this.player.hp+12);}
+    if(p.hp>0&&this.encounterComplete&&!this.encounterAnnounced){this.encounterAnnounced=true;this.emit('encounter-cleared');this.addBusTime(8);this.player.hp=Math.min(100,this.player.hp+12);}
     this.street.tick(dt);
     const gapOpen=this.combatActive&&!this.doorBlocked&&this.encounterComplete;this.doorCalled=gapOpen;
     if(gapOpen&&!this.gapWasOpen&&distance(p,DOOR)<4.5)this.emit('door-open');this.gapWasOpen=gapOpen;
-    if(!this.practice&&input.board&&this.nearDoor&&gapOpen&&!['dodge','attack','shove','hitstun'].includes(p.action)){this.board+=dt/this.config.boardTime;if(p.action!=='block')p.action='boarding';}
+    if(!this.practice&&input.board&&this.nearDoor&&gapOpen&&!['dodge','attack','shove','hitstun','vault'].includes(p.action)){this.board+=dt/this.config.boardTime;if(p.action!=='block')p.action='boarding';}
     else this.board=Math.max(0,this.board-dt*2);
     if(p.hp<=0)this.finish('knocked-out');else if(this.board>=1)this.finish('won');
   }
   rivalTakesSeat(enemy){
-    enemy.state='boarded';enemy.boardProgress=1;this.seatsLost++;this.board=0;this.combat.reset();
+    this.window.cancel();enemy.state='boarded';enemy.boardProgress=1;this.seatsLost++;this.board=0;this.combat.reset();
     this.bus.full=true;this.bus.phase='full';this.bus.duration=1.6/this.bus.pace;this.bus.remaining=this.bus.duration;this.bus.lastWasFull=true;
-    for(const e of this.enemies)if(e!==enemy){e.state=e.hp>0?'guard':'down';e.timer=e.hp<=0&&e.role==='keeper'?Infinity:e.hp<=0?8:.5;e.y=0;e.vy=0;e.knockX=0;e.knockZ=0;e.defending=false;}
+    for(const e of this.enemies)if(e!==enemy){e.state=e.hp>0?'guard':'down';e.timer=e.hp<=0?Infinity:.5;e.y=0;e.vy=0;e.knockX=0;e.knockZ=0;e.defending=false;}
     this.emit('seat-stolen',{id:enemy.id});this.emit('message',{text:'A rival took the last seat! Keep your gear — stop them on the next trotro.'});
   }
   finish(result){

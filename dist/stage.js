@@ -1,7 +1,7 @@
 import * as T from './vendor/three.module.js';
 import {DOOR,WEAPONS} from './core.js';
 import {TrafficFleet} from './traffic.js';
-import {STOP,BUS_BOUNDS,busPose} from './layout.js';
+import {STOP,BUS_BOUNDS,busPose,WINDOW} from './layout.js';
 import {CHARACTERS,characterById} from './characters.js';
 import {HumanLibrary} from './humans.js';
 import {RoundedBoxGeometry} from './vendor/RoundedBoxGeometry.js';
@@ -57,6 +57,8 @@ export class Stage {
     for(let i=0;i<8;i++){const rider=this.humans.create(i%3);rider.group.position.set(i%2?.72:-.72,.65,-2.1+Math.floor(i/2)*1.28);this.mainBus.add(rider.group);this.busRiders.push(rider);}
 
     this.doorRing=new T.Mesh(new T.RingGeometry(.8,1,40),new T.MeshBasicMaterial({color:0xffd05b,transparent:true,opacity:.85,side:T.DoubleSide}));this.doorRing.rotation.x=-Math.PI/2;this.doorRing.position.set(DOOR.x,.025,DOOR.z);g.add(this.doorRing);
+    this.windowRing=new T.Mesh(new T.RingGeometry(.55,.67,32),new T.MeshBasicMaterial({color:0x89e7ce,transparent:true,opacity:.7,side:T.DoubleSide}));this.windowRing.rotation.x=-Math.PI/2;this.windowRing.position.set(WINDOW.x,.04,WINDOW.z+.1);g.add(this.windowRing);
+    this.windowSign=this.box(this.mainBus,.04,.24,1.04,this.label('WINDOW',256,64,'#204b45','#c4ffe3'),1.45,2.8,-2.15);
     const arrow=new T.Group();this.cylinder(arrow,.075,.075,.7,0xffcf49,0,.5,0);const cone=this.cylinder(arrow,0,.25,.32,0xffcf49,0,.03,0);cone.rotation.z=Math.PI;arrow.position.set(DOOR.x,1.4,DOOR.z);g.add(arrow);this.doorArrow=arrow;
     // Shop fronts are original fictional signs, never lifted from Street View.
     const signs=arena.id==='kaneshie'?['KANESHIE MARKET','AKUA’S PROVISIONS','FRESH FRUIT']:arena.id==='madina'?['MADINA MARKET','ZONGO STORES','MOBILE MONEY']:['ACCRA STORES','CHOP BAR','MOBILE MONEY'];
@@ -143,7 +145,7 @@ export class Stage {
     // Passenger-side sliding doorway, recessed step and open black interior.
     this.box(bus,.06,1.88,1.27,0x20363c,1.43,1.55,.98);this.box(bus,.33,.16,1.3,m.chrome,1.56,.48,.98);this.box(bus,.06,1.79,.65,m.blue,1.49,1.61,-.02);this.box(bus,.08,.76,.53,m.glass,1.54,2.13,-.02);
     for(const side of [-1,1]){
-      for(let i=0;i<4;i++){if(side===1&&i===3)continue;this.box(bus,.05,.81,1.1,m.glass,side*1.396,2.28,-2.15+i*1.4);this.box(bus,.065,.84,.045,m.chrome,side*1.43,2.28,-2.68+i*1.4);}
+      for(let i=0;i<4;i++){if(side===1&&i===3)continue;if(!(side===1&&i===0))this.box(bus,.05,.81,1.1,m.glass,side*1.396,2.28,-2.15+i*1.4);this.box(bus,.065,.84,.045,m.chrome,side*1.43,2.28,-2.68+i*1.4);}
       this.box(bus,.06,.075,5.9,m.chrome,side*1.43,1.72,-.03);
       for(const wz of [-2,2]){
         const wheel=this.cylinder(bus,.5,.5,.25,m.rubber,side*1.36,.53,wz,24);wheel.rotation.z=Math.PI/2;const hub=this.cylinder(bus,.26,.26,.27,m.chrome,side*1.4,.53,wz,16);hub.rotation.z=Math.PI/2;
@@ -261,14 +263,14 @@ export class Stage {
     });
   }
   updateStreetProps(round){
-    round.street.props.forEach((prop,i)=>{const visual=this.streetMeshes[i];if(!visual)return;visual.group.position.set(prop.x,0,prop.z);visual.body.rotation.y=prop.id==='trolley'&&prop.dx!==undefined?Math.atan2(prop.dx,prop.dz):0;visual.body.rotation.z=prop.state==='spill'?.5:0;visual.ring.visible=prop.state==='ready';visual.ring.material.opacity=.55+Math.sin(this.clock*4)*.2;visual.label.visible=prop.state==='ready';visual.label.quaternion.copy(this.camera.quaternion);visual.puddle.visible=prop.state==='spill';visual.puddle.material.opacity=.3+Math.min(1,prop.time/2)*.22;});
+    round.street.props.forEach((prop,i)=>{const visual=this.streetMeshes[i];if(!visual)return;visual.group.position.set(prop.x,0,prop.z);visual.body.rotation.y=prop.id==='trolley'&&prop.dx!==undefined?Math.atan2(prop.dx,prop.dz):0;visual.body.rotation.z=prop.state==='spill'?.5:0;visual.ring.visible=prop.state==='ready';visual.ring.material.opacity=.55+Math.sin(this.clock*4)*.2;visual.label.visible=prop.state==='ready'&&(innerWidth>760||Math.hypot(prop.x-round.player.x,prop.z-round.player.z)<2.2);visual.label.quaternion.copy(this.camera.quaternion);visual.puddle.visible=prop.state==='spill';visual.puddle.material.opacity=.3+Math.min(1,prop.time/2)*.22;});
   }
   pose(actor,data,dt){
     const isPlayer=actor.player,state=isPlayer?data.action:data.state;actor.group.visible=state!=='boarded';actor.group.position.set(data.x,data.y||0,data.z);const diff=Math.atan2(Math.sin(data.face-actor.group.rotation.y),Math.cos(data.face-actor.group.rotation.y));actor.group.rotation.y+=diff*Math.min(1,dt*15);
-    this.equipVisual(actor,data.weapon);this.humans.update(actor,data,dt,this.clock);
+    this.equipVisual(actor,data.weapon);this.humans.update(actor,!isPlayer&&data.boardRoute==='window'&&state==='boarding'?{...data,state:'vault'}:data,dt,this.clock);
     if(isPlayer){actor.ring.material.color.setHex(data.rushing?0x83e4df:0xe7bb5b);actor.ring.scale.setScalar(data.rushing?1.35:1);}
     if(!isPlayer){actor.hpGroup.visible=(data.focused||data.hp<data.maxHp)&&!['down','boarded'].includes(state);actor.hp.scale.x=Math.max(0,data.hp/data.maxHp);actor.hp.position.x=-(1-actor.hp.scale.x)*.265;actor.hp.material.color.setHex(0xd6b076);actor.hpGroup.quaternion.copy(this.camera.quaternion);if(actor.roleLabel)actor.roleLabel.visible=data.role==='keeper';}
-    if(state==='windup'){actor.ring.material.opacity=.35+Math.sin(this.clock*18)*.15;actor.ring.material.color.setHex(data.heavy?0xf04836:data.attackKind==='low'?0xffd45a:0xef8953);actor.ring.scale.setScalar(data.heavy?5.5:1.7);}else if(!isPlayer){actor.ring.position.y=.025-(data.y||0);actor.ring.scale.setScalar(data.focused?1.7:1);actor.ring.material.opacity=['down','boarded'].includes(state)?0:data.focused?.85:.12;actor.ring.material.color.setHex(['rushing','boarding'].includes(state)?0xff835b:data.defending?0x89e4e0:0xf2c261);}
+    if(state==='windup'||state==='pulling'){actor.ring.material.opacity=.35+Math.sin(this.clock*18)*.15;actor.ring.material.color.setHex(data.heavy?0xf04836:data.attackKind==='low'?0xffd45a:0xef8953);actor.ring.scale.setScalar(data.heavy?5.5:1.7);}else if(!isPlayer){actor.ring.position.y=.025-(data.y||0);actor.ring.scale.setScalar(data.focused?1.7:1);actor.ring.material.opacity=['down','boarded'].includes(state)?0:data.focused?.85:.12;actor.ring.material.color.setHex(['rushing','boarding'].includes(state)?0xff835b:data.defending?0x89e4e0:0xf2c261);}
     if(state==='down'){actor.item.position.set(.45,.15,.25);actor.item.rotation.set(0,.3,Math.PI/2);}
     if(isPlayer){actor.item.visible=!!data.weapon;this.attackTrail(actor,data,dt);}
   }
@@ -290,8 +292,10 @@ export class Stage {
     this.busPaint.color.setHex([0x267d9b,0x427f6b,0x935744][((cycle?.number||1)-1)%3]);
     const open=phase==='boarding'&&!departed?(cycle?.remaining<1?.3:1):0;this.doorOpenness=T.MathUtils.damp(this.doorOpenness,open,7,dt);this.closedDoor.visible=true;this.closedDoor.position.z=-1.4*this.doorOpenness;this.fullSign.visible=full;this.seatSign.visible=!full;
     this.mate.group.visible=parked&&!departed;
+    if(round&&!lobby){const watching=round.window.watching,rebuff=round.window.rebuff>0,distracted=round.window.distracted>0;this.mate.group.position.set(WINDOW.x+(distracted?1.3:0),0,WINDOW.z+.14);this.mate.group.rotation.y=watching?0:Math.PI/2;this.humans.update(this.mate,{state:rebuff?'shove':distracted?'recover':'idle',actionTime:round.window.rebuff,tripTime:distracted?.5:0},dt,this.clock);}
+    this.windowRing.visible=!!round?.combatActive&&!round.practice&&!departed;this.windowSign.visible=!round?.practice;this.windowRing.material.color.setHex(round?.window.watching?0xef9469:0x89e7ce);
     this.busRiders.forEach((rider,i)=>{rider.group.visible=full||i!==7;this.humans.update(rider,{state:'seated'},dt,this.clock);});
-    this.doorArrow.position.y=1.3+Math.sin(this.clock*3)*.14;this.doorArrow.visible=!departed&&phase==='boarding';
+    this.doorArrow.position.y=1.3+Math.sin(this.clock*3)*.14;this.doorArrow.visible=!departed&&phase==='boarding'&&(!round||round.encounterComplete);
     this.doorRing.visible=parked&&!departed;this.doorRing.material.color.setHex(full?0xa08d81:round?.doorCalled?0xffd05b:0xcc8d57);this.doorRing.material.opacity=full?.22:(lobby||round?.doorCalled)?.65+Math.sin(this.clock*4)*.15:.18;
   }
   update(dt,round,lobby=false){
@@ -300,7 +304,7 @@ export class Stage {
     else if(round&&this.player){
       round.player.moving=!!round.player.moving;round.player.rushing=round.rushTime>0;round.player.combat=round.combatActive;this.pose(this.player,round.player,dt);const focused=round.combat.target;round.enemies.forEach((e,i)=>{e.combat=round.combatActive;e.focused=e.id===focused?.id;this.pose(this.actors[i],e,dt);});
       this.updateStreetProps(round);
-      round.pickups.forEach((p,i)=>{const mesh=this.pickupMeshes[i];mesh.visible=!p.used;mesh.userData.display.position.y=.8+Math.sin(this.clock*3+i)*.04;if(mesh.userData.label)mesh.userData.label.quaternion.copy(this.camera.quaternion);});
+      round.pickups.forEach((p,i)=>{const mesh=this.pickupMeshes[i];mesh.visible=!p.used;mesh.userData.display.position.y=.8+Math.sin(this.clock*3+i)*.04;if(mesh.userData.label){mesh.userData.label.quaternion.copy(this.camera.quaternion);mesh.userData.label.visible=!narrow||Math.hypot(p.x-round.player.x,p.z-round.player.z)<1.8;}});
       const p=round.player,focus=new T.Vector3(p.x*.72+DOOR.x*.28,1.05,p.z*.72+DOOR.z*.28),waiting=!round.combatActive;
       const special=round.combat.active?.move.id==='special'&&this.shakeEnabled;
       if(special&&focused){focus.x=(p.x+focused.x)/2;focus.z=(p.z+focused.z)/2;focus.y=1.2;}

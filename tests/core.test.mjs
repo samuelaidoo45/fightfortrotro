@@ -29,14 +29,14 @@ test('guards stay at the doorway when the player moves away',()=>{
 test('remaining guards block entry even after the doorway rival is down',()=>{
   const r=new Round('easy',()=>.5);r.enemies=r.enemies.slice(0,3);r.down(r.keeper);r.enemies.forEach(e=>{if(e.state!=='down')e.timer=100;});Object.assign(r.player,DOOR);step(r,3,{board:true});assert.equal(r.gateCleared,false);assert.equal(r.doorBlocked,true);assert.equal(r.board,0);assert.equal(r.status,'playing');
 });
-test('shoving the doorway blockers creates a real entry window',()=>{
-  const r=new Round('easy',()=>.5);r.enemies=r.enemies.slice(0,3);r.down(r.keeper);Object.assign(r.player,DOOR);assert.equal(r.doorBlocked,true);r.shove();assert.equal(r.doorBlocked,false);step(r,1.9,{board:true});assert.equal(r.status,'won');
+test('shoving opens physical space but boarding still requires every rival defeated',()=>{
+  const r=new Round('easy',()=>.5);r.enemies=r.enemies.slice(0,3);r.down(r.keeper);Object.assign(r.player,DOOR);assert.equal(r.doorBlocked,true);r.shove();assert.equal(r.doorBlocked,false);step(r,1.9,{board:true});assert.equal(r.status,'playing');for(const e of r.enemies)if(e.hp>0)r.down(e);step(r,1.1,{board:true});assert.equal(r.status,'won');
 });
 test('remaining rivals compete to board after the leader is defeated',()=>{
   const r=new Round('normal',()=>.5);r.down(r.keeper);r.player.x=-8;r.player.z=7;step(r,11);assert.equal(r.status,'playing');assert.equal(r.player.hp,100);assert.equal(r.seatsLost,1);assert.equal(r.bus.full,true);assert.ok(r.enemies.some(e=>e.state==='boarded'));
 });
-test('a shove leaves enough time to enter when the bus prevents a blocker moving away',()=>{
-  for(const mode of ['normal','hard']){const r=new Round(mode,()=>.5),blocker=r.enemies[2];r.enemies=[r.keeper,blocker];r.down(r.keeper);Object.assign(blocker,{x:DOOR.x,z:DOOR.z+.35,spawnX:DOOR.x,spawnZ:DOOR.z+.35,state:'guard',timer:100});Object.assign(r.player,{x:DOOR.x,z:DOOR.z+1.05});r.shove();assert.ok(distance(blocker,DOOR)<1.85,'bus collision leaves the defender physically close');step(r,r.config.boardTime+.55,{board:true});assert.equal(r.status,'won');}
+test('a bus-pinned staggered blocker must still be defeated before entry',()=>{
+  for(const mode of ['normal','hard']){const r=new Round(mode,()=>.5),blocker=r.enemies[2];r.enemies=[r.keeper,blocker];r.down(r.keeper);Object.assign(blocker,{x:DOOR.x,z:DOOR.z+.35,spawnX:DOOR.x,spawnZ:DOOR.z+.35,state:'guard',timer:100});Object.assign(r.player,{x:DOOR.x,z:DOOR.z+1.05});r.shove();assert.ok(distance(blocker,DOOR)<1.85,'bus collision leaves the defender physically close');step(r,r.config.boardTime+.55,{board:true});assert.equal(r.status,'playing');r.down(blocker);step(r,1.3,{board:true});assert.equal(r.status,'won');}
 });
 test('the power shove clears a crowd and cannot be spammed',()=>{
   const r=new Round();Object.assign(r.player,{x:0,z:5.8});r.enemies=r.enemies.slice(1,4);r.enemies.forEach((e,i)=>Object.assign(e,{x:-.4+i*.4,z:4.6}));const before=r.enemies.map(e=>distance(e,r.player));assert.equal(r.shove(),true);r.enemies.forEach((e,i)=>{assert.ok(distance(e,r.player)>before[i]+1);assert.equal(e.state,'recover');});const stamina=r.player.stamina;assert.equal(r.shove(),false);assert.equal(r.player.stamina,stamina);assert.ok(r.player.shoveCooldown>3);

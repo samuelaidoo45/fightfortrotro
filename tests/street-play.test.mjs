@@ -28,9 +28,9 @@ test('crowd dares require distinct connected moves, pause outside combat, and cy
  s.time=.1;s.tick(.2);assert.equal(s.dare.kind,'finisher');assert.equal(s.streak,0);
 });
 
-test('two crowd dares unlock a creative boarding route but cannot bypass a captain',()=>{
- for(const encounter of ENCOUNTERS){const r=new Round('easy',()=>.5,{encounter});r.street.record('trick');r.street.tick(3);r.street.record('throw');assert.equal(r.street.wins,2);assert.equal(r.encounterComplete,encounter.kind!=='captain');
- for(const e of r.enemies){e.state='recover';e.timer=10;}Object.assign(r.player,DOOR);tick(r,1.2,{board:true});assert.equal(r.status,encounter.kind==='captain'?'playing':'won');}
+test('crowd dares grant rewards but never bypass the requirement to defeat every rival',()=>{
+ for(const encounter of ENCOUNTERS){const r=new Round('easy',()=>.5,{encounter});r.street.record('trick');r.street.tick(3);r.street.record('throw');assert.equal(r.street.wins,2);assert.equal(r.encounterComplete,false);
+ for(const e of r.enemies){e.state='recover';e.timer=10;}Object.assign(r.player,DOOR);tick(r,1.2,{board:true});assert.equal(r.status,'playing');for(const e of r.enemies)r.down(e);tick(r,1.2,{board:true});assert.equal(r.status,'won');}
 });
 
 test('critical-health comeback grants one special and brief protection, never revives a defeated player',()=>{

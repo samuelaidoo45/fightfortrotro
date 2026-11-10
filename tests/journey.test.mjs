@@ -98,7 +98,7 @@ test('malformed saves fall back to bounded numbers and known achievement definit
 
 test('a braced captain resists one-button shoves but can be displaced during recovery',()=>{
   const r=new Round('easy',()=>.5,{captain:CAPTAINS[0]});r.enemies=[r.keeper];Object.assign(r.player,{x:DOOR.x,z:DOOR.z+1});r.shove();assert.equal(r.keeper.timer,.45);step(r,.5,{board:true});assert.equal(r.status,'playing');
-  r.combat.reset();r.player.cooldown=0;r.player.shoveCooldown=0;r.player.stamina=100;r.keeper.state='recover';r.keeper.timer=1;Object.assign(r.player,{x:DOOR.x,z:DOOR.z+1});Object.assign(r.keeper,{x:DOOR.x,z:DOOR.z});r.shove();assert.equal(r.keeper.timer,2.55);step(r,1.8,{board:true});assert.equal(r.status,'won');
+  r.combat.reset();r.player.cooldown=0;r.player.shoveCooldown=0;r.player.stamina=100;r.keeper.state='recover';r.keeper.timer=1;Object.assign(r.player,{x:DOOR.x,z:DOOR.z+1});Object.assign(r.keeper,{x:DOOR.x,z:DOOR.z});r.shove();assert.equal(r.keeper.timer,2.55);step(r,1.8,{board:true});assert.equal(r.status,'playing');r.down(r.keeper);step(r,1.2,{board:true});assert.equal(r.status,'won');
 });
 
 test('a thrown rival crashes into nearby passengers once and interrupts their boarding',()=>{

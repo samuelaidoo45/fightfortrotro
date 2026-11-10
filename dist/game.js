@@ -2,11 +2,13 @@ import {HomeRun,Round,MODES,ARENAS,DOOR,distance,WEAPONS,weaponStats} from './co
 import {CHARACTERS,characterById} from './characters.js';
 import {COMBO_ROUTES} from './combat.js';
 import {Stage} from './stage.js';
+import {stickVector,contextAction,arrivalCall} from './mobile.js';
 import {CityJourney,TRAVEL_CHOICES} from './campaign.js';
 import {UPGRADES,BADGES,cleanProfile,rankFor,masteryFor,awardRound,dailyRoute,seededRandom} from './journey.js';
 let playMode='campaign',checkpointSaved=true,cityReward='';const savedJourneys={};
 for(const kind of ['campaign','endless']){try{const saved=CityJourney.restore(JSON.parse(localStorage.getItem('trotro-'+kind+'-v1')||'null'));if(saved)savedJourneys[kind]=saved.snapshot();}catch{}}
-const $=selector=>document.querySelector(selector),keys=new Set();
+const $=selector=>document.querySelector(selector),keys=new Set(),touchState={x:0,z:0,assist:false};
+function clearInput(){keys.clear();touchState.x=0;touchState.z=0;touchState.assist=false;$('#stick-knob').style.transform='translate(-50%,-50%)';}
 let mode='normal',arena=ARENAS[0],run=null,round=null,paused=false,stage,lastTime=performance.now(),messageTimeout,comboTimeout,impactPause=0,audio,noiseBuffer,lastCountdown=-1;
 let records={},sound=true,characterId='office',profile=cleanProfile(null),dailyRun=null,saveAvailable=true;
 try{profile=cleanProfile(JSON.parse(localStorage.getItem('trotro-career-v1')||'null'));}catch{saveAvailable=false;}
@@ -16,8 +18,7 @@ function setSound(value){sound=value;if(!sound)window.speechSynthesis?.cancel();
 function mateCall(text){
   if(!sound||!window.speechSynthesis)return;
   // Use a device voice when available; the same call always appears as a subtitle.
-  const voice=window.speechSynthesis.getVoices().find(v=>v.localService&&v.lang.startsWith('en'));
-  if(!voice)return;const call=new SpeechSynthesisUtterance(text);call.voice=voice;call.rate=1.08;call.volume=.8;window.speechSynthesis.cancel();window.speechSynthesis.speak(call);
+  const voices=window.speechSynthesis.getVoices(),voice=voices.find(v=>v.lang==='en-GH')||voices.find(v=>v.lang.startsWith('en')&&v.localService)||voices.find(v=>v.lang.startsWith('en'));const call=new SpeechSynthesisUtterance(text);if(voice)call.voice=voice;call.rate=1.12;call.volume=1;window.speechSynthesis.cancel();window.speechSynthesis.speak(call);
 }
 function soundEffect(type){
   if(!sound)return;
@@ -40,8 +41,8 @@ function soundEffect(type){
 }
 function announce(text,duration=2400){$('#announcement').textContent=text;$('#announcement').classList.add('show');clearTimeout(messageTimeout);messageTimeout=setTimeout(()=>$('#announcement').classList.remove('show'),duration);}
 function feedback(text){$('#combo').textContent=text;clearTimeout(comboTimeout);comboTimeout=setTimeout(()=>$('#combo').textContent='',1200);}
-function movement(){const up=keys.has('w')||keys.has('arrowup'),down=keys.has('s')||keys.has('arrowdown'),left=keys.has('a')||keys.has('arrowleft'),right=keys.has('d')||keys.has('arrowright');return{x:(right-left)*.76+(down-up)*.65,z:(left-right)*.65+(down-up)*.76};}
-function action(type){if(!round||paused||round.status!=='playing')return;if(['attack','heavy','kick','grab'].includes(type))round.attack(type==='attack'?'light':type,type==='kick'?(keys.has('s')||keys.has('arrowdown')?-1:keys.has('w')||keys.has('arrowup')?1:0):0);if(type==='target')round.combat.cycleTarget();if(type==='shove')round.shove();if(type==='dodge'){const m=movement();round.dodge(m.x,m.z);}if(type==='pickup')round.pickup();if(type==='burst')round.burst();}
+function movement(){const up=keys.has('w')||keys.has('arrowup'),down=keys.has('s')||keys.has('arrowdown'),left=keys.has('a')||keys.has('arrowleft'),right=keys.has('d')||keys.has('arrowright');return{x:(right-left)*.76+(down-up)*.65+touchState.x,z:(left-right)*.65+(down-up)*.76+touchState.z};}
+function action(type){if(!round||paused||round.status!=='playing')return;if(['attack','heavy','kick','grab'].includes(type))round.attack(type==='attack'?'light':type,type==='kick'?(keys.has('s')||keys.has('arrowdown')?-1:keys.has('w')||keys.has('arrowup')?1:0):0);if(type==='target')round.combat.cycleTarget();if(type==='shove')round.shove();if(type==='dodge'){const m=movement();round.dodge(m.x,m.z);}if(type==='pickup')round.pickup();if(type==='burst')round.burst();if(type==='vault')round.window.jump();if(type==='window-kick')round.window.kick();}
 function selectArena(next){
   arena=next;stage.build(arena);$('#scene-caption').textContent=`${arena.name}, Accra`;$('#arena-detail').textContent=arena.description;$('#maps-link').href=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(arena.query)}`;
   document.querySelectorAll('.arena-choice').forEach(el=>{const on=el.dataset.arena===arena.id;el.classList.toggle('selected',on);el.setAttribute('aria-pressed',on);});
@@ -77,15 +78,15 @@ function renderCityTravel(){
   $('#travel-options').replaceChildren(...TRAVEL_CHOICES.map(t=>{const b=document.createElement('button');b.dataset.travel=t.id;b.setAttribute('aria-pressed',run.travel===t.id);b.innerHTML=`<b>${t.name}</b><span>${t.detail}</span>`;b.addEventListener('click',()=>{run.chooseTravel(t.id);saveJourney();renderCityTravel();document.querySelector(`[data-travel="${t.id}"]`).focus();});return b;}));
   $('#city-save-status').textContent=checkpointSaved?'Checkpoint saved on this device. Your current travel choices are saved too.':'Browser storage unavailable. This journey is kept for this session only.';$('#city-continue').disabled=run.canContinue&&!run.ready;$('#city-continue').textContent=complete?'Keep riding in Endless':won?(!run.selectedUpgrade?'Choose your upgrade':!run.ready?'Choose an upgrade to replace':'Travel to the next encounter'):'Retry this encounter';$('#city-leave').textContent=checkpointSaved?'Save and return to menu':'Return to menu (session only)';
 }
-function showCityTravel(){keys.clear();paused=true;renderCityTravel();$('#city-travel').showModal();}
+function showCityTravel(){clearInput();paused=true;renderCityTravel();$('#city-travel').showModal();}
 function startCity(fresh=false){
   dailyRun=null;cityReward='';const saved=!fresh?CityJourney.restore(savedJourneys[playMode]):null;run=saved&&!saved.complete?saved:new CityJourney({kind:playMode,mode,startId:arena.id,character:characterId});saveJourney();
   if(run.phase==='fight')playRound(run.createRound());else showCityTravel();
 }
 function playRound(next){
-  for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();keys.clear();paused=false;impactPause=0;round=next;lastCountdown=-1;
-  stage.build(run.arena);stage.begin(round);document.body.classList.add('playing');document.body.classList.toggle('campaign-playing',!!run.kind);$('#hud').hidden=false;$('#round-location').textContent=round.practice?'Combat practice / '+run.arena.name:`${run.kind?'Encounter':'Stop'} ${run.index+1}${run.kind==='endless'?'':run.kind?'/18':'/3'} / ${run.arena.name} · ${round.condition.name}`;$('#combo').textContent='';$('#start').blur();refreshJourney();soundEffect('start');if(run.kind)saveJourney();
-  announce(round.practice?'Practice safely. J J I launches. Press M for every move.':`${round.captain?round.captain.name+' guards this stop. ':''}R near the trolley or cooler. Try a street trick!`,3300);updateHUD();
+  for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();clearInput();paused=false;impactPause=0;round=next;lastCountdown=-1;
+  stage.build(run.arena);stage.begin(round);document.body.classList.add('playing');document.body.classList.toggle('campaign-playing',!!run.kind);$('#hud').hidden=false;$('#round-location').textContent=round.practice?'Combat practice / '+run.arena.name:`${run.kind?'Encounter':'Stop'} ${run.index+1}${run.kind==='endless'?'':run.kind?'/18':'/3'} / ${run.arena.name} · ${round.condition.name}`;$('#combo').textContent='';$('#start').blur();refreshJourney();soundEffect('start');if(run.kind)saveJourney();if(!round.practice)mateCall(arrivalCall(run.arena.route));
+  announce(round.practice?'Practice safely. J J I launches. Press M for every move.':'Clear every rival for the door, or risk the window. Stop others boarding!',3300);updateHUD();
 }
 function start(){if(playMode!=='quick'){startCity();return;}dailyRun=null;run=new HomeRun(mode,arena.id,Math.random,characterId);playRound(run.createRound());}
 function startDaily(repeat=false){const d=repeat&&dailyRun?dailyRun:dailyRoute();dailyRun=d;run=new HomeRun('normal',ARENAS[d.start].id,seededRandom(d.seed),d.fighter,{daily:d.day});playRound(run.createRound());}
@@ -107,15 +108,15 @@ function renderUpgrades(){
   $('#upgrade-choices').replaceChildren(...run.offers.map(u=>{const b=document.createElement('button');b.className='upgrade-choice';b.dataset.upgrade=u.id;b.setAttribute('aria-pressed',u.id===run.selectedUpgrade);b.innerHTML=`<small>${u.tag}</small><b>${u.name}</b><span>${u.detail}</span>`;b.addEventListener('click',()=>{run.chooseUpgrade(u.id);soundEffect('pickup');renderUpgrades();document.querySelector(`[data-upgrade="${u.id}"]`).focus();});return b;}));
 }
 function practice(){dailyRun=null;run=new HomeRun(mode,arena.id,Math.random,characterId);playRound(new Round(mode,Math.random,{practice:true,character:characterId}));}
-function moves(){if(!round||round.status!=='playing')return;paused=true;keys.clear();round.combat.queue=[];$('#moves-dialog').showModal();}
+function moves(){if(!round||round.status!=='playing')return;$('#pause-dialog').close();$('#paused-objective').textContent=`Rivals defeated: ${round.encounterProgress}/${round.encounterGoal}. ${round.street.dare.hint} Win dares for health and special charge. Clear every rival for the door, or risk the window. Hold Fight while vaulting to kick away grabbers.`;paused=true;clearInput();round.combat.queue=[];$('#moves-dialog').showModal();}
 function selectCharacter(id){characterId=characterById(id).id;const c=characterById(id);stage.selectCharacter(id);$('#character-summary').textContent=`${c.name} · ${c.role}`;$('#character-name').textContent=c.name;$('#character-role').textContent=c.role;$('#character-perk').textContent=c.perk;$('#character-detail').textContent=c.detail;document.querySelectorAll('[data-character]').forEach(b=>{const selected=b.dataset.character===id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',selected);});try{localStorage.setItem('trotro-character',id);}catch{}}
 function characterMenu(){selectCharacter(characterId);$('#character-dialog').showModal();}
 function retry(){if(run?.canContinue){if(run.selectedUpgrade)playRound(run.advance());}else if(dailyRun)startDaily(true);else start();}
-function pause(){if(!round||round.status!=='playing'||paused)return;paused=true;window.speechSynthesis?.cancel();keys.clear();round.combat.queue=[];$('#pause-detail').textContent=round.practice?'Practice is paused. Try different moves to fill the Rush meter.':`${round.condition.name}: ${round.condition.detail}${round.captain?' '+round.captain.name+': '+round.captain.detail:''}`;$('#quit').textContent=run.kind?'Save journey and leave':'Back to stops';if(run.kind)$('#pause-detail').textContent+=' Your completed encounters and build are saved. Continuing later restarts this encounter.';$('#pause-dialog').showModal();}
-function resume(){paused=false;keys.clear();$('#pause-dialog').close();$('#moves-dialog').close();lastTime=performance.now();}
-function lobby(){if(run?.kind)saveJourney();window.speechSynthesis?.cancel();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();round=null;run=null;paused=false;keys.clear();$('#hud').hidden=true;document.body.classList.remove('playing','campaign-playing');selectArena(arena);refreshCareer();$('#start').focus({preventScroll:true});}
+function pause(){if(!round||round.status!=='playing'||paused)return;paused=true;window.speechSynthesis?.cancel();clearInput();round.combat.queue=[];$('#pause-detail').textContent=round.practice?'Practice is paused. Try different moves to fill the Rush meter.':`${round.condition.name}: ${round.condition.detail}${round.captain?' '+round.captain.name+': '+round.captain.detail:''}`;$('#quit').textContent=run.kind?'Save journey and leave':'Back to stops';if(run.kind)$('#pause-detail').textContent+=' Your completed encounters and build are saved. Continuing later restarts this encounter.';$('#pause-dialog').showModal();}
+function resume(){paused=false;clearInput();$('#pause-dialog').close();$('#moves-dialog').close();lastTime=performance.now();}
+function lobby(){if(run?.kind)saveJourney();window.speechSynthesis?.cancel();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();round=null;run=null;paused=false;clearInput();$('#hud').hidden=true;document.body.classList.remove('playing','campaign-playing');selectArena(arena);refreshCareer();$('#start').focus({preventScroll:true});}
 function finish(result){
-  keys.clear();window.speechSynthesis?.cancel();$('#announcement').classList.remove('show');run.record(round);const won=result==='won';
+  clearInput();window.speechSynthesis?.cancel();$('#announcement').classList.remove('show');run.record(round);const won=result==='won';
   const reward=awardRound(profile,run,round);if(reward){profile=reward.profile;try{localStorage.setItem('trotro-career-v1',JSON.stringify(profile));saveAvailable=true;}catch{saveAvailable=false;}$('#career-reward').textContent=`+${reward.xp} XP · ${reward.mastery} ${round.character?.name||'fighter'}${reward.earned.length?' · New badge: '+reward.earned.join(', '):''}${saveAvailable?'':' · Session only'}`;}if(run.kind){cityReward=reward?`+${reward.xp} XP · ${reward.mastery}${reward.earned.length?' · '+reward.earned.join(', '):''}`:result==='won'?'Encounter saved. Career reward already collected.':'Keep your build. Come back stronger.';saveJourney();refreshCareer();soundEffect(won?'won':result);showCityTravel();return;}renderUpgrades();refreshCareer();
   $('#result-eyebrow').textContent=run.complete?'Home run complete':won?`Stop ${run.index+1} secured`:`Run ended at stop ${run.index+1}`;
   $('#result-title').textContent=run.complete?'You made it home.':won?'That seat is yours.':result==='missed'?'The last trotro left.':'The crowd got you.';
@@ -143,9 +144,9 @@ function updateHUD(){
   $('#weapon-label').textContent=weaponStats(p.weapon).name;$('#weapon-trait').textContent=weaponStats(p.weapon).trait;const unbanked=round.status==='playing';$('#knockdowns').textContent=run.kos+(unbanked?round.kos:0);$('#live-score').textContent=(run.score+(unbanked?round.score:0)).toLocaleString();$('#hit-flash').style.opacity=p.hurt>0?.55:0;
   const boarder=round.boardingRival;$('#hud').classList.toggle('has-boarder',!!boarder);$('#objective-title').textContent=round.practice?'Learn your combos.':boarder?'Stop them taking your seat!':!active?(bus.phase==='full'?'Full. Save your strength.':bus.phase==='arriving'?'Trotro pulling in!':'Choose your opening.') : blocked?'Break through the doorway.':'The gap is open. Get in!';
   $('#objective-detail').textContent=round.practice?'Connect J J I, then juggle with J / U':boarder?'Hit or shove the orange-marked rival to interrupt.':!active?(round.gathering?'The crowd is gathering. Get into position.':'R picks up a weapon or water. Watch the road.'):blocked?'J J I launches · J U U clears a crowd · F shoves':'Hold E at the door before the blockers recover.';
-  const encounterLocked=round.encounter&&!round.encounterComplete;
-  $('#encounter-status').hidden=!round.encounter;$('#encounter-status').textContent=round.encounter?(round.encounterComplete?'Objective complete · Take your seat':`${round.encounter.name} · ${Math.min(round.encounter.goal,round.encounterProgress)}/${round.encounter.goal}${round.encounter.kind==='captain'?'':` OR ${Math.min(2,round.street.wins)}/2 dares`}`):'';
-  if(encounterLocked&&active){$('#objective-title').textContent=boarder?'Stop them taking your seat!':round.encounter.name;$('#objective-detail').textContent=round.encounter.kind==='captain'?'Defeat the captain before you can board.':round.encounter.kind==='crew'?'Knock down rivals OR win 2 crowd dares. Try the trolley!':'Stop rivals OR win 2 crowd dares to earn your opening.';}
+  const encounterLocked=!round.practice&&!round.encounterComplete;
+  $('#encounter-status').hidden=round.practice;$('#encounter-status').textContent=round.encounterComplete?'All rivals defeated · Door or window':`${round.encounterProgress}/${round.encounterGoal} rivals defeated`;
+  if(encounterLocked&&active){$('#objective-title').textContent=boarder?'Stop them taking your seat!':'Defeat every rival';$('#objective-detail').textContent='Defeated rivals stay down. Clear the crowd, then board.';}
   $('#blocker-panel').hidden=!active||!blocked;$('#blocker-count').textContent=`${round.blockers.length} ${round.blockers.length===1?'passenger blocks':'passengers block'} the entrance`;
   const phase=active?(round.board>0?'board':'fight'):bus.phase==='arriving'?'arrival':'wait';
   document.querySelectorAll('[data-phase]').forEach(el=>{el.classList.toggle('current',el.dataset.phase===phase);});
@@ -169,15 +170,18 @@ function updateHUD(){
   if(round.street.nearby)content=`<kbd>R</kbd> ${round.street.nearby.name}<small>Catch rivals in the trick · 10 stamina</small>`;
   else if(item)content=`<kbd>R</kbd> ${WEAPONS[item.type]?`Equip ${WEAPONS[item.type].name}<small>${WEAPONS[item.type].trait}</small>`:'Drink · +30 health'}`;
   else if(!active)content=bus.phase==='full'?'No space on this trotro. Let it leave.':`Next arrival · ${Math.ceil(bus.arrivalIn)}s`;
-  else if(round.nearDoor&&encounterLocked)content=`${round.encounter.name}<small>${round.encounterProgress}/${round.encounter.goal} · ${round.encounter.kind==='captain'?'Defeat the captain':'Or win 2 crowd dares'}</small>`;
+  else if(round.nearDoor&&encounterLocked)content=`Defeat every rival<small>${round.encounterProgress}/${round.encounterGoal} defeated</small>`;
+  else if(round.window.near&&!round.practice)content=round.window.watching?'<kbd>F</kbd> Shove the mate, then G to vault':'<kbd>G</kbd> Vault through the window';
   else if(round.nearDoor){content=blocked?'<kbd>F</kbd> Shove the blockers out of the doorway':`<kbd>E</kbd> Hold to enter<div class="board-meter"><div style="width:${Math.min(100,round.board*100)}%"></div></div>`;}
   else if(cleared&&distance(p,DOOR)<3.8)content=`Move closer to the glowing door · ${Math.ceil(distance(p,DOOR))} m`;
   document.querySelectorAll('[data-key="r"]').forEach(b=>b.textContent=round.street.nearby?'Street trick':'Pick up');
   $('#context-action').innerHTML=round.practice?'S + U low sweep · W + U flying knee':content;
   const foe=round.combat.target;$('#rival-panel').hidden=!active||!foe;
   if(foe){$('#rival-name').textContent=round.practice?'Sparring partner':foe.captain?round.captain.name:foe.character?characterById(foe.character).name+' · '+characterById(foe.character).role:foe.role==='keeper'?'Heavy blocker':foe.role==='bruiser'?'Bag brawler':foe.role==='swinger'?'Street swinger':'Quick striker';$('#rival-health').style.width=`${Math.max(0,foe.hp/foe.maxHp)*100}%`;$('#rival-guard').style.width=`${foe.guard}%`;$('#rival-state').textContent=foe.state==='airborne'?'AIRBORNE':foe.guardBroken>0?'GUARD BROKEN':foe.defending?'HIGH GUARD':foe.state==='boarding'?'BOARDING':'FOCUSED';$('#rival-tip').textContent=p.counterTime>0?'COUNTER NOW · I launches':(foe.readUntil||0)>round.elapsed?'READING YOUR JABS · S+U / O throws':foe.defending?'S + U sweeps · O throws':'O throws · Tab switches rival';}
-  $('#boarding-alert').hidden=!boarder;$('#boarding-warning').textContent=boarder?.state==='boarding'?'Interrupt now — hit or shove!':'Rival rushing to the door!';$('#rival-board-fill').style.width=`${(boarder?.boardProgress||0)*100}%`;
+  $('#boarding-alert').hidden=!boarder;$('#boarding-warning').textContent=boarder?.state==='boarding'?'Interrupt now — hit or shove!':`Rival rushing to the ${boarder?.boardRoute||'door'}!`;$('#rival-board-fill').style.width=`${(boarder?.boardProgress||0)*100}%`;
   const inputs=round.combat.trail.map(i=>i.key);$('#input-trail').textContent=inputs.length?inputs.join(' › '):'J › J › I';$('#move-name').textContent=round.elapsed<round.combat.moveUntil?round.combat.moveName:'Circle Uppercut';$('#move-hint').textContent=round.chain>1?`${round.chain} hits · ${round.comboDamage} damage · ×${round.multiplier} score`:!round.coach.hit?'Get close, then J → J → I to launch.':!round.coach.shove?'F shoves a crowd. Use the gap to reach the door.':'Hold E at the glowing doorway to take the seat.';$('#cinema-bars').classList.toggle('active',round.combat.active?.move.id==='special');
+  const use=contextAction(round);$('#touch-use').textContent=use.label;$('#touch-use').disabled=!!use.disabled;$('#touch-charge').textContent=Math.floor(round.momentum)+'%';
+  $('#mobile-status').textContent=round.practice?'Practice · Pause for moves':round.window.active?round.window.puller?'Being grabbed · Hold Fight to kick free!':'Climbing · Hold Fight to keep rivals away':!active?(bus.full?'Full trotro · Next one coming':`Next trotro · ${Math.ceil(bus.arrivalIn)}s`):round.encounterComplete?(round.window.near&&round.window.watching?'Mate watching · Shove him back':'All rivals down · Door or window'):boarder?`Rival at ${boarder.boardRoute||'door'} · Hit or shove!`:`Door: ${round.encounterGoal-round.encounterProgress} rivals left · Window: risky shortcut`;
   const target=round.practice?null:round.target;if(target){const position=stage.project(target.x,2.45,target.z);$('#objective-marker').hidden=distance(p,target)<3;$('#objective-marker').style.left=`${Math.max(55,Math.min(innerWidth-65,position.x))}px`;$('#objective-marker').style.top=`${Math.max(innerWidth<760?350:160,Math.min(innerHeight-230,position.y))}px`;$('#marker-label').textContent=round.street.props.includes(target)?'R · Street trick':boarder?'Stop this rival':encounterLocked?'Fight this rival':cleared?'Last seat':'Board here';$('#marker-distance').textContent=`${Math.ceil(distance(p,target))} m`;$('#objective-marker').classList.toggle('door-ready',cleared);}else $('#objective-marker').hidden=true;
 }
 function processEvents(){
@@ -188,8 +192,13 @@ function processEvents(){
     else if(event.type==='comeback'){announce(event.text,3400);soundEffect('won');stage.shoveWave(round.player.x,round.player.z);}
     else if(event.type==='rush'){feedback('RUSH · KEEP IT GOING');soundEffect('won');stage.shoveWave(round.player.x,round.player.z);}
     else if(event.type==='captain-down'){announce(event.text,3000);soundEffect('won');}
-    else if(event.type==='encounter-cleared'){announce('OPENING EARNED · +12 health · Board the trotro!',3200);soundEffect('won');}
+    else if(event.type==='encounter-cleared'){announce('Everyone down! Door or window — your choice.',2200);soundEffect('won');}
     else if(event.type==='challenge'){announce(event.text,3200);soundEffect('won');}
+    else if(event.type==='mate-shove'||event.type==='mate-rebuff'){announce(event.text,2100);soundEffect('shove');stage.shoveWave(round.player.x,round.player.z);if(event.type==='mate-rebuff')mateCall('Ei! Use the door!');}
+    else if(event.type==='window-jump'){soundEffect('dodge');feedback('WINDOW ESCAPE');}
+    else if(event.type==='window-grab'){soundEffect('danger');announce('They are grabbing you! Hold Fight / J to kick free.',1400);}
+    else if(event.type==='window-kick'){soundEffect('shove');feedback('KICK FREE');}
+    else if(event.type==='window-pulled'){soundEffect('damage');announce(event.text,2000);if(stage.shakeEnabled)stage.shake=.18;}
     else if(event.type==='special'){feedback('LAST SEAT SPECIAL');soundEffect('shove');}
     else if(event.type==='combat-note')announce(event.text,1600);
     else if(event.type==='move'){}
@@ -199,13 +208,13 @@ function processEvents(){
     else if(event.type==='crowd-crash'){feedback('CROWD CRASH · MAKE A GAP');stage.shoveWave(event.x,event.z);soundEffect('shove');}
     else if(event.type==='land'){stage.shoveWave(event.x,event.z);soundEffect('hit');}
     else if(event.type==='finisher'){feedback(event.name.toUpperCase());}
-    else if(event.type==='rival-boarding'){announce('A rival is going for YOUR seat! Stop them!',1900);soundEffect('danger');}
+    else if(event.type==='rival-boarding'){announce(`Rival taking the ${event.route||'door'}! Hit or shove them!`,1900);soundEffect('danger');}
     else if(event.type==='boarding-stopped'){feedback(`SEAT SAVED · +${2+round.bonuses.interruptTime}s · +100`);soundEffect('parry');}
     else if(event.type==='seat-stolen'){feedback('SEAT TAKEN · NEXT TROTRO');soundEffect('missed');}
     else if(event.type==='last-call'){soundEffect('danger');mateCall('Last seat! We are going!');}
-    else if(event.type==='bus-state'){lastCountdown=-1;if(event.phase==='boarding'||event.phase==='full')soundEffect('bus-state');if(event.phase==='arriving'){soundEffect('arriving');mateCall(run.arena.route.split('—').at(-1).trim()+(event.full?'! Full!':'! One seat!'));}if(event.phase==='departing')soundEffect('departing');}
+    else if(event.type==='bus-state'){lastCountdown=-1;if(event.phase==='boarding'||event.phase==='full')soundEffect('bus-state');if(event.phase==='arriving'){soundEffect('arriving');mateCall(arrivalCall(run.arena.route,event.full));}if(event.phase==='departing')soundEffect('departing');}
     else if(event.type==='end')finish(event.result);
-    else if(event.type==='hit'){stage.impact(event.x,event.z,event.finish,1.3+(event.y||0));soundEffect('hit');impactPause=event.finish?.065:.035;const at=stage.project(event.x,1.7+(event.y||0),event.z);if(at.x>0&&at.x<innerWidth&&at.y>0&&at.y<innerHeight){const number=document.createElement('span');number.className='floating-damage'+(event.finish?' finisher':'');number.textContent=event.damage;number.style.left=at.x+'px';number.style.top=at.y+'px';$('#hud').appendChild(number);setTimeout(()=>number.remove(),700);}}
+    else if(event.type==='hit'){if(stage.shakeEnabled&&navigator.vibrate)navigator.vibrate(event.finish?35:12);stage.impact(event.x,event.z,event.finish,1.3+(event.y||0));soundEffect('hit');impactPause=event.finish?.065:.035;const at=stage.project(event.x,1.7+(event.y||0),event.z);if(at.x>0&&at.x<innerWidth&&at.y>0&&at.y<innerHeight){const number=document.createElement('span');number.className='floating-damage'+(event.finish?' finisher':'');number.textContent=event.damage;number.style.left=at.x+'px';number.style.top=at.y+'px';$('#hud').appendChild(number);setTimeout(()=>number.remove(),700);}}
     else if(event.type==='combo')feedback(`${event.aerial?'AIR ':''}${event.count} HIT · ${event.damage} DAMAGE`);
     else if(event.type==='down'){feedback(event.keeper?'Heavy blocker down! +500':'Knockdown! +150');soundEffect('down');}
     else if(event.type==='shove'){stage.shoveWave(event.x,event.z);feedback('Make some space!');soundEffect('shove');}
@@ -230,16 +239,30 @@ $('#fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenEl
 window.addEventListener('keydown',e=>{
   const key=e.key.toLowerCase();if(!round||round.status!=='playing')return;
   if(key==='escape'||key==='p'){e.preventDefault();if(!e.repeat)paused?resume():pause();return;}if(key==='m'){e.preventDefault();if(!e.repeat)$('#moves-dialog').open?resume():moves();return;}if(paused)return;
-  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','j','i','u','o','tab','k','l',' ','e','r','f','q'].includes(key))e.preventDefault();keys.add(key);
-  if(!e.repeat){if(key==='j')action('attack');if(key==='i')action('heavy');if(key==='u')action('kick');if(key==='o')action('grab');if(key==='tab')action('target');if(key==='f')action('shove');if(key==='q')action('burst');if(key==='l'||key===' ')action('dodge');if(key==='r')action('pickup');}
+  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','j','i','u','o','tab','k','l',' ','e','r','f','q','g'].includes(key))e.preventDefault();keys.add(key);
+  if(!e.repeat){if(key==='j')action('attack');if(key==='i')action('heavy');if(key==='u')action('kick');if(key==='o')action('grab');if(key==='tab')action('target');if(key==='f')action('shove');if(key==='q')action('burst');if(key==='g')action('vault');if(key==='l'||key===' ')action('dodge');if(key==='r')action('pickup');}
 });
-window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{keys.clear();pause();});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();else if(!round)refreshCareer();});
+window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{clearInput();pause();});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();else if(!round)refreshCareer();});
 function bindHold(button,key,press){
   button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture?.(e.pointerId);if(key)keys.add(key);press?.();});const release=()=>{if(key)keys.delete(key);};button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
   button.addEventListener('click',e=>{if(e.detail===0){if(press)press();else if(key==='k'){keys.add('k');setTimeout(()=>keys.delete('k'),500);}}});
 }
 document.querySelectorAll('[data-action]').forEach(button=>{const actionName=button.dataset.action;bindHold(button,actionName==='block'?'k':actionName==='attack'?'j':null,actionName==='block'?null:()=>action(actionName));});
 document.querySelectorAll('[data-key]').forEach(button=>bindHold(button,button.dataset.key,button.dataset.key==='r'?()=>action('pickup'):null));
+$('#menu-options').addEventListener('click',()=>{const expanded=document.body.classList.toggle('menu-expanded');$('#menu-options').setAttribute('aria-expanded',expanded);$('#menu-options').textContent=expanded?'Close game options':'Game options';});
+$('#pause-moves').addEventListener('click',moves);
+const stick=$('#thumbstick');let stickPointer=null;
+function updateStick(event){const box=stick.getBoundingClientRect(),v=stickVector(event.clientX-box.left-box.width/2,event.clientY-box.top-box.height/2);touchState.x=v.x;touchState.z=v.z;$('#stick-knob').style.transform=`translate(calc(-50% + ${v.knobX}px),calc(-50% + ${v.knobY}px))`;}
+stick.addEventListener('pointerdown',event=>{if(paused||!round)return;event.preventDefault();stickPointer=event.pointerId;stick.setPointerCapture(event.pointerId);updateStick(event);});
+stick.addEventListener('pointermove',event=>{if(event.pointerId===stickPointer)updateStick(event);});
+for(const name of ['pointerup','pointercancel','lostpointercapture'])stick.addEventListener(name,()=>{stickPointer=null;touchState.x=0;touchState.z=0;$('#stick-knob').style.transform='translate(-50%,-50%)';});
+const fight=$('#touch-fight');fight.addEventListener('pointerdown',event=>{event.preventDefault();fight.setPointerCapture(event.pointerId);if(!paused)touchState.assist=true;});
+for(const name of ['pointerup','pointercancel','lostpointercapture'])fight.addEventListener(name,()=>touchState.assist=false);
+fight.addEventListener('click',event=>{if(event.detail===0)action('attack');});
+function useContext(){if(paused||!round)return;const use=contextAction(round);if(use.kind==='board')keys.add('e');else if(!use.disabled)action(use.kind);}
+const useButton=$('#touch-use');useButton.addEventListener('pointerdown',event=>{event.preventDefault();useButton.setPointerCapture(event.pointerId);useContext();});
+for(const name of ['pointerup','pointercancel','lostpointercapture'])useButton.addEventListener(name,()=>keys.delete('e'));
+useButton.addEventListener('click',event=>{if(event.detail===0){useContext();setTimeout(()=>keys.delete('e'),1500);}});
 try{
   stage=new Stage($('#world'));await stage.prepare();
   for(const a of ARENAS){const button=document.createElement('button');button.className='arena-choice';button.dataset.arena=a.id;button.innerHTML=`<strong>${a.name}</strong><small>${a.subtitle}</small>`;button.addEventListener('click',()=>selectArena(a));$('#arena-list').appendChild(button);}
@@ -247,7 +270,7 @@ try{
   function loop(now){
     const dt=Math.min(.05,(now-lastTime)/1000);lastTime=now;let simulationDt=dt;
     if(impactPause>0){impactPause-=dt;simulationDt*=.15;}
-    if(round&&!paused&&round.status==='playing'){const m=movement();round.tick(simulationDt,{...m,attack:keys.has('j'),block:keys.has('k'),crouch:keys.has('s')||keys.has('arrowdown'),board:keys.has('e')});processEvents();updateHUD();}
+    if(round&&!paused&&round.status==='playing'){const m=movement();round.tick(simulationDt,{...m,assist:touchState.assist,attack:keys.has('j'),block:keys.has('k'),crouch:keys.has('s')||keys.has('arrowdown'),board:keys.has('e')});processEvents();updateHUD();}
     stage.update(paused?0:simulationDt,round,!round);requestAnimationFrame(loop);
   }requestAnimationFrame(loop);
 }catch(error){console.error(error);$('#load-screen').innerHTML='<strong>The arena could not start.</strong><p>Check your connection and enable WebGL, then reload.</p><button class="secondary" onclick="location.reload()">Try again</button>';}

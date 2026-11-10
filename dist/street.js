@@ -17,7 +17,6 @@ export class StreetPlay {
     ];
   }
   get dare(){return DARES[this.index%DARES.length];}
-  get opening(){return this.wins>=2;}
   get nearby(){return this.round.combatActive?this.props.find(p=>p.state==='ready'&&distance(p,this.round.player)<1.8):null;}
   record(kind,move){
     const r=this.round;if(r.practice||!r.combatActive||r.status!=='playing'||this.intermission>0)return;
