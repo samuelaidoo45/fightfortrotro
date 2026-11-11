@@ -4,13 +4,15 @@ import {COMBO_ROUTES} from './combat.js';
 import {Stage} from './stage.js';
 import {stickVector,contextAction,arrivalCall} from './mobile.js';
 import {createScreenControls} from './screen-controls.js';
+import {createRenderLoop} from './render-loop.js';
 import {CityJourney,TRAVEL_CHOICES,ENCOUNTERS} from './campaign.js';
 import {UPGRADES,BADGES,cleanProfile,rankFor,masteryFor,awardRound,dailyRoute,seededRandom} from './journey.js';
 let playMode='campaign',checkpointSaved=true,cityReward='';const savedJourneys={};
 for(const kind of ['campaign','endless']){try{const saved=CityJourney.restore(JSON.parse(localStorage.getItem('trotro-'+kind+'-v1')||'null'));if(saved)savedJourneys[kind]=saved.snapshot();}catch{}}
-const $=selector=>document.querySelector(selector),keys=new Set(),touchState={x:0,z:0,assist:false};
-function clearInput(){keys.clear();touchState.x=0;touchState.z=0;touchState.assist=false;$('#stick-knob').style.transform='translate(-50%,-50%)';}
-let mode='normal',difficultyOverride=null,arena=ARENAS[0],run=null,round=null,paused=false,stage,lastTime=performance.now(),messageTimeout,comboTimeout,impactPause=0,audio,noiseBuffer,lastCountdown=-1;
+const $=selector=>document.querySelector(selector),keys=new Set(),touchState={x:0,z:0,assist:false};let stickPointer=null;
+function clearInput(){stickPointer=null;keys.clear();touchState.x=0;touchState.z=0;touchState.assist=false;$('#stick-knob').style.transform='translate(-50%,-50%)';}
+let mode='normal',difficultyOverride=null,arena=ARENAS[0],run=null,round=null,paused=false,stage,messageTimeout,comboTimeout,impactPause=0,audio,noiseBuffer,lastCountdown=-1;
+let renderLoop=null;
 let records={},sound=true,characterId='office',profile=cleanProfile(null),dailyRun=null,saveAvailable=true;
 try{profile=cleanProfile(JSON.parse(localStorage.getItem('trotro-career-v1')||'null'));}catch{saveAvailable=false;}
 try{characterId=characterById(localStorage.getItem('trotro-character')).id;}catch{}
@@ -140,7 +142,15 @@ function selectCharacter(id){characterId=characterById(id).id;const c=characterB
 function characterMenu(){selectCharacter(characterId);$('#character-dialog').showModal();}
 function retry(){if(run?.canContinue){if(run.selectedUpgrade)playRound(run.advance());}else if(dailyRun)startDaily(true);else start();}
 function pause(){if(!round||round.status!=='playing'||paused)return;paused=true;window.speechSynthesis?.cancel();clearInput();round.combat.queue=[];$('#pause-detail').textContent=round.practice?'Practice is paused. Try different moves to fill the Rush meter.':`${round.condition.name}: ${round.condition.detail}${round.captain?' '+round.captain.name+': '+round.captain.detail:''}`;$('#quit').textContent=run.kind?'Save journey and leave':'Back to stops';if(run.kind)$('#pause-detail').textContent+=' Your completed encounters and build are saved. Continuing later restarts this encounter.';$('#pause-dialog').showModal();}
-function resume(){paused=false;clearInput();$('#pause-dialog').close();$('#moves-dialog').close();lastTime=performance.now();}
+function graphicsState(state){
+  const ready=state==='ready',text=state==='lost'?'Restoring graphics… Your fight is paused.':state==='error'?'Graphics need restoring. Tap Restore graphics to try again.':ready?'Graphics restored. You can resume your fight.':'Restoring colours and lighting…';
+  $('#resume').disabled=!ready;$('#pause-moves').disabled=!ready;
+  for(const id of ['#graphics-notice','#graphics-message']){$(id).textContent=text;$(id).hidden=ready;}
+  if(!ready){clearInput();pause();}
+  if(state==='lost')renderLoop?.setBlocked(true);
+  if(state==='restoring')renderLoop?.setBlocked(false);
+}
+function resume(){if(stage.contextLost||$('#resume').disabled){$('#moves-dialog').close();if(round?.status==='playing'&&!$('#pause-dialog').open)$('#pause-dialog').showModal();return;}paused=false;clearInput();$('#pause-dialog').close();$('#moves-dialog').close();}
 function lobby(){if(run?.kind)saveJourney();window.speechSynthesis?.cancel();for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();round=null;run=null;paused=false;clearInput();$('#hud').hidden=true;document.body.classList.remove('playing','campaign-playing');selectArena(arena);refreshCareer();$('#start').focus({preventScroll:true});}
 function finish(result){
   clearInput();window.speechSynthesis?.cancel();$('#announcement').classList.remove('show');run.record(round);const won=result==='won';
@@ -282,7 +292,7 @@ window.addEventListener('keydown',e=>{
   if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','j','i','u','o','tab','k','l',' ','e','r','f','q','g'].includes(key))e.preventDefault();keys.add(key);
   if(!e.repeat){if(key==='j')action('attack');if(key==='i')action('heavy');if(key==='u')action('kick');if(key==='o')action('grab');if(key==='tab')action('target');if(key==='f')action('shove');if(key==='q')action('burst');if(key==='g')action('vault');if(key==='l'||key===' ')action('dodge');if(key==='r')action('pickup');}
 });
-window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{clearInput();pause();});document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();else if(!round)refreshCareer();});
+window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));window.addEventListener('blur',()=>{clearInput();pause();});document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();pause();}else if(!round)refreshCareer();});
 function bindHold(button,key,press){
   button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture?.(e.pointerId);if(key)keys.add(key);press?.();});const release=()=>{if(key)keys.delete(key);};button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
   button.addEventListener('click',e=>{if(e.detail===0){if(press)press();else if(key==='k'){keys.add('k');setTimeout(()=>keys.delete('k'),500);}}});
@@ -291,7 +301,8 @@ document.querySelectorAll('[data-action]').forEach(button=>{const actionName=but
 document.querySelectorAll('[data-key]').forEach(button=>bindHold(button,button.dataset.key,button.dataset.key==='r'?()=>action('pickup'):null));
 $('#menu-options').addEventListener('click',()=>{refreshJourneyMenu();$('#game-setup').showModal();});
 $('#pause-moves').addEventListener('click',moves);
-const stick=$('#thumbstick');let stickPointer=null;
+$('#repair-graphics').addEventListener('click',()=>{clearInput();stage.requestGraphicsRefresh(true);graphicsState(stage.contextLost?'lost':'restoring');});
+const stick=$('#thumbstick');
 function updateStick(event){const box=stick.getBoundingClientRect(),v=stickVector(event.clientX-box.left-box.width/2,event.clientY-box.top-box.height/2,Math.max(20,(box.width-54)/2));touchState.x=v.x;touchState.z=v.z;$('#stick-knob').style.transform=`translate(calc(-50% + ${v.knobX}px),calc(-50% + ${v.knobY}px))`;}
 stick.addEventListener('pointerdown',event=>{if(paused||!round)return;event.preventDefault();stickPointer=event.pointerId;stick.setPointerCapture(event.pointerId);updateStick(event);});
 stick.addEventListener('pointermove',event=>{if(event.pointerId===stickPointer)updateStick(event);});
@@ -304,13 +315,17 @@ const useButton=$('#touch-use');useButton.addEventListener('pointerdown',event=>
 for(const name of ['pointerup','pointercancel','lostpointercapture'])useButton.addEventListener(name,()=>keys.delete('e'));
 useButton.addEventListener('click',event=>{if(event.detail===0){useContext();setTimeout(()=>keys.delete('e'),1500);}});
 try{
-  stage=new Stage($('#world'));await stage.prepare();
+  stage=new Stage($('#world'));stage.onGraphicsState=graphicsState;await stage.prepare();
   for(const a of ARENAS){const button=document.createElement('button');button.className='arena-choice';button.dataset.arena=a.id;button.innerHTML=`<strong>${a.name}</strong><small>${a.subtitle}</small>`;button.addEventListener('click',()=>selectArena(a));$('#arena-list').appendChild(button);}
   selectArena(arena);const portraits=stage.portraits();for(const c of CHARACTERS){const button=document.createElement('button');button.type='button';button.className='character-card';button.dataset.character=c.id;button.style.setProperty('--fighter-color',c.color);button.innerHTML=`<img alt="${c.name}, ${c.role}" src="${portraits.get(c.id)}"><span>${c.role}</span><strong>${c.name}</strong><small>${c.perk}</small>`;button.addEventListener('click',()=>selectCharacter(c.id));$('#character-grid').appendChild(button);}selectCharacter(characterId);refreshCareer();$('#load-screen').remove();
-  function loop(now){
-    const dt=Math.min(.05,(now-lastTime)/1000);lastTime=now;let simulationDt=dt;
-    if(impactPause>0){impactPause-=dt;simulationDt*=.15;}
-    if(round&&!paused&&round.status==='playing'){const m=movement();round.tick(simulationDt,{...m,assist:touchState.assist,attack:keys.has('j'),block:keys.has('k'),crouch:keys.has('s')||keys.has('arrowdown'),board:keys.has('e')});processEvents();updateHUD();}
-    stage.update(paused?0:simulationDt,round,!round);requestAnimationFrame(loop);
-  }requestAnimationFrame(loop);
+  renderLoop=createRenderLoop({doc:document,win:window,requestFrame:fn=>requestAnimationFrame(fn),cancelFrame:id=>cancelAnimationFrame(id),now:()=>performance.now(),
+    onSuspend:()=>{clearInput();pause();if(run?.kind)saveJourney();},
+    onResume:()=>{clearInput();stage.requestGraphicsRefresh();},
+    onError:error=>{console.error(error);graphicsState('error');},
+    step:dt=>{
+      let simulationDt=dt;if(impactPause>0){impactPause-=dt;simulationDt*=.15;}
+      if(round&&!paused&&round.status==='playing'){const m=movement();round.tick(simulationDt,{...m,assist:touchState.assist,attack:keys.has('j'),block:keys.has('k'),crouch:keys.has('s')||keys.has('arrowdown'),board:keys.has('e')});processEvents();updateHUD();}
+      stage.update(paused?0:simulationDt,round,!round);
+    }
+  });stage.onGraphicsState=graphicsState;if(stage.contextLost)graphicsState('lost');renderLoop.start();
 }catch(error){console.error(error);$('#load-screen').innerHTML='<strong>The arena could not start.</strong><p>Check your connection and enable WebGL, then reload.</p><button class="secondary" onclick="location.reload()">Try again</button>';}

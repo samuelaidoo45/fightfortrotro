@@ -64,3 +64,7 @@
 #hud #difficulty-badge[data-mode=easy]{color:#bce8ce;border-color:#99c7b080}
 #hud #difficulty-badge[data-mode=hard]{color:#ffb9a5;border-color:#e3a08c80}
 #hud #weapon-label{margin-left:auto}
+
+#graphics-notice{position:fixed;z-index:25;top:20px;left:50%;transform:translateX(-50%);width:min(440px,calc(100vw - 32px));padding:14px 18px;border:1px solid #b2c9d066;border-radius:8px;background:#142c3af5;color:#f1ead7;font-size:13px;line-height:1.5;pointer-events:none}
+#pause-dialog #graphics-message{font-size:13px;color:#ffdc91;line-height:1.5}
+#pause-dialog #repair-graphics{font-size:12px;min-height:44px}

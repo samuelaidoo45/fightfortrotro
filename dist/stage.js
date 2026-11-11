@@ -9,22 +9,43 @@ const C={blue:0x267d9b,cream:0xe7e0ca,rubber:0x242929,skin:0x73452d,road:0x6b706
 const mat=(color,roughness=.8,metalness=0)=>new T.MeshStandardMaterial({color,roughness,metalness});
 export class Stage {
   constructor(canvas){
-    this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.95;
+    this.pixelRatioCap=matchMedia('(pointer:coarse)').matches||innerWidth<760?1.5:1.7;this.contextLost=false;this.needsLightingRefresh=false;this.needsTextureRefresh=false;
+    this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,this.pixelRatioCap));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.95;
     this.scene=new T.Scene();this.camera=new T.PerspectiveCamera(42,innerWidth/innerHeight,.1,160);this.camera.position.set(18,11,20);
     this.look=new T.Vector3(0,1,-2);this.clock=0;this.effects=[];this.actors=[];this.shake=0;this.shakeEnabled=!matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.hemi=new T.HemisphereLight(0xb9d0e5,0x61523e,1.1);this.scene.add(this.hemi);
-    this.sun=new T.DirectionalLight(0xffd6a0,3.8);this.sun.position.set(-14,14,9);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);Object.assign(this.sun.shadow.camera,{left:-26,right:26,top:24,bottom:-24,near:1,far:65});this.sun.shadow.bias=-.00025;this.sun.shadow.normalBias=.025;this.sun.shadow.radius=3;this.scene.add(this.sun);
+    this.sun=new T.DirectionalLight(0xffd6a0,3.8);this.sun.position.set(-14,14,9);this.sun.castShadow=true;const shadowSize=this.pixelRatioCap===1.5?1024:2048;this.sun.shadow.mapSize.set(shadowSize,shadowSize);Object.assign(this.sun.shadow.camera,{left:-26,right:26,top:24,bottom:-24,near:1,far:65});this.sun.shadow.bias=-.00025;this.sun.shadow.normalBias=.025;this.sun.shadow.radius=3;this.scene.add(this.sun);
     const rim=new T.DirectionalLight(0x9abacb,.8);rim.position.set(12,7,-10);this.scene.add(rim);this.humans=new HumanLibrary();
     this.environment=new T.Group();this.scene.add(this.environment);this.dynamic=new T.Group();this.scene.add(this.dynamic);
     this.materials={skin:mat(C.skin),black:mat(0x202c30),cream:mat(C.cream,.65,.12),blue:mat(C.blue,.38,.3),glass:new T.MeshPhysicalMaterial({color:0x658b94,metalness:.1,roughness:.12,transparent:true,opacity:.66,envMapIntensity:1.4,side:T.DoubleSide}),chrome:mat(0xa7b2ac,.3,.7),yellow:mat(0xe9b844),rubber:mat(C.rubber)};
-    this.resize();window.addEventListener('resize',()=>this.resize());
+    this.handleResize=()=>this.resize();this.resize();window.addEventListener('resize',this.handleResize);
+    // Three restores its own buffers first; our generated render-target lighting must be rebuilt.
+    this.handleContextLost=event=>{event.preventDefault();this.contextLost=true;this.requestGraphicsRefresh(true);this.onGraphicsState?.('lost');};
+    this.handleContextRestored=()=>{this.contextLost=false;this.requestGraphicsRefresh(true);this.onGraphicsState?.('restoring');};
+    canvas.addEventListener('webglcontextlost',this.handleContextLost);canvas.addEventListener('webglcontextrestored',this.handleContextRestored);
   }
-  resize(){this.renderer.setSize(innerWidth,innerHeight);this.camera.aspect=innerWidth/innerHeight;this.camera.updateProjectionMatrix();}
+  resize(){if(this.contextLost)return;const width=Math.max(1,innerWidth),height=Math.max(1,innerHeight);this.renderer.setSize(width,height);this.camera.aspect=width/height;this.camera.updateProjectionMatrix();}
+  requestGraphicsRefresh(textures=false){this.needsLightingRefresh=true;this.needsTextureRefresh||=textures;}
+  makeEnvironmentMap(){const generator=new T.PMREMGenerator(this.renderer);try{return generator.fromEquirectangular(this.sky);}finally{generator.dispose();}}
+  restoreGraphics(){
+    if(this.contextLost||this.renderer.getContext().isContextLost())return false;
+    this.renderer.resetState();this.renderer.setRenderTarget(null);this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=.95;this.renderer.setPixelRatio(Math.min(devicePixelRatio,this.pixelRatioCap));this.resize();
+    if(this.needsTextureRefresh){
+      const materials=new Set([...Object.values(this.materials),...this.humans.materials]),textures=new Set();
+      this.scene.traverse(object=>{if(object.material)for(const material of Array.isArray(object.material)?object.material:[object.material])materials.add(material);});
+      for(const material of materials){material.needsUpdate=true;for(const value of Object.values(material))if(value?.isTexture&&!value.isRenderTargetTexture)textures.add(value);}
+      for(const texture of textures)texture.needsUpdate=true;
+      this.sun.shadow.map?.dispose();this.sun.shadow.map=null;this.sun.shadow.mapPass?.dispose();this.sun.shadow.mapPass=null;
+    }
+    if(this.sky){this.sky.needsUpdate=true;const previous=this.environmentMap;this.environmentMap=this.makeEnvironmentMap();this.scene.environment=this.environmentMap.texture;this.scene.environmentIntensity=.6;this.scene.background=this.sky;previous?.dispose();}
+    this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.shadowMap.needsUpdate=true;this.sun.shadow.needsUpdate=true;
+    this.needsLightingRefresh=false;this.needsTextureRefresh=false;this.onGraphicsState?.('ready');return true;
+  }
   async prepare(){
     await this.humans.load((done,total)=>{const label=document.querySelector('#load-screen p');if(label)label.textContent=`Loading commuters and motion… ${done} / ${total}`;});
     const loader=new T.TextureLoader(),maps=await Promise.all(['Diffuse','nor_gl','Rough'].map(key=>loader.loadAsync(new URL('./assets/surfaces/asphalt-'+key+'.jpg',import.meta.url).href)));
     maps.forEach(map=>{map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(17,17);map.anisotropy=8;});maps[0].colorSpace=T.SRGBColorSpace;this.materials.asphalt=new T.MeshStandardMaterial({map:maps[0],normalMap:maps[1],roughnessMap:maps[2],normalScale:new T.Vector2(.55,.55),roughness:1});
-    const sky=document.createElement('canvas');sky.width=1024;sky.height=512;const context=sky.getContext('2d'),gradient=context.createLinearGradient(0,0,0,512);gradient.addColorStop(0,'#31516f');gradient.addColorStop(.42,'#8da8b8');gradient.addColorStop(.52,'#c6bda4');gradient.addColorStop(.57,'#a39b82');gradient.addColorStop(1,'#605a4a');context.fillStyle=gradient;context.fillRect(0,0,1024,512);const texture=new T.CanvasTexture(sky);texture.colorSpace=T.SRGBColorSpace;texture.mapping=T.EquirectangularReflectionMapping;this.sky=texture;const generator=new T.PMREMGenerator(this.renderer);this.environmentMap=generator.fromEquirectangular(texture);this.scene.environment=this.environmentMap.texture;this.scene.environmentIntensity=.6;generator.dispose();
+    const sky=document.createElement('canvas');sky.width=1024;sky.height=512;const context=sky.getContext('2d'),gradient=context.createLinearGradient(0,0,0,512);gradient.addColorStop(0,'#31516f');gradient.addColorStop(.42,'#8da8b8');gradient.addColorStop(.52,'#c6bda4');gradient.addColorStop(.57,'#a39b82');gradient.addColorStop(1,'#605a4a');context.fillStyle=gradient;context.fillRect(0,0,1024,512);const texture=new T.CanvasTexture(sky);texture.colorSpace=T.SRGBColorSpace;texture.mapping=T.EquirectangularReflectionMapping;this.sky=texture;this.environmentMap=this.makeEnvironmentMap();this.scene.environment=this.environmentMap.texture;this.scene.environmentIntensity=.6;
   }
   box(parent,w,h,d,material,x=0,y=0,z=0){const mesh=new T.Mesh(new T.BoxGeometry(w,h,d),typeof material==='number'?mat(material):material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;}
   roundedBox(parent,w,h,d,material,x=0,y=0,z=0,radius=.08){const mesh=new T.Mesh(new RoundedBoxGeometry(w,h,d,3,radius),material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;}
@@ -220,7 +241,7 @@ export class Stage {
     const portraits=new Map(),scene=new T.Scene();scene.background=new T.Color(0x1b2d37);scene.add(new T.HemisphereLight(0xd8e8ef,0x82745b,2));const light=new T.DirectionalLight(0xffddb0,3);light.position.set(-2,4,5);scene.add(light);scene.environment=this.scene.environment;
     const camera=new T.PerspectiveCamera(28,180/230,.1,20);camera.position.set(.2,1.13,4.4);camera.lookAt(0,.99,0);this.renderer.setPixelRatio(1);this.renderer.setSize(180,230,false);
     for(const c of CHARACTERS){const actor=this.character(0xe4b74f,true,null,null,c.id);scene.add(actor.group);actor.group.rotation.y=.18;actor.ring.visible=false;this.humans.update(actor,{state:'idle'},.3,0);this.renderer.render(scene,camera);portraits.set(c.id,this.renderer.domElement.toDataURL('image/webp',.86));this.clear(actor.group);scene.remove(actor.group);}
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));this.resize();return portraits;
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio,this.pixelRatioCap));this.resize();return portraits;
   }
   begin(round){
     this.menuHero.group.visible=false;this.camera.fov=50;this.camera.updateProjectionMatrix();this.clear(this.dynamic);this.effects=[];this.actors=[];this.player=this.character(0xe4b74f,true,null,null,round.player.character);this.dynamic.add(this.player.group);
@@ -304,6 +325,7 @@ export class Stage {
     this.doorRing.visible=parked&&!departed;this.doorRing.material.color.setHex(full?0xa08d81:round?.doorCalled?0xffd05b:0xcc8d57);this.doorRing.material.opacity=full?.22:(lobby||round?.doorCalled)?.65+Math.sin(this.clock*4)*.15:.18;
   }
   update(dt,round,lobby=false){
+    if(this.contextLost)return;if(this.needsLightingRefresh&&!this.restoreGraphics())return;
     this.clock+=dt;this.updateStreet(dt,round);const narrow=innerWidth<760;for(const actor of this.extras||[])this.humans.update(actor,{state:'idle'},dt,this.clock);
     if(lobby){const target=new T.Vector3(narrow?10:10,narrow?4.4:3.6,narrow?13:10);this.camera.position.lerp(target,Math.min(1,dt*2));this.look.lerp(new T.Vector3(narrow?2:1.2,1,-4),dt*2);}
     else if(round&&this.player){
@@ -324,5 +346,5 @@ export class Stage {
     for(let i=this.effects.length-1;i>=0;i--){const e=this.effects[i];e.life-=dt;if(e.kind==='wave'){e.mesh.scale.setScalar(1+(.4-e.life)*6);e.mesh.material.opacity=Math.max(0,e.life/.4)*.45;}else if(e.kind==='trail'){e.mesh.material.opacity=Math.max(0,e.life/.13)*.6;}else{e.mesh.position.addScaledVector(e.v,dt);e.v.y-=dt*8;e.mesh.scale.setScalar(Math.max(0,e.life/.35));}if(e.life<=0){this.dynamic.remove(e.mesh);e.mesh.geometry.dispose();e.mesh.material.dispose();this.effects.splice(i,1);}}
     this.renderer.render(this.scene,this.camera);
   }
-  dispose(){this.clear(this.environment);this.clear(this.dynamic);this.renderer.dispose();}
+  dispose(){window.removeEventListener('resize',this.handleResize);this.renderer.domElement.removeEventListener('webglcontextlost',this.handleContextLost);this.renderer.domElement.removeEventListener('webglcontextrestored',this.handleContextRestored);this.clear(this.environment);this.clear(this.dynamic);this.environmentMap?.dispose();this.sky?.dispose();this.renderer.dispose();}
 }

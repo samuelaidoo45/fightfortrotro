@@ -1,4 +1,4 @@
-# Fight for Trotro — version 1.4.7 — Gameplay Difficulty
+# Fight for Trotro — version 1.4.8 — Mobile Graphics Recovery
 
 Play an 18-encounter City Journey, an Endless Commute, or a three-stop Quick ride. The same crowd that blocks your entry now competes to board before you. Combat is non-graphic and uses original moves inspired by fighting-game fundamentals: startup, active contact, recovery, confirmed combo branches, guard breaks, low attacks, throws, launchers and air juggles. This is a browser prototype, not a finished AAA production.
 
@@ -142,3 +142,11 @@ Fullscreen and Rotate controls appear in the menu, active HUD and Pause dialog. 
 ## Difficulty in play
 
 Before encounter modifiers, Easy/Normal/Hard spawn 4/6/8 rivals. Enemy base damage is 8/11/15 before the shared 65% health tuning; basic attack warnings start at 1.1/0.85/0.66 seconds before weapon and heavy-attack modifiers. Pursuit speed multiplies base movement by 0.65/0.8/1.0, giving Easy more space and Hard faster pressure. Simultaneous player attacks are capped at 1/2/3. Available boarding windows are 38/32/26 seconds; rivals first rush after 9/7/5.5 seconds and board in 3.4/2.9/2.5 seconds. Tests exercise actual damage, movement, wind-ups, race starts and resumed configuration rather than only checking menu text.
+
+## Graphics recovery and backgrounding
+
+Visibility loss, pagehide and browser freeze cancel the pending animation frame, release held input, pause combat and save City/Endless checkpoints. Return/page-cache restore restarts one animation chain with a fresh clock; hidden time does not become simulation time. Ordinary foreground return regenerates the environment lighting and refreshes canvas dimensions.
+
+A WebGL context loss prevents gameplay resumption until restoration succeeds. Three.js restores its own renderer state first; Stage then re-uploads source material textures, rebuilds the PMREM environment from its retained sky canvas, discards obsolete shadow targets, reapplies sRGB output/ACES tone mapping/exposure and requests fresh shadows. Actor objects, health, bus state, upgrades and positions remain in memory. Restore graphics in Pause retries a failed recovery; rendering exceptions pause and expose this action instead of silently losing the frame loop. Mobile pixel ratio is capped at 1.5 and shadow maps use 1024px rather than 2048px.
+
+If the operating system completely discards the page, the existing saved-checkpoint behavior applies; exact mid-fight state is not persisted across a full page reload.
